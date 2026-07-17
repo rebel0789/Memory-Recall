@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "partial",
     "types": "unmeasured",
@@ -66,6 +66,28 @@
       "locator": "workspace://applications.py#L1105-L1158"
     },
     {
+      "id": "cititem_fastapi_import_openapi_utils",
+      "semanticKey": "edge:imports:applications.py:openapi/utils.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "applications",
+        "qualifiedName": "applications.py::applications",
+        "locator": "workspace://applications.py#L1-L4769"
+      },
+      "to": {
+        "kind": "module",
+        "name": "openapi_utils",
+        "qualifiedName": "openapi/utils.py::openapi_utils",
+        "locator": "workspace://openapi/utils.py#L1-L618"
+      },
+      "locator": "workspace://applications.py#L22-L22",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_fastapi_extends_starlette",
       "semanticKey": "edge:extends:applications.py:FastAPI:Starlette",
       "capability": "heritage",
@@ -90,5 +112,5 @@
       "resolution": "typed"
     }
   ],
-  "truthFingerprint": "sha256:955a12802d7a63d1ce57c0d1715cb3cdd9522fa216ff210958165c6db96f9eaa"
+  "truthFingerprint": "sha256:a2fdbd48a7774c0c2e10617fb61684a61049b19ad6dadc8b3eade05c64059c30"
 }

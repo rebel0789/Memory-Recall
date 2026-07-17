@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "partial",
     "types": "unmeasured",
@@ -66,6 +66,28 @@
       "locator": "workspace://views.py#L182-L191"
     },
     {
+      "id": "cititem_flask_import_globals",
+      "semanticKey": "edge:imports:views.py:globals.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "views",
+        "qualifiedName": "views.py::views",
+        "locator": "workspace://views.py#L1-L192"
+      },
+      "to": {
+        "kind": "module",
+        "name": "globals",
+        "qualifiedName": "globals.py::globals",
+        "locator": "workspace://globals.py#L1-L78"
+      },
+      "locator": "workspace://views.py#L6-L6",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_flask_method_view_extends_view",
       "semanticKey": "edge:extends:views.py:MethodView:View",
       "capability": "heritage",
@@ -90,5 +112,5 @@
       "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:47bee39df289542e2aacedd76bfbc8dc6762c1d280bd4063806fafcbb57b04f1"
+  "truthFingerprint": "sha256:82684e334e71f2e0b7810f3ea6123c999208d71664ce55932a89710e4bbceb37"
 }

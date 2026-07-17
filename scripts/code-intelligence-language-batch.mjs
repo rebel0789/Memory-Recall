@@ -37,7 +37,7 @@ export async function runLanguageBatch({ batch, languages, repositoryScopes, cla
     const repository = corpus.repositories.find((item) => item.id === id);
     if (!repository) throw new Error(`batch_${lower}_repository_missing:${id}`);
     const truthPath = `evals/code-intelligence/truth/repositories/${repository.primaryLanguage}/${id}.json`;
-    const checkout = await ensurePinnedRepository(repository, lower);
+    const checkout = await ensurePinnedRepository(repository, lower, scope);
     repositories.push({
       id,
       language: repository.primaryLanguage,
@@ -222,7 +222,7 @@ function sumMetric(cases, metric) {
   return cases.reduce((sum, item) => sum + item.report.metrics[metric], 0);
 }
 
-async function ensurePinnedRepository(repository, lower) {
+async function ensurePinnedRepository(repository, lower, scope) {
   const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', repository.id);
   await mkdir(directory, { recursive: true });
   if (!(await exists(path.join(directory, '.git')))) {
@@ -235,6 +235,12 @@ async function ensurePinnedRepository(repository, lower) {
     await command('git', ['fetch', '--quiet', '--depth', '1', 'origin', repository.commit], { cwd: directory, timeout: 300_000 });
   }
   await command('git', ['-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach', repository.commit], { cwd: directory });
+  if (scope === '.') {
+    await command('git', ['sparse-checkout', 'disable'], { cwd: directory });
+  } else {
+    await command('git', ['sparse-checkout', 'init', '--cone'], { cwd: directory });
+    await command('git', ['sparse-checkout', 'set', scope], { cwd: directory });
+  }
   if (await command('git', ['rev-parse', 'HEAD'], { cwd: directory }) !== repository.commit) {
     throw new Error(`batch_${lower}_repository_commit_mismatch:${repository.id}`);
   }

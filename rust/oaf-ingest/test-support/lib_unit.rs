@@ -346,6 +346,73 @@ mod tests {
     }
 
     #[test]
+    fn python_package_root_resolves_absolute_self_import() {
+        let parent = std::env::temp_dir().join(format!(
+            "oaf-ingest-python-package-root-{}",
+            std::process::id()
+        ));
+        let root = parent.join("fastapi");
+        let _ = fs::remove_dir_all(&parent);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("__init__.py"), "").unwrap();
+        fs::write(root.join("routing.py"), "class Router:\n    pass\n").unwrap();
+        fs::write(
+            root.join("applications.py"),
+            "from fastapi.routing import Router\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("broken.py"),
+            "from fastapi.routing.missing import Missing\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "module:applications"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:routing"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-import")
+        }));
+        assert!(!report.facts.iter().any(|fact| {
+            fact.subject == "module:broken"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:routing"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-import")
+        }));
+
+        fs::remove_dir_all(parent).unwrap();
+    }
+
+    #[test]
+    fn python_package_root_resolves_relative_dotted_import() {
+        let parent = std::env::temp_dir().join(format!(
+            "oaf-ingest-python-relative-import-{}",
+            std::process::id()
+        ));
+        let root = parent.join("requests");
+        let _ = fs::remove_dir_all(&parent);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("__init__.py"), "").unwrap();
+        fs::write(root.join("compat.py"), "class OrderedDict:\n    pass\n").unwrap();
+        fs::write(
+            root.join("structures.py"),
+            "from .compat import OrderedDict\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "module:structures"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:compat"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-import")
+        }));
+
+        fs::remove_dir_all(parent).unwrap();
+    }
+
+    #[test]
     fn emits_exact_retirement_facts() {
         let active = vec![ActiveFactSnapshot {
             subject: "function:OldName".to_string(),

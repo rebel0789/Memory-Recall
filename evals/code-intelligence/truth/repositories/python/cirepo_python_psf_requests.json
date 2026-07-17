@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
     "types": "partial",
@@ -77,6 +77,28 @@
       "locator": "workspace://structures.py#L89-L90"
     },
     {
+      "id": "cititem_requests_import_adapters",
+      "semanticKey": "edge:imports:sessions.py:adapters.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "sessions",
+        "qualifiedName": "sessions.py::sessions",
+        "locator": "workspace://sessions.py#L1-L921"
+      },
+      "to": {
+        "kind": "module",
+        "name": "adapters",
+        "qualifiedName": "adapters.py::adapters",
+        "locator": "workspace://adapters.py#L1-L749"
+      },
+      "locator": "workspace://sessions.py#L21-L21",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_requests_call_lower_items",
       "semanticKey": "edge:calls:structures.py:CaseInsensitiveDict.__eq__:lower_items",
       "capability": "calls",
@@ -101,5 +123,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:404d0082b2acbf943d00f700f5b9764ad28dde834c2754f281b693b1f3bed8f3"
+  "truthFingerprint": "sha256:2eebeebdb3fc2d5e6c29a46b712a9b77b322e3d0738f89990250a57178293b1f"
 }

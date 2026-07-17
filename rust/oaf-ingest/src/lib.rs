@@ -793,9 +793,20 @@ impl ParsedRepo {
         candidates.extend(self.local_language_import_stems(import));
         candidates.sort();
         candidates.dedup();
+        if import.source.ends_with(".py") {
+            return candidates
+                .iter()
+                .find_map(|stem| self.resolve_exact_module_subject(stem));
+        }
         candidates
             .iter()
             .find_map(|stem| self.resolve_existing_module_subject(stem))
+    }
+
+    fn resolve_exact_module_subject(&self, stem: &str) -> Option<String> {
+        let normalized = strip_known_extension(stem.trim().trim_start_matches("./"));
+        let subject = format!("module:{}", module_token(normalized));
+        self.has_entity_subject(&subject).then_some(subject)
     }
 
     fn resolve_container_subject(&self, raw: &str) -> Option<String> {
@@ -2906,6 +2917,21 @@ fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
         let rel = workspace_rel(root, path)?;
         let source = fs::read_to_string(path).with_context(|| format!("read manifest {rel}"))?;
         parse_manifest_entries(name, &rel, &source, &mut entries);
+    }
+    if root.join("__init__.py").is_file() {
+        if let Some(name) = root
+            .file_name()
+            .and_then(|value| value.to_str())
+            .filter(|value| {
+                let mut chars = value.chars();
+                chars
+                    .next()
+                    .is_some_and(|ch| ch.is_ascii_alphabetic() || ch == '_')
+                    && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            })
+        {
+            insert_package_entry(&mut entries, name, ".");
+        }
     }
     Ok(entries)
 }
@@ -6440,6 +6466,18 @@ fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
         if !part.is_empty() {
             parts.push(part);
         }
+    }
+    if !raw.contains(['/', '\\']) {
+        let parent_count = raw.chars().take_while(|ch| *ch == '.').count();
+        for _ in 1..parent_count {
+            parts.pop()?;
+        }
+        parts.extend(
+            raw[parent_count..]
+                .split('.')
+                .filter(|part| !part.is_empty()),
+        );
+        return Some(parts.join("/"));
     }
     for part in raw.split(['/', '\\']) {
         match part {

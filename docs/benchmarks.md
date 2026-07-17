@@ -87,9 +87,9 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 42 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 49,612 nodes, 111,408 edges, 78,292,491 serialized
-graph bytes, 14,677.281 ms summed first-run wall time, 14,710.479 ms summed
-second-run wall time, and 184,672 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 49,661 nodes, 111,408 edges, 78,309,501 serialized
+graph bytes, 15,857.633 ms summed first-run wall time, 14,488.991 ms summed
+second-run wall time, and 190,016 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -99,13 +99,15 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 51 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 103 remain unmeasured or not applicable. A row
+Across 154 Tier 1 capability cells, 52 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 102 remain unmeasured or not applicable. A row
 requires reviewed evidence from its fixture and all three repositories before
 it can say `meets-floor`. TypeScript and JavaScript are the first two languages
 to meet every row marked applicable in this Phase 2 sample; the other twelve
-remain overall `unmeasured`. TypeScript heritage, configuration, frameworks,
-impact, and processes remain unevaluated here. The native engine stays an
+remain overall `unmeasured`. Python exact imports now meet the sampled floor,
+while its heritage, types, configuration, and frameworks remain unmeasured.
+TypeScript heritage, configuration, frameworks, impact, and processes remain
+unevaluated here. The native engine stays an
 unbundled preview; the npm, MCP, and
 web defaults remain JS. Competitors remain unmeasured, and the receipt makes no
 parity, leadership, multi-repository, or scale claim.
