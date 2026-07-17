@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_python_flask_tutorial",
+  "language": "python",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#examples/tutorial/flaskr"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-17T20:01:30.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "unmeasured",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "unmeasured",
+    "calls": "unmeasured",
+    "config": "unmeasured",
+    "frameworks": "partial",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_flask_tutorial_index_route",
+      "semanticKey": "edge:handles_route:blog.py:index:GET_root",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": {
+        "kind": "function",
+        "name": "index",
+        "qualifiedName": "blog.py::index",
+        "locator": "workspace://blog.py#L17-L25"
+      },
+      "to": {
+        "kind": "route",
+        "name": "GET_root",
+        "qualifiedName": "blog.py::GET_root",
+        "locator": "workspace://blog.py#L16-L25"
+      },
+      "locator": "workspace://blog.py#L16-L25",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:2453175e86ebe24560a5930f3651926f217e32b847e98aab21f3467100225f7e"
+}

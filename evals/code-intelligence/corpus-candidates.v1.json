@@ -84,6 +84,15 @@
       "licenseUrl": "https://github.com/fastapi/fastapi/blob/HEAD/LICENSE"
     },
     {
+      "id": "cirepo_python_django_djangoproject_com",
+      "url": "https://github.com/django/djangoproject.com.git",
+      "primaryLanguage": "python",
+      "sizeClass": "medium",
+      "role": "application",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/django/djangoproject.com/blob/HEAD/LICENSE"
+    },
+    {
       "id": "cirepo_java_spring_projects_spring_petclinic",
       "url": "https://github.com/spring-projects/spring-petclinic.git",
       "primaryLanguage": "java",

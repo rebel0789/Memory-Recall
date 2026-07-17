@@ -41,7 +41,7 @@ function validateCandidates(candidates) {
   if (candidates?.schemaVersion !== '1.0.0' || candidates?.candidateVersion !== 'memory-recall-code-intelligence-candidates-1') {
     throw new Error('candidate_contract_invalid');
   }
-  if (!Array.isArray(candidates.repositories) || candidates.repositories.length !== 42) throw new Error('candidate_count_invalid');
+  if (!Array.isArray(candidates.repositories) || candidates.repositories.length !== 43) throw new Error('candidate_count_invalid');
   const ids = new Set();
   const urls = new Set();
   for (const repository of candidates.repositories) {
@@ -57,7 +57,7 @@ function validateCandidates(candidates) {
     urls.add(repository.url);
   }
   for (const language of CODE_INTELLIGENCE_TIER_1_LANGUAGES) {
-    if (candidates.repositories.filter((item) => item.primaryLanguage === language).length !== 3) {
+    if (candidates.repositories.filter((item) => item.primaryLanguage === language).length < 3) {
       throw new Error(`candidate_language_cardinality_invalid:${language}`);
     }
   }
@@ -75,14 +75,21 @@ async function resolveCommit(repository) {
   return { ...repository, commit: match[1] };
 }
 
-async function resolveAll(repositories, concurrency = 6) {
+async function resolveAll(repositories, previous, { refresh = false, concurrency = 6 } = {}) {
+  const previousById = new Map((previous?.repositories ?? []).map((item) => [item.id, item]));
   const output = new Array(repositories.length);
   let next = 0;
   async function worker() {
     while (next < repositories.length) {
       const index = next;
       next += 1;
-      output[index] = await resolveCommit(repositories[index]);
+      const repository = repositories[index];
+      const pinned = previousById.get(repository.id);
+      output[index] = !refresh
+        && pinned
+        && JSON.stringify(comparableRepository(pinned)) === JSON.stringify(repository)
+        ? pinned
+        : await resolveCommit(repository);
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, repositories.length) }, worker));
@@ -150,8 +157,8 @@ if (mode === '--check') {
   await validateCorpus(corpus, candidates, schema);
   console.log(`Code-intelligence corpus check passed: ${corpus.repositories.length} immutable repository pins.`);
 } else {
-  const repositories = await resolveAll(candidates.repositories);
   const previous = await readExistingCorpus();
+  const repositories = await resolveAll(candidates.repositories, previous, { refresh: mode === '--refresh' });
   const corpus = buildCorpus(candidates, repositories, previous);
   await validateCorpus(corpus, candidates, schema);
   if (mode === '--refresh') {

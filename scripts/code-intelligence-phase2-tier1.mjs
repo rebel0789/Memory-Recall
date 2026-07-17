@@ -8,6 +8,7 @@ import {
   auditCodeIntelligenceCapabilityMatrix
 } from '../packages/protocol/src/code-intelligence-contract.mjs';
 import { stableStringify } from '../packages/protocol/src/fingerprint.mjs';
+import { uniqueRepositoryCount } from './code-intelligence-case-counts.mjs';
 
 const OUTPUT = 'evals/code-intelligence/results/phase2-tier1-summary.json';
 const BATCHES = Object.freeze(['a', 'b', 'c', 'd', 'e']);
@@ -42,11 +43,12 @@ for (const item of cases) {
     failures.push({ code: 'graph_response_bytes_missing', caseId: item.id });
   }
   if (item.sourceClass === 'real-repo') {
-    const repository = corpus.repositories.find((candidate) => candidate.id === item.id);
+    const repositoryId = item.repositoryId ?? item.id;
+    const repository = corpus.repositories.find((candidate) => candidate.id === repositoryId);
     if (!repository) failures.push({ code: 'corpus_repository_missing', caseId: item.id });
     else {
       if (item.commit !== repository.commit) failures.push({ code: 'corpus_commit_mismatch', caseId: item.id });
-      if (!item.sourceRef.startsWith(`corpus://${item.id}@${repository.commit}#`)) {
+      if (!item.sourceRef.startsWith(`corpus://${repositoryId}@${repository.commit}#`)) {
         failures.push({ code: 'corpus_source_ref_mismatch', caseId: item.id });
       }
     }
@@ -56,10 +58,10 @@ for (const item of cases) {
 const languages = CODE_INTELLIGENCE_TIER_1_LANGUAGES.map((language) => aggregateLanguage(language, cases, gates.languageFull));
 for (const language of languages) {
   if (language.fixtureCount !== 1) failures.push({ code: 'language_fixture_count_invalid', language: language.language, count: language.fixtureCount });
-  if (language.repositoryCount !== 3) failures.push({ code: 'language_repository_count_invalid', language: language.language, count: language.repositoryCount });
+  if (language.repositoryCount < 3) failures.push({ code: 'language_repository_count_invalid', language: language.language, count: language.repositoryCount });
 }
 if (cases.filter((item) => item.sourceClass === 'fixture').length !== 14) failures.push({ code: 'fixture_count_invalid' });
-if (cases.filter((item) => item.sourceClass === 'real-repo').length !== 42) failures.push({ code: 'repository_count_invalid' });
+if (uniqueRepositoryCount(cases) !== corpus.repositories.length) failures.push({ code: 'repository_count_invalid' });
 
 const safeCases = cases.map((item) => ({
   id: item.id,
@@ -67,6 +69,7 @@ const safeCases = cases.map((item) => ({
   language: item.language,
   sourceClass: item.sourceClass,
   sourceRef: item.sourceRef,
+  ...(item.repositoryId ? { repositoryId: item.repositoryId } : {}),
   ...(item.commit ? { commit: item.commit } : {}),
   truthPath: item.truthPath,
   graph: item.graph,
@@ -105,7 +108,7 @@ const report = {
   },
   summary: {
     fixtureCount: safeCases.filter((item) => item.sourceClass === 'fixture').length,
-    repositoryCount: safeCases.filter((item) => item.sourceClass === 'real-repo').length,
+    repositoryCount: uniqueRepositoryCount(safeCases),
     languageCount: languages.length,
     caseCount: safeCases.length,
     graphNodeCount: sum(safeCases, (item) => item.graph.nodeCount),
@@ -237,10 +240,10 @@ function deduplicateEvidence(evidence) {
 
 function matrixCapabilityLimitation(capability) {
   if (capability.benchmarkStatus === 'meets-floor') {
-    return 'Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged.';
+    return 'Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged.';
   }
   if (capability.applicable) {
-    return 'Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability.';
+    return 'Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability.';
   }
   return 'Phase 2 did not measure this capability; no accuracy claim is made.';
 }
@@ -257,7 +260,7 @@ function aggregateLanguage(language, allCases, thresholds) {
   return {
     language,
     fixtureCount: selected.filter((item) => item.sourceClass === 'fixture').length,
-    repositoryCount: selected.filter((item) => item.sourceClass === 'real-repo').length,
+    repositoryCount: uniqueRepositoryCount(selected),
     caseCount: selected.length,
     benchmarkStatus,
     accuracy: {
@@ -291,7 +294,9 @@ function aggregateCapability(id, cases, thresholds) {
     ? item.graph.coverage.some((coverage) => coverage.language === item.language)
     : (capability?.itemCount ?? 0) > 0;
   const fixtureEvidenceCount = entries.filter((entry) => entry.item.sourceClass === 'fixture' && hasEvidence(entry)).length;
-  const repositoryEvidenceCount = entries.filter((entry) => entry.item.sourceClass === 'real-repo' && hasEvidence(entry)).length;
+  const repositoryEvidenceCount = uniqueRepositoryCount(entries
+    .filter((entry) => hasEvidence(entry))
+    .map((entry) => entry.item));
   const sourceCoverageMet = fixtureEvidenceCount >= 1 && repositoryEvidenceCount >= 3;
   const duplicateCanonicalSymbolCount = sum(cases, (item) => item.report.metrics.duplicateCanonicalSymbolCount);
   const parseFailureCount = sum(cases, (item) => item.report.metrics.parseFailureCount);
@@ -329,9 +334,9 @@ function aggregateCapability(id, cases, thresholds) {
       deterministicGraphFingerprint: deterministic
     },
     limitations: benchmarkStatus === 'meets-floor'
-      ? ['Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only.']
+      ? ['Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only.']
       : applicable
-        ? ['The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor.']
+        ? ['The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor.']
         : ['This capability was not evaluated in Phase 2.']
   };
 }

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "corpusVersion": "memory-recall-code-intelligence-corpus-1",
-  "generatedAt": "2026-07-16T07:48:58.586Z",
-  "sourceCandidatesFingerprint": "sha256:33ed65f40399c401a66691470dc5591c2fc4bbfa03a99c48baa17d6516c4d3fa",
+  "generatedAt": "2026-07-17T20:01:19.082Z",
+  "sourceCandidatesFingerprint": "sha256:372c4321cc10ccea8995f1f1bf69ca8edb247e3357bf09598aab3b749104e16a",
   "repositories": [
     {
       "id": "cirepo_typescript_microsoft_typescript",
@@ -63,6 +63,16 @@
       "licenseExpression": "MIT",
       "licenseUrl": "https://github.com/lodash/lodash/blob/HEAD/LICENSE",
       "commit": "a666ba591064c8011988275790ad7d625279f09c"
+    },
+    {
+      "id": "cirepo_python_django_djangoproject_com",
+      "url": "https://github.com/django/djangoproject.com.git",
+      "primaryLanguage": "python",
+      "sizeClass": "medium",
+      "role": "application",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/django/djangoproject.com/blob/HEAD/LICENSE",
+      "commit": "7a19ab3bce8f62fed03bb3eef2c19f2d0af15470"
     },
     {
       "id": "cirepo_python_fastapi_fastapi",
@@ -425,5 +435,5 @@
       "commit": "09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1"
     }
   ],
-  "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90"
+  "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96"
 }

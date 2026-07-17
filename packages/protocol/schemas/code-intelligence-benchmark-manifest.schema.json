@@ -12,8 +12,8 @@
     "sourceCandidatesFingerprint": { "$ref": "#/$defs/fingerprint" },
     "repositories": {
       "type": "array",
-      "minItems": 42,
-      "maxItems": 42,
+      "minItems": 43,
+      "maxItems": 43,
       "items": { "$ref": "#/$defs/repository" }
     },
     "corpusFingerprint": { "$ref": "#/$defs/fingerprint" }

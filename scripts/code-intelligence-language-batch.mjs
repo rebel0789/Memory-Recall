@@ -7,11 +7,12 @@ import process from 'node:process';
 import { promisify } from 'node:util';
 import { evaluateCodeIntelligenceLanguage } from '../packages/protocol/src/code-intelligence-evaluation.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
+import { uniqueRepositoryCount } from './code-intelligence-case-counts.mjs';
 
 const execFileAsync = promisify(execFile);
 const BOUNDS = Object.freeze({ maxFiles: 5_000, maxFileBytes: 512 * 1024, maxNodes: 5_000, maxEdges: 10_000 });
 
-export async function runLanguageBatch({ batch, languages, repositoryScopes, claimReason }) {
+export async function runLanguageBatch({ batch, languages, repositoryScopes, additionalRepositoryCases = [], claimReason }) {
   const lower = batch.toLowerCase();
   const output = `evals/code-intelligence/results/phase2-batch-${lower}.json`;
   const mode = parseMode(process.argv.slice(2), lower);
@@ -33,17 +34,23 @@ export async function runLanguageBatch({ batch, languages, repositoryScopes, cla
     };
   }));
   const repositories = [];
-  for (const [id, scope] of mode === 'fixtures' ? [] : Object.entries(repositoryScopes)) {
-    const repository = corpus.repositories.find((item) => item.id === id);
-    if (!repository) throw new Error(`batch_${lower}_repository_missing:${id}`);
+  const repositoryCases = [
+    ...Object.entries(repositoryScopes).map(([repositoryId, scope]) => ({ id: repositoryId, repositoryId, scope })),
+    ...additionalRepositoryCases
+  ];
+  for (const definition of mode === 'fixtures' ? [] : repositoryCases) {
+    const { id, repositoryId, scope } = definition;
+    const repository = corpus.repositories.find((item) => item.id === repositoryId);
+    if (!repository) throw new Error(`batch_${lower}_repository_missing:${repositoryId}`);
     const truthPath = `evals/code-intelligence/truth/repositories/${repository.primaryLanguage}/${id}.json`;
-    const checkout = await ensurePinnedRepository(repository, lower, scope);
+    const checkout = await ensurePinnedRepository(repository, lower, scope, id);
     repositories.push({
       id,
+      repositoryId,
       language: repository.primaryLanguage,
       root: path.resolve(checkout, scope),
       sourceClass: 'real-repo',
-      sourceRef: `corpus://${id}@${repository.commit}#${scope}`,
+      sourceRef: `corpus://${repositoryId}@${repository.commit}#${scope}`,
       truth: await readJson(root, truthPath),
       truthPath,
       commit: repository.commit
@@ -143,6 +150,7 @@ async function runCase(definition, provider, lower) {
   const evaluation = evaluateCodeIntelligenceLanguage({ truth: definition.truth, graphRuns: [first, second] });
   return {
     id: definition.id,
+    ...(definition.repositoryId ? { repositoryId: definition.repositoryId } : {}),
     language: definition.language,
     sourceClass: definition.sourceClass,
     sourceRef: definition.sourceRef,
@@ -186,7 +194,7 @@ function aggregateLanguage(language, cases, gates) {
   const duplicateCanonicalSymbolCount = sumMetric(selected, 'duplicateCanonicalSymbolCount');
   const parseFailureCount = sumMetric(selected, 'parseFailureCount');
   const deterministic = selected.every((item) => item.report.metrics.deterministicGraphFingerprint);
-  const repositoryCount = selected.filter((item) => item.sourceClass === 'real-repo').length;
+  const repositoryCount = uniqueRepositoryCount(selected);
   const fixtureCount = selected.filter((item) => item.sourceClass === 'fixture').length;
   const gateDecision = selected.every((item) => item.report.gateDecision === 'pass')
     && fixtureCount >= 1
@@ -222,8 +230,8 @@ function sumMetric(cases, metric) {
   return cases.reduce((sum, item) => sum + item.report.metrics[metric], 0);
 }
 
-async function ensurePinnedRepository(repository, lower, scope) {
-  const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', repository.id);
+async function ensurePinnedRepository(repository, lower, scope, checkoutId = repository.id) {
+  const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', checkoutId);
   await mkdir(directory, { recursive: true });
   if (!(await exists(path.join(directory, '.git')))) {
     await command('git', ['init', '--quiet'], { cwd: directory });
