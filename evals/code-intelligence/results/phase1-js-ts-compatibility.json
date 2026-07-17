@@ -2,14 +2,14 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-17T01:56:52.416Z",
+  "generatedAt": "2026-07-17T02:37:46.531Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "f7eb9bec27f2d47613e5aa00bc718c746c86127d",
+    "commit": "0fa2c298a66a3043b856fa6edf832b89bc92201e",
     "dirtyBeforeRun": false
   },
   "inputs": {
@@ -431,8 +431,8 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:ebaccad4fc953d9fc1abfc364eb1c8fdde628a71cdfd1c1de9ea7dfcf59c108f",
-          "compatibilityGraphFingerprint": "sha256:64510f2945e822234a0cfd53e347180796a6887d4f1b748b9cc5411a472a5609",
+          "providerGraphFingerprint": "sha256:31f6dfa023dd60cc3d3d73575f3fa6318c251c244cd3f335deebd8ec5233c0f3",
+          "compatibilityGraphFingerprint": "sha256:de6df37c4b8824d9ff410b845d425168d23ae459557f40bf7c28061bcfd2517c",
           "fileCount": 141,
           "symbolCount": 358,
           "edgeCount": 1046,
@@ -451,7 +451,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-2",
-        "comparisonFingerprint": "sha256:16780d962a463fc1e21ff21a1492d13ffe29e59b7162b351e7c7cd153c0b0991",
+        "comparisonFingerprint": "sha256:455ec0d044ac6cfe9e611928dd0116d26e6d16dc261c404df65c1b34891b5991",
         "dimensions": [
           {
             "name": "files",
@@ -503,34 +503,34 @@
             "name": "imports",
             "baselineCount": 334,
             "nativeCount": 295,
-            "matchedCount": 221,
-            "recall": 0.6617,
-            "baselineOnlyCount": 113,
-            "nativeOnlyCount": 74,
-            "nativeAgreement": 0.6617,
+            "matchedCount": 242,
+            "recall": 0.7246,
+            "baselineOnlyCount": 92,
+            "nativeOnlyCount": 53,
+            "nativeAgreement": 0.7246,
             "baselineOnlySample": [
-              "workspace://examples/auth/index.js=>express-session",
-              "workspace://examples/auth/index.js=>pbkdf2-password",
-              "workspace://examples/mvc/index.js=>express-session",
               "workspace://examples/mvc/lib/boot.js=>..",
-              "workspace://examples/route-map/index.js=>escape-html",
               "workspace://lib/application.js=>ejs",
               "workspace://lib/application.js=>express",
               "workspace://lib/application.js=>node:https",
-              "workspace://lib/express.js=>merge-descriptors",
-              "workspace://lib/express.js=>serve-static"
+              "workspace://test/acceptance/auth.js=>index",
+              "workspace://test/acceptance/content-negotiation.js=>content-negotiation",
+              "workspace://test/acceptance/content-negotiation.js=>index",
+              "workspace://test/acceptance/cookie-sessions.js=>cookie-sessions",
+              "workspace://test/acceptance/cookie-sessions.js=>index",
+              "workspace://test/acceptance/cookies.js=>index"
             ],
             "nativeOnlySample": [
               "workspace://examples/auth/index.js=>node:path",
-              "workspace://examples/auth/index.js=>password",
-              "workspace://examples/auth/index.js=>session",
-              "workspace://examples/cookie-sessions/index.js=>session",
+              "workspace://examples/cookie-sessions/index.js=>cookie-session",
+              "workspace://examples/cookies/index.js=>cookie-parser",
               "workspace://examples/cookies/index.js=>morgan",
-              "workspace://examples/cookies/index.js=>parser",
               "workspace://examples/downloads/index.js=>node:path",
               "workspace://examples/ejs/index.js=>ejs",
               "workspace://examples/ejs/index.js=>node:path",
-              "workspace://examples/error-pages/index.js=>morgan"
+              "workspace://examples/error-pages/index.js=>morgan",
+              "workspace://examples/error-pages/index.js=>node:path",
+              "workspace://examples/error/index.js=>morgan"
             ]
           },
           {
@@ -612,5 +612,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:617df5c1cb5f86c9de50ee03fb5aa553da53b2e7b53d1c79bc17057fd5caa9a9"
+  "reportFingerprint": "sha256:3f892161d29cc4687b5223bc7b418a41411fdb7abcf565f917a99105ba247542"
 }
