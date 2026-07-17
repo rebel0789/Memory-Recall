@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase0-baseline-1",
   "phase": 0,
-  "generatedAt": "2026-07-16T08:04:38.038Z",
+  "generatedAt": "2026-07-17T20:52:15.848Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,12 +10,12 @@
     "rustVersion": "rustc 1.94.0 (4a4ef493e 2026-03-02) (Homebrew)"
   },
   "checkout": {
-    "commit": "7bab12ba492b02cedecbdf9d80caf8e1c827deb4",
+    "commit": "a08e3ae5836541f895af9130a70a0d8eac9e99cb",
     "dirtyBeforeBaseline": false
   },
   "inputs": {
-    "capabilityMatrixFingerprint": "sha256:6b5586fc788dbd207b2e4b8f1025194bb4f8924131b9d92ea90ff11a13e7ad98",
-    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "capabilityMatrixFingerprint": "sha256:0b35f87428dc8ad08170d4d36d751bcb9980a357f7794140e385fbf122e3b7bb",
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "benchmarkGatesFingerprint": "sha256:76150d22d01c59559658ad7d1c76491185910bf1e45d5b205cda862540e042d2",
     "languageFullGate": {
       "symbolRecallMinimum": 0.95,
@@ -83,10 +83,10 @@
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 619,
-      "stdoutBytes": 4807,
+      "durationMs": 2345,
+      "stdoutBytes": 6200,
       "stderrBytes": 0,
-      "stdoutSha256": "sha256:7d2fb8bf543d63fdd1dd70409163d0e52064261ff0dc14fa63266aa5d9fc8d2d",
+      "stdoutSha256": "sha256:e4238a54a9d99717bed923129e3709b8e3b04534d02679c1457e70fd86f15cc5",
       "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
@@ -94,55 +94,55 @@
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 175,
+      "durationMs": 225,
       "stdoutBytes": 0,
       "stderrBytes": 62,
       "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stderrSha256": "sha256:b65d97c967cb13bb2fd061b2f5b86011ef366acea387375a92a9808f93395384"
+      "stderrSha256": "sha256:09f2b93c4bce5bfb43dca18ca8d9c1dca2831c7d2ffb73b00b96f8f73a607f86"
     },
     {
       "command": "cargo test --manifest-path rust/Cargo.toml",
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 388,
-      "stdoutBytes": 1481,
-      "stderrBytes": 466,
-      "stdoutSha256": "sha256:ac41572af385f82fa7a93c6865e00f5cd470c73c53a5290356a0d4ccf22a112e",
-      "stderrSha256": "sha256:a5a5b1d8f949c04b4a255956742bd7c4791d1513d6d839940697d4e8930d33fa"
+      "durationMs": 1842,
+      "stdoutBytes": 10923,
+      "stderrBytes": 1277,
+      "stdoutSha256": "sha256:3369ebcf11d466a675c2b36687fc7175c4a622b0c3f9a34a0bd11de608a9996f",
+      "stderrSha256": "sha256:2ca379b4c5b72a15080dc0a5a7b6ac38d82ebcc110729f2ed71c1e729673d445"
     },
     {
       "command": "node scripts/rust-ingest-quality.mjs",
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 107075,
-      "stdoutBytes": 3564,
-      "stderrBytes": 168,
-      "stdoutSha256": "sha256:2992251445ebce3b97015172cdf2cca18311e73352d564e311cfa3d3d3a4f3e5",
-      "stderrSha256": "sha256:df67a758ddf7de5250688130f3b05630dd400ccf2b7a4df5587b1c29ae33aa61"
+      "durationMs": 216499,
+      "stdoutBytes": 3572,
+      "stderrBytes": 169,
+      "stdoutSha256": "sha256:b21b76fb50a8a9f4fd5fb690de93b66c5367b79fbb56ab1d1d2b6584d7e3f4dc",
+      "stderrSha256": "sha256:fae94c62aaaec6aba2277d4ec7cff1fc757c86a331b239829a1ef9303e5ab7a7"
     },
     {
       "command": "node scripts/rust-typed-calls-quality.mjs",
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 7285,
-      "stdoutBytes": 4621,
-      "stderrBytes": 168,
-      "stdoutSha256": "sha256:f1b081fd8a58ff979cf92f16a6b5f51d178b27eb3f3009ec2c74265f7786e53c",
-      "stderrSha256": "sha256:c6dc69f10021499d769d1eb9d516dc0d29346e515e895b351c5de6e49c424f54"
+      "durationMs": 6386,
+      "stdoutBytes": 3855,
+      "stderrBytes": 169,
+      "stdoutSha256": "sha256:b7e89ac0353d4a39baf2e40531bce734f9236fff3a8b5e0b3798685ea2bd9cb1",
+      "stderrSha256": "sha256:99552eaaf61e4ada43aff066876fd4138d1ca6f19058f7b74e515611285f50ab"
     },
     {
       "command": "node scripts/rust-incremental-quality.mjs",
       "exitCode": 0,
       "signal": null,
       "timedOut": false,
-      "durationMs": 340,
-      "stdoutBytes": 1078,
-      "stderrBytes": 168,
-      "stdoutSha256": "sha256:db05985a440f0fbffff7448543240a2741af0248cf1b3d987c88380beef5b778",
-      "stderrSha256": "sha256:fc05c3ba62ca7cbcf7a66ca7b2a049641f6e603011d96d5191e08da9e2e9d003"
+      "durationMs": 391,
+      "stdoutBytes": 1077,
+      "stderrBytes": 169,
+      "stdoutSha256": "sha256:95efb6a232c6621c27099f48f184ee397fe7aacfc48850508d7f32d71ff4d550",
+      "stderrSha256": "sha256:781dc0c2b706a6a05fecfad641d63bb752cff3db14be8353f9a278cd0b1405e4"
     }
   ],
   "claims": {
@@ -156,5 +156,5 @@
     "environmentVariablesStored": false,
     "competitorClaimsInferred": false
   },
-  "reportFingerprint": "sha256:f8be0fb4e78aba9cdd70527d60575ad65fbdd02bd0cbae0a9b959067c7c14313"
+  "reportFingerprint": "sha256:399148d14136be0ba84041472a5dc3b20119a1d273835cbcfb2493995c850d7a"
 }

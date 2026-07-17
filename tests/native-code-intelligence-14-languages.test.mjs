@@ -19,7 +19,7 @@ const RAW_SOURCE_SENTINEL = 'RAW_SOURCE_SENTINEL_DO_NOT_RETURN_7e2a63';
 const TIER_1 = Object.freeze([
   ['typescript', 'typescriptSentinel', 'index.ts#L3-L3'],
   ['javascript', 'javascriptSentinel', 'index.js#L3-L3'],
-  ['python', 'BaseService', 'src/demo_app/api.py#L6-L8'],
+  ['python', 'BaseService', 'src/demo_app/api.py#L10-L12'],
   ['java', 'ItemController', 'src/main/java/com/acme/api/ItemController.java#L18-L21'],
   ['kotlin', 'ItemLoader', 'src/main/kotlin/com/acme/api/Routes.kt#L9-L15'],
   ['csharp', 'IItemLoader', 'src/Demo/Api.cs#L18-L19'],
