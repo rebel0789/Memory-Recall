@@ -660,10 +660,13 @@ fn read_index(
             HealthStatus::Ready | HealthStatus::Stale | HealthStatus::Interrupted
         )
     {
+        if query.is_some() && health.status != HealthStatus::Ready {
+            ensure_queryable(health.status)?;
+        }
         let index = SourceIndex::open_read_only(path, options)?;
         if let Some(active) = index.load_active_generation()? {
             omitted_count = persisted_omitted_count(&active.input);
-            if !doctor && query.is_none() && health.status == HealthStatus::Ready {
+            if !doctor && health.status == HealthStatus::Ready {
                 let (source_health, reused, changed, deleted) = verify_source_freshness(
                     root,
                     request,
@@ -685,6 +688,7 @@ fn read_index(
             summary = Some(active.summary);
         }
         if let Some(arguments) = query {
+            ensure_queryable(health.status)?;
             let elapsed = elapsed_ms(started);
             if elapsed >= request.deadline_ms {
                 bail!("source_index_query_timeout");
@@ -696,6 +700,7 @@ fn read_index(
             )?;
         }
     } else if query.is_some() {
+        ensure_queryable(health.status)?;
         bail!("source_index_query_unavailable");
     }
     let mut response = success_frame(
@@ -733,6 +738,20 @@ fn read_index(
         }
     }
     Ok(response)
+}
+
+fn ensure_queryable(status: HealthStatus) -> Result<()> {
+    match status {
+        HealthStatus::Ready => Ok(()),
+        HealthStatus::Absent => bail!("source_index_build_required"),
+        HealthStatus::Stale => bail!("source_index_refresh_required"),
+        HealthStatus::Interrupted | HealthStatus::Corrupt => {
+            bail!("source_index_repair_required")
+        }
+        HealthStatus::MigrationRequired => bail!("source_index_migration_required"),
+        HealthStatus::WrongRepository => bail!("source_index_wrong_repository"),
+        HealthStatus::UnsupportedSchema => bail!("source_index_schema_newer"),
+    }
 }
 
 fn verify_source_freshness(
@@ -1894,6 +1913,37 @@ mod tests {
     }
 
     #[test]
+    fn absent_query_requires_explicit_build_without_creating_index() {
+        let workspace = tempdir().unwrap();
+        let error = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "exact", "query": "main", "limit": 10 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap_err();
+        assert_eq!(safe_error_code(&error), "source_index_build_required");
+
+        let status = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(status["result"]["state"], "absent");
+        assert_eq!(
+            status["result"]["health"]["reasonCodes"],
+            json!(["source_index_absent"])
+        );
+        assert_eq!(status["result"]["measurements"]["localFilesWritten"], 0);
+        assert_eq!(status["result"]["safeguards"]["readOnly"], true);
+        assert!(!workspace.path().join(".local").exists());
+    }
+
+    #[test]
     fn lifecycle_builds_reads_refreshes_queries_doctors_and_repairs_without_path_leakage() {
         let workspace = tempdir().unwrap();
         fs::create_dir_all(workspace.path().join("src")).unwrap();
@@ -2153,7 +2203,7 @@ mod tests {
         .unwrap();
         fs::remove_file(workspace.path().join("removed.go")).unwrap();
 
-        let stored_query = execute_request(
+        let query_error = execute_request(
             parse_request(request(
                 "index.query",
                 json!({ "kind": "exact", "query": "oldValue", "limit": 10 }),
@@ -2162,12 +2212,11 @@ mod tests {
             workspace.path(),
             "1.1.1",
         )
-        .unwrap();
-        assert!(stored_query["result"]["results"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| item["label"].as_str().unwrap().contains("oldValue")));
+        .unwrap_err();
+        assert_eq!(
+            safe_error_code(&query_error),
+            "source_index_refresh_required"
+        );
         assert_eq!(bundle_snapshot(&index_path), clean_snapshot);
 
         let stale = execute_request(
