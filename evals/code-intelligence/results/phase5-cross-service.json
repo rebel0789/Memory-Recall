@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-16T21:14:15.530Z",
+  "generatedAt": "2026-07-17T04:19:57.908Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:b1f6ad5e5ca581922b4b3639613557cb24e9d1070d8ade0ca7a2c374894927cf",
+    "implementationFingerprint": "sha256:efcf2043dc91681ceae115df4455a9dd3aae184507be7850e9dfa5d612635dfc",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:cbf53b918182fed62db15739d98965aa7e8eb9c2e146bf8b0e1f416109aeb982",
+    "repositoryIdentityHash": "sha256:4b0aee73d1db49abf5c079b4c2b4a70e87fcfc682f1fbcfe8b9d1c3d0a9877cc",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:bfd1fcf9e07d2119b77217bf73af4e20ad8b67fe049afe6d129a6651950c4f5c",
+    "deterministicFingerprint": "sha256:45ce5e8d2884b804cf7d29e09c9f692c3290987f1aebe787a92c8f03635e79cc",
     "queryWallMs": {
-      "minimum": 5.854,
-      "p50": 7.016,
-      "p95": 8.027,
-      "maximum": 8.027
+      "minimum": 5.72,
+      "p50": 7.183,
+      "p95": 8.754,
+      "maximum": 8.754
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:bc227fe10096675ef14b55ed1e32ad446daf8f75a127dfcd5b2dd81bb3be924a"
+  "reportFingerprint": "sha256:ea07733c248728af448d32e03c79e64a4510f254a6bc95a4bb9f2759ad4f52f6"
 }
