@@ -1132,7 +1132,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-16",
+    "asOf": "2026-07-17",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -1171,7 +1171,7 @@
       "cargo test --locked --manifest-path rust/Cargo.toml -p oaf-index --test repository_registry",
       "node --test tests/native-code-intelligence-provider.test.mjs tests/native-code-intelligence-repository-provider.test.mjs"
     ],
-    "testsExpected": 796,
+    "testsExpected": 797,
     "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
