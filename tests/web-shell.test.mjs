@@ -227,6 +227,9 @@ test('mobile shell exposes four fixed destinations without horizontal scrolling'
   assert.match(css, /\.bottom-nav\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/s);
   assert.doesNotMatch(css, /\.bottom-nav\{[^}]*overflow-x:auto/s);
   assert.match(css, /@media\(max-width:700px\)\{\s*\.app-shell\{[^}]*min-height:100dvh[^}]*\}/s);
+  assert.match(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search\{[^}]*grid-template-columns:112px minmax\(80px,1fr\) auto[^}]*\}/s);
+  assert.match(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search button\{[^}]*min-width:44px[^}]*\}/s);
+  assert.doesNotMatch(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search button\{[^}]*clip:rect/s);
 });
 
 test('secondary routes select the destination that owns them', () => {

@@ -586,10 +586,9 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .repository-menu{grid-column:1;grid-row:1}
   .repository-menu summary{max-width:96px}
   .repository-actions{grid-column:2;grid-row:1}
-  .global-search{grid-column:1/-1;grid-row:2;width:100%;max-width:none;grid-template-columns:124px minmax(80px,1fr)}
+  .global-search{grid-column:1/-1;grid-row:2;width:100%;max-width:none;grid-template-columns:112px minmax(80px,1fr) auto}
   .global-search select{width:auto;padding:0 var(--space-2xs);color:var(--color-ink)}
-  .global-search button{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-  .global-search input{border-radius:0 var(--radius-control) var(--radius-control) 0}
+  .global-search button{min-width:44px;padding:0 var(--space-2xs)}
   .orientation-heading{align-items:flex-start}
   .orientation-heading p{display:none}
   .architecture-board{grid-template-columns:1fr;grid-auto-flow:row;padding:var(--space-xs)}
