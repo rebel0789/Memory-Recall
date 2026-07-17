@@ -1,24 +1,24 @@
 {
   "schemaVersion": "1.0.0",
-  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-3",
+  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-4",
   "phase": 4,
-  "generatedAt": "2026-07-17T15:12:42.709Z",
+  "generatedAt": "2026-07-17T16:11:31.637Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "inputs": {
-    "fixtureRef": "fixture://sha256:18244cf1480348cec4f788205b2d941e6b4a70d2fb1dbef2814415ae04790636",
-    "implementationFingerprint": "sha256:2dc561a8eb824969a19786459c7b05da2c444f6b872ae89116d2407309740df3",
+    "fixtureRef": "fixture://sha256:af154c4a9074ac46477b7415d9e0ac1cde6c9c857d354b955161c0365244af8f",
+    "implementationFingerprint": "sha256:b4446b9bc2d1b380eac765470bab335e5a34ff9effcf0b4362342c319c6ca7d0",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
   },
   "index": {
     "fileCount": 4,
-    "nodeCount": 20,
-    "edgeCount": 26,
+    "nodeCount": 21,
+    "edgeCount": 27,
     "databaseBytes": 81920
   },
   "results": {
@@ -30,34 +30,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 9.066,
-      "p50": 9.668,
-      "p95": 9.9,
-      "maximum": 9.9
+      "minimum": 7.988,
+      "p50": 9.187,
+      "p95": 10.171,
+      "maximum": 10.171
     },
     "processQueryWallMs": {
-      "minimum": 7.578,
-      "p50": 7.702,
-      "p95": 8.605,
-      "maximum": 8.605
+      "minimum": 7.286,
+      "p50": 7.973,
+      "p95": 9.219,
+      "maximum": 9.219
     },
     "routeQueryWallMs": {
-      "minimum": 7.067,
-      "p50": 7.693,
-      "p95": 8.014,
-      "maximum": 8.014
+      "minimum": 7.177,
+      "p50": 7.235,
+      "p95": 9.979,
+      "maximum": 9.979
     },
     "impactQueryWallMs": {
-      "minimum": 7.367,
-      "p50": 7.489,
-      "p95": 8.03,
-      "maximum": 8.03
+      "minimum": 6.633,
+      "p50": 6.857,
+      "p95": 7.452,
+      "maximum": 7.452
     },
-    "deterministicProjectionFingerprint": "sha256:ce3f24f84fc56d4cae323dc3dc43405e55539cbce424894a6dcff053b75eb35b",
+    "searchQueryWallMs": {
+      "minimum": 6.523,
+      "p50": 7.158,
+      "p95": 7.87,
+      "maximum": 7.87
+    },
+    "deterministicProjectionFingerprint": "sha256:937121ecad112784c24bac6dab7086078be5ea19124b1301837c551044552353",
     "readQueriesPreservedIndex": true,
     "evidenceComplete": true,
     "representativeProcess": {
-      "processId": "ciprocess_6118a2d5f5d18b2f9159bd59aace8408",
+      "processId": "ciprocess_e4062ef541bb3bc28d61cbce77397c25",
       "entryNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
       "entryRelationshipId": "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
       "sinkNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a",
@@ -72,7 +78,7 @@
         "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
         "ciedge_3c2f44f961a8e4b3ee861679a46599c6",
         "ciedge_39df168f0f66d16fd2b64aca3de198f9",
-        "ciedge_624958b6dcac5a19d032cd04baad1c47"
+        "ciedge_24e50b0e9de3d85a7f97338820b0b48e"
       ],
       "confidence": 0.75,
       "truncated": false,
@@ -102,7 +108,7 @@
           "resolution": "inferred"
         },
         {
-          "relationshipId": "ciedge_624958b6dcac5a19d032cd04baad1c47",
+          "relationshipId": "ciedge_24e50b0e9de3d85a7f97338820b0b48e",
           "kind": "listens",
           "fromNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
           "toNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a",
@@ -132,6 +138,18 @@
       "confidence": 0.75,
       "resolution": "inferred"
     },
+    "representativeSearch": {
+      "exactNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+      "exactLabel": "handleUser",
+      "lexicalNodeId": "cinode_159b08eb9c9f4fa65138f50504832dc4",
+      "lexicalLabel": "handleUserUtility",
+      "neighborNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+      "neighborLabel": "persistUser",
+      "relationshipId": "ciedge_39df168f0f66d16fd2b64aca3de198f9",
+      "relationshipKind": "calls",
+      "confidence": 0.75,
+      "locator": "workspace://app/api/users/route.ts#L3-L3"
+    },
     "confidenceEvidence": {
       "range": [
         0,
@@ -158,7 +176,7 @@
     "competitorParity": false,
     "leadership": false,
     "millionNodeScale": false,
-    "reason": "This local fixture gate proves deterministic bounded communities, entry-to-sink processes, route evidence, reverse impact, confidence propagation, read-only behavior, and the two-second query deadline. It does not prove hybrid search, constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
+    "reason": "This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
   },
   "safeguards": {
     "networkCalls": 0,
@@ -167,5 +185,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:b11a18a317d5c47866e190b6a2817511d57a16ae158b3bc66d2a97b2e76912f9"
+  "reportFingerprint": "sha256:fc57e8f0cadadc75e625b41a15928cc8e22e370f71c352fc7adf1c4186dc93d2"
 }

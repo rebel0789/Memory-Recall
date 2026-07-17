@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "unmeasured",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -42,6 +42,28 @@
       "name": "Action",
       "qualifiedName": "actions.ts::Action",
       "locator": "workspace://actions.ts#L60-L166"
+    },
+    {
+      "id": "cititem_vscode_export_action",
+      "semanticKey": "edge:exports:actions.ts:Action",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "actions",
+        "qualifiedName": "actions.ts::actions",
+        "locator": "workspace://actions.ts#L1-L295"
+      },
+      "to": {
+        "kind": "class",
+        "name": "Action",
+        "qualifiedName": "actions.ts::Action",
+        "locator": "workspace://actions.ts#L60-L166"
+      },
+      "locator": "workspace://actions.ts#L60-L166",
+      "resolution": "exact"
     },
     {
       "id": "cititem_vscode_enum_validator_construct",
@@ -109,5 +131,5 @@
       "locator": "workspace://fuzzyScorer.ts#L296-L296"
     }
   ],
-  "truthFingerprint": "sha256:b4e5ab9b014f1e610318ca54a10807faf0670f84fa6d78742a94cd16f5427d23"
+  "truthFingerprint": "sha256:9707f7400c8392620c614987db2db79a895875d34d06f63d67024dfdc4bac0da"
 }

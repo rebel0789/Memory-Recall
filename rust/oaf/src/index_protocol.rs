@@ -1156,12 +1156,133 @@ fn execute_query(
         }
         "search" => {
             let query = query_seed(arguments)?;
-            let page = index.find_nodes(query, &bounds)?;
-            let next = page.next_cursor.as_deref().and_then(node_cursor);
+            let lexical = index.find_nodes(query, &bounds)?;
+            if bounds.limit == 1 {
+                let next = lexical.next_cursor.as_deref().and_then(node_cursor);
+                return Ok(QueryOutput::records(
+                    nodes_to_results(lexical.items, index)?,
+                    Vec::new(),
+                    next,
+                ));
+            }
+
+            let top_exact = index
+                .find_exact_nodes(query, &query_bounds_without_cursor(&bounds, 1))?
+                .items
+                .into_iter()
+                .next();
+            let top_exact_id = top_exact
+                .as_ref()
+                .map(|node| node.canonical_id.as_str());
+            let mut lexical_nodes = lexical
+                .items
+                .into_iter()
+                .filter(|node| Some(node.canonical_id.as_str()) != top_exact_id)
+                .collect::<Vec<_>>();
+            let first_page = bounds.cursor.is_none();
+            let lexical_slots = bounds
+                .limit
+                .saturating_sub(usize::from(first_page && top_exact.is_some()));
+            let discarded_lexical = lexical_nodes.len() > lexical_slots;
+            lexical_nodes.truncate(lexical_slots);
+            let has_lexical_continuation = discarded_lexical || lexical.next_cursor.is_some();
+            let next = has_lexical_continuation
+                .then(|| {
+                    lexical_nodes
+                        .last()
+                        .and_then(|node| node_cursor(&node.canonical_id))
+                })
+                .flatten();
+            let mut seen_nodes = BTreeSet::new();
+            let mut nodes = top_exact
+                .into_iter()
+                .filter(|_| first_page)
+                .chain(lexical_nodes)
+                .filter(|node| seen_nodes.insert(node.canonical_id.clone()))
+                .collect::<Vec<_>>();
+            if nodes.len() == bounds.limit || has_lexical_continuation {
+                return Ok(QueryOutput::records(
+                    nodes_to_results(nodes, index)?,
+                    Vec::new(),
+                    next,
+                ));
+            }
+
+            let direct_node_ids = nodes
+                .iter()
+                .map(|node| node.canonical_id.clone())
+                .collect::<BTreeSet<_>>();
+            let mut candidate_edges = BTreeMap::new();
+            for node in &nodes {
+                let page = index.dependency_edges(
+                    &node.canonical_id,
+                    EdgeDirection::Both,
+                    &query_bounds_without_cursor(&bounds, bounds.limit),
+                )?;
+                for edge in page.items {
+                    candidate_edges.insert(edge.canonical_id.clone(), edge);
+                }
+            }
+            let mut neighbor_candidates = candidate_edges
+                .into_values()
+                .filter(|edge| {
+                    matches!(
+                        edge.kind.as_str(),
+                        "calls"
+                            | "constructs"
+                            | "depends_on"
+                            | "emits"
+                            | "handles_route"
+                            | "imports"
+                            | "listens"
+                            | "process_step"
+                            | "reads"
+                            | "references"
+                            | "writes"
+                    )
+                })
+                .filter_map(|edge| {
+                    let neighbor_id = if direct_node_ids.contains(&edge.source_id)
+                        && !direct_node_ids.contains(&edge.target_id)
+                    {
+                        edge.target_id.clone()
+                    } else if direct_node_ids.contains(&edge.target_id)
+                        && !direct_node_ids.contains(&edge.source_id)
+                    {
+                        edge.source_id.clone()
+                    } else {
+                        return None;
+                    };
+                    Some((edge, neighbor_id))
+                })
+                .collect::<Vec<_>>();
+            neighbor_candidates.sort_by(|(left_edge, left_node), (right_edge, right_node)| {
+                left_edge
+                    .stale
+                    .cmp(&right_edge.stale)
+                    .then_with(|| right_edge.confidence.total_cmp(&left_edge.confidence))
+                    .then_with(|| left_edge.canonical_id.cmp(&right_edge.canonical_id))
+                    .then_with(|| left_node.cmp(right_node))
+            });
+
+            let mut relationships = Vec::new();
+            for (edge, neighbor_id) in neighbor_candidates {
+                if nodes.len() >= bounds.limit || relationships.len() >= bounds.limit {
+                    break;
+                }
+                if !seen_nodes.contains(&neighbor_id) {
+                    let Some(neighbor) = index.node(&neighbor_id)? else {
+                        continue;
+                    };
+                    seen_nodes.insert(neighbor_id);
+                    nodes.push(neighbor);
+                }
+                relationships.push(edge);
+            }
             Ok(QueryOutput::records(
-                nodes_to_results(page.items, index)?,
-                Vec::new(),
-                next,
+                nodes_to_results(nodes, index)?,
+                edges_to_results(relationships, index)?,
+                None,
             ))
         }
         "routes" => {
@@ -1961,6 +2082,99 @@ mod tests {
         assert_eq!(status["result"]["measurements"]["localFilesWritten"], 0);
         assert_eq!(status["result"]["safeguards"]["readOnly"], true);
         assert!(!workspace.path().join(".local").exists());
+    }
+
+    #[test]
+    fn search_ranks_exact_then_lexical_then_relationship_neighbor() {
+        let workspace = tempdir().unwrap();
+        fs::create_dir_all(workspace.path().join("src")).unwrap();
+        fs::write(
+            workspace.path().join("src/index.ts"),
+            "export function main(): number { return helper(); }\nexport function mainUtility(): number { return 2; }\nexport function helper(): number { return 1; }\nexport function page(): number { return 1; }\nexport function pageUtility(): number { return 2; }\nexport function pageWorker(): number { return 3; }\n",
+        )
+        .unwrap();
+
+        execute_request(
+            parse_request(request("index.build", writer_arguments())).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        let search = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "search", "query": "main", "limit": 3 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+
+        assert_eq!(
+            search["result"]["results"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|item| item["label"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["main", "mainUtility", "helper"]
+        );
+        let relationships = search["result"]["relationships"].as_array().unwrap();
+        assert_eq!(relationships.len(), 1);
+        assert_eq!(relationships[0]["kind"], "calls");
+        assert_eq!(relationships[0]["confidence"], 0.75);
+        assert!(relationships[0]["locator"]
+            .as_str()
+            .unwrap()
+            .starts_with("workspace://src/index.ts#L"));
+
+        let first_page = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "search", "query": "page", "limit": 2 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        let first_ids = first_page["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(first_page["result"]["results"][0]["label"], "page");
+        let cursor = first_page["result"]["nextCursor"].as_str().unwrap();
+        let second_page = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "search", "query": "page", "limit": 2, "cursor": cursor }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert!(second_page["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| !first_ids.contains(item["id"].as_str().unwrap())));
+        let combined_labels = first_page["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(second_page["result"]["results"].as_array().unwrap())
+            .map(|item| item["label"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            combined_labels,
+            ["page", "pageUtility", "pageWorker"]
+                .into_iter()
+                .collect()
+        );
     }
 
     #[test]

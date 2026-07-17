@@ -79,21 +79,31 @@ async function runBenchmark() {
       depth: 4,
       limit: QUERY_LIMIT
     }));
+    const searchRuns = await repeat(() => provider.queryIndex({
+      root: workspace,
+      workspaceId,
+      kind: 'search',
+      query: 'handleUser',
+      limit: 3
+    }));
     const afterReads = await sqliteBundleSnapshot(indexPath);
     const readQueriesPreservedIndex = sameSnapshots(beforeReads, afterReads);
     const firstCommunities = communityRuns.results[0];
     const firstProcesses = processRuns.results[0];
     const firstRoutes = routeRuns.results[0];
     const firstImpact = impactRuns.results[0];
+    const firstSearch = searchRuns.results[0];
     const projectionFingerprints = [
       ...communityRuns.results.map(projectedResultFingerprint),
       ...processRuns.results.map(projectedResultFingerprint),
       ...routeRuns.results.map(projectedResultFingerprint),
-      ...impactRuns.results.map(projectedResultFingerprint)
+      ...impactRuns.results.map(projectedResultFingerprint),
+      ...searchRuns.results.map(projectedResultFingerprint)
     ];
     const representativeProcess = representativeProcessEvidence(firstProcesses);
     const representativeRoute = representativeRouteEvidence(firstRoutes);
     const representativeImpact = representativeImpactEvidence(firstImpact, 'persistUser');
+    const representativeSearch = representativeSearchEvidence(firstSearch, 'handleUser', 'handleUserUtility');
     const confidenceEvidence = confidenceSemanticsEvidence({
       processResult: firstProcesses,
       representativeProcess,
@@ -109,21 +119,24 @@ async function runBenchmark() {
       [new Set(processRuns.results.map(projectedResultFingerprint)).size !== 1, 'processes_not_deterministic'],
       [new Set(routeRuns.results.map(projectedResultFingerprint)).size !== 1, 'routes_not_deterministic'],
       [new Set(impactRuns.results.map(projectedResultFingerprint)).size !== 1, 'impact_not_deterministic'],
+      [new Set(searchRuns.results.map(projectedResultFingerprint)).size !== 1, 'search_not_deterministic'],
       [!readQueriesPreservedIndex, 'read_query_mutated_index'],
       [communityRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'communities_latency_gate_failed'],
       [processRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'processes_latency_gate_failed'],
       [routeRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'routes_latency_gate_failed'],
       [impactRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'impact_latency_gate_failed'],
+      [searchRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'search_latency_gate_failed'],
       [!firstProcesses.processes.every((item) => item.nodeIds.every((id) => processNodeIds.has(id))), 'process_node_evidence_missing'],
       [!firstProcesses.processes.every((item) => item.relationshipIds.every((id) => processRelationshipIds.has(id))), 'process_relationship_evidence_missing'],
       [representativeProcess === null, 'ordered_entry_to_sink_process_missing'],
       [representativeRoute === null, 'route_evidence_missing'],
       [representativeImpact === null, 'impact_evidence_missing'],
+      [representativeSearch === null, 'hybrid_search_evidence_missing'],
       [confidenceEvidence === null, 'confidence_semantics_missing']
     ].filter(([failed]) => failed).map(([, code]) => code);
     const report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-3',
+      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-4',
       phase: 4,
       generatedAt: new Date().toISOString(),
       environment: {
@@ -156,13 +169,15 @@ async function runBenchmark() {
         processQueryWallMs: processRuns.wallMs,
         routeQueryWallMs: routeRuns.wallMs,
         impactQueryWallMs: impactRuns.wallMs,
+        searchQueryWallMs: searchRuns.wallMs,
         deterministicProjectionFingerprint: fingerprint(projectionFingerprints),
         readQueriesPreservedIndex,
-        evidenceComplete: [representativeProcess, representativeRoute, representativeImpact, confidenceEvidence].every((item) => item !== null)
+        evidenceComplete: [representativeProcess, representativeRoute, representativeImpact, representativeSearch, confidenceEvidence].every((item) => item !== null)
           && failures.every((code) => !code.endsWith('_evidence_missing')),
         representativeProcess,
         representativeRoute,
         representativeImpact,
+        representativeSearch,
         confidenceEvidence
       },
       failures,
@@ -173,7 +188,7 @@ async function runBenchmark() {
         competitorParity: false,
         leadership: false,
         millionNodeScale: false,
-        reason: 'This local fixture gate proves deterministic bounded communities, entry-to-sink processes, route evidence, reverse impact, confidence propagation, read-only behavior, and the two-second query deadline. It does not prove hybrid search, constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale.'
+        reason: 'This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale.'
       },
       safeguards: {
         networkCalls: 0,
@@ -198,6 +213,7 @@ async function writeFixture(workspace) {
       "import http from 'node:http';",
       'export function GET() { return handleUser(); }',
       'function handleUser() { return persistUser(); }',
+      'function handleUserUtility() { return true; }',
       'function persistUser() { return { ok: true }; }',
       'http.createServer(persistUser);'
     ].join('\n')],
@@ -319,6 +335,32 @@ function representativeImpactEvidence(result, seedLabel) {
   };
 }
 
+function representativeSearchEvidence(result, exactLabel, lexicalLabel) {
+  const [exact, lexical, neighbor] = result.results;
+  if (exact?.label !== exactLabel || lexical?.label !== lexicalLabel || !neighbor) return null;
+  const resultIds = new Set(result.results.map((item) => item.id));
+  const relationship = result.relationships.find((item) => (
+    resultIds.has(item.fromNodeId)
+    && resultIds.has(item.toNodeId)
+    && Number.isFinite(item.confidence)
+    && item.confidence > 0
+    && item.locator.startsWith('workspace://')
+  ));
+  if (!relationship) return null;
+  return {
+    exactNodeId: exact.id,
+    exactLabel: exact.label,
+    lexicalNodeId: lexical.id,
+    lexicalLabel: lexical.label,
+    neighborNodeId: neighbor.id,
+    neighborLabel: neighbor.label,
+    relationshipId: relationship.id,
+    relationshipKind: relationship.kind,
+    confidence: relationship.confidence,
+    locator: relationship.locator
+  };
+}
+
 function confidenceSemanticsEvidence({ processResult, representativeProcess, representativeRoute, representativeImpact }) {
   if (!representativeProcess || !representativeRoute || !representativeImpact) return null;
   const relationships = new Map(processResult.relationships.map((item) => [item.id, item]));
@@ -374,10 +416,10 @@ async function checkStoredReport() {
   if (report.gateDecision !== 'pass' || report.failures.length !== 0) throw new Error('phase4_gate_not_passing');
   if (!report.results.readQueriesPreservedIndex || !report.results.evidenceComplete) throw new Error('phase4_evidence_gate_not_passing');
   if (report.results.representativeProcess?.truncated !== false || !PROCESS_SINK_KINDS.has(report.results.representativeProcess?.sinkKind)) throw new Error('phase4_representative_sink_invalid');
-  for (const key of ['communityQueryWallMs', 'processQueryWallMs', 'routeQueryWallMs', 'impactQueryWallMs']) {
+  for (const key of ['communityQueryWallMs', 'processQueryWallMs', 'routeQueryWallMs', 'impactQueryWallMs', 'searchQueryWallMs']) {
     if (!Number.isFinite(report.results[key]?.p95) || report.results[key].p95 > report.inputs.queryDeadlineMs) throw new Error('phase4_query_deadline_failed');
   }
-  if (!report.results.representativeRoute || !report.results.representativeImpact) throw new Error('phase4_structural_evidence_missing');
+  if (!report.results.representativeRoute || !report.results.representativeImpact || !report.results.representativeSearch) throw new Error('phase4_structural_evidence_missing');
   if (report.results.confidenceEvidence?.processUsesMinimumRelationshipConfidence !== true) throw new Error('phase4_confidence_evidence_missing');
   if (!report.claims.phase4EvidenceSliceProven || report.claims.phase4IntelligenceProven) throw new Error('phase4_completion_claim_invalid');
   if (report.claims.competitorParity || report.claims.leadership || report.claims.millionNodeScale) throw new Error('phase4_claim_boundary_invalid');

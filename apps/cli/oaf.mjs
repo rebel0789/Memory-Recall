@@ -7123,9 +7123,14 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             .filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix))
             .slice(offset, offset + limit)
             .map(nativeStructuralNode);
+          const resultIds = new Set(results.map((item) => item.id));
+          const relationships = (result.relationships ?? [])
+            .filter((item) => resultIds.has(item.fromNodeId) && resultIds.has(item.toNodeId))
+            .slice(0, limit)
+            .map(nativeStructuralRelationship);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.search', workspaceId, generatedAt: fixedNow(),
-            data: { query, results, resultCount: results.length, source: nativeIndexSource(result) }
+            data: { query, results, relationships, resultCount: results.length, source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();

@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 48 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 106 remain unmeasured or not applicable. A row
+Across 154 Tier 1 capability cells, 49 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 105 remain unmeasured or not applicable. A row
 requires reviewed evidence from its fixture and all three repositories before
 it can say `meets-floor`. JavaScript is the first language to meet every
 applicable sampled row; the other thirteen remain overall `unmeasured`. The
@@ -151,11 +151,11 @@ node scripts/code-intelligence-phase4-intelligence.mjs --check
 ```
 
 The local fixture builds four disconnected TypeScript areas plus one Next.js
-route-to-handler call chain. Five repeated reads produced four deterministic
-communities and one evidence-backed process. On the recorded macOS arm64 run,
-community-query p95 was 8.364 ms and process-query p95 was 11.660 ms. Both were
-below the bounded two-second query deadline, and every read preserved the exact
-SQLite bytes and modification time.
+route-to-handler call chain. Five repeated reads prove deterministic exact,
+lexical, and one-hop structural search alongside bounded communities and an
+evidence-backed process. Every query stays below the bounded two-second deadline
+and preserves the exact SQLite bytes and modification time. The committed
+receipt records the machine-specific p95 values.
 
 This is a deterministic local correctness and deadline gate, not a competitor
 benchmark or a general latency promise. It makes no parity, leadership,

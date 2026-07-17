@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-17T15:38:47.364Z",
+  "generatedAt": "2026-07-17T15:59:34.512Z",
   "languages": [
     {
       "id": "typescript",
@@ -102,7 +102,7 @@
         },
         "exports": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -118,11 +118,19 @@
             },
             {
               "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json"
+            },
+            {
+              "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "heritage": {
@@ -254,7 +262,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 2 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {

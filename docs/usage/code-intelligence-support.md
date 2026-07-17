@@ -72,7 +72,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 
 | Language | Declarations | Relationships | Reviewed calls | Capability rows at floor | Applicable rows still unmeasured | Overall |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| TypeScript | 6/6 | 6/6 | 4/4 | parse, structure, calls | imports, exports, types | unmeasured |
+| TypeScript | 6/6 | 8/8 | 4/4 | parse, structure, exports, calls | imports, types | unmeasured |
 | JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | none | meets-floor |
 | Python | 16/16 | 9/9 | 4/4 | parse, structure, calls | imports, heritage, types, config, frameworks | unmeasured |
 | Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
@@ -87,8 +87,8 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
 
-Across the 154 Tier 1 capability cells, 48 meet the Phase 2 floor, none has a
-recorded floor failure, and 106 remain unmeasured or not applicable. JavaScript
+Across the 154 Tier 1 capability cells, 49 meet the Phase 2 floor, none has a
+recorded floor failure, and 105 remain unmeasured or not applicable. JavaScript
 is the first language whose applicable Phase 2 rows all meet the sampled floor;
 the other thirteen languages remain overall unmeasured. Six
 repository scopes hit the configured node or edge budget and report the exact
@@ -134,16 +134,19 @@ multi-repository indexing, million-node scale, or competitor parity.
 
 ## Phase 4 structural-intelligence evidence
 
-The explicit native preview now derives deterministic bounded communities and
-entry-to-sink processes from the persistent index. Process results retain the
+The explicit native preview now derives deterministic bounded exact, lexical,
+and one-hop structural search, communities, and entry-to-sink processes from
+the persistent index. Search returns source-backed relationship evidence only
+when both endpoints are in the bounded result. Process results retain the
 entry relationship and every traversed source relationship. They exclude stale,
 unresolved, and sub-0.75-confidence steps. `repo.architecture` exposes these
 projections through the existing twelve read-only MCP tools.
 
 The local Phase 4 receipt is
 [`phase4-intelligence.json`](../../evals/code-intelligence/results/phase4-intelligence.json).
-It proves deterministic output, complete returned evidence, unchanged SQLite
-bytes and modification time, and the two-second query deadline on its fixture.
+It proves deterministic search ranking and output, complete returned evidence,
+unchanged SQLite bytes and modification time, and the two-second query deadline
+on its fixture.
 It does not promote any language's process capability to `meets-floor`: that
 still requires applicable deterministic and pinned real-repository evidence.
 It also does not change the JS default or prove packaged binaries, competitors,

@@ -155,7 +155,8 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   mkdirSync(path.join(root, '.local'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'index.ts'), [
     'export function main(){ return helper(); }',
-    'export function helper(){ return 1; }'
+    'export function helper(){ return 1; }',
+    'export function mainUtility(){ return 2; }'
   ].join('\n'));
   writeFileSync(path.join(root, 'src', 'worker.py'), 'def worker():\n    return 1\n');
   writeFileSync(path.join(root, 'app', 'api', 'users', 'route.ts'), 'export function GET(){ return { ok: true }; }\n');
@@ -180,14 +181,15 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } },
     { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
-    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 10 } } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 3 } } },
     { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', limit: 10 } } },
     { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'main', direction: 'outbound', depth: 2, limit: 10 } } },
     { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'src/index.ts', direction: 'outbound', depth: 2, limit: 10 } } },
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'code.routes', arguments: { limit: 10 } } },
     { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'main', changed: ['src/index.ts'], limit: 10 } } },
     { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } },
-    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } }
+    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } },
+    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 3 } } }
   ];
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
@@ -200,7 +202,7 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     listedTools.find((tool) => tool.name === 'repo.architecture').description,
     'Return bounded architecture groups, communities, entry points, hotspots, and evidence-backed entry-to-sink processes from local source metadata.'
   );
-  for (let id = 3; id <= 12; id += 1) {
+  for (let id = 3; id <= 13; id += 1) {
     const response = responses.find((entry) => entry.id === id);
     assert.equal(response.error, undefined, `tool response ${id}: ${JSON.stringify(response.error)}`);
     const payload = JSON.parse(response.result.content[0].text);
@@ -234,7 +236,21 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     assert(architectureRelationshipIds.has(process.entryRelationshipId));
   }
   assert(architecture.relationships.some((item) => item.kind === 'handles_route' && item.confidence > 0));
-  assert(JSON.parse(responses.find((entry) => entry.id === 5).result.content[0].text).data.results.some((item) => item.label === 'main'));
+  const search = JSON.parse(responses.find((entry) => entry.id === 5).result.content[0].text).data;
+  const repeatedSearch = JSON.parse(responses.find((entry) => entry.id === 13).result.content[0].text).data;
+  assert.deepEqual(search.results.map((item) => item.label), ['main', 'mainUtility', 'helper']);
+  assert.deepEqual(repeatedSearch.results, search.results);
+  assert.deepEqual(repeatedSearch.relationships, search.relationships);
+  assert(search.results.length <= 3);
+  assert(search.relationships.length <= 3);
+  const searchResultIds = new Set(search.results.map((item) => item.id));
+  assert(search.relationships.some((item) => (
+    item.kind === 'calls'
+      && item.confidence > 0
+      && item.locator.startsWith('workspace://')
+      && searchResultIds.has(item.fromNodeId)
+      && searchResultIds.has(item.toNodeId)
+  )));
   assert(JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
   const routes = JSON.parse(responses.find((entry) => entry.id === 9).result.content[0].text).data;
   assert(routes.routes.some((item) => item.locator.includes('app/api/users/route.ts')));

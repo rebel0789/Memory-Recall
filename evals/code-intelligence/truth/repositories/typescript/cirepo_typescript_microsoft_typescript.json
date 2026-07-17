@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "unmeasured",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -42,6 +42,28 @@
       "name": "ClassFacts",
       "qualifiedName": "classFields.ts::ClassFacts",
       "locator": "workspace://classFields.ts#L333-L340"
+    },
+    {
+      "id": "cititem_ts_compiler_export_transform_class_fields",
+      "semanticKey": "edge:exports:classFields.ts:transformClassFields",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "classFields",
+        "qualifiedName": "classFields.ts::classFields",
+        "locator": "workspace://classFields.ts#L1-L3361"
+      },
+      "to": {
+        "kind": "function",
+        "name": "transformClassFields",
+        "qualifiedName": "classFields.ts::transformClassFields",
+        "locator": "workspace://classFields.ts#L354-L3316"
+      },
+      "locator": "workspace://classFields.ts#L354-L3316",
+      "resolution": "exact"
     },
     {
       "id": "cititem_ts_compiler_identifier_map_construct",
@@ -109,5 +131,5 @@
       "locator": "workspace://es2016.ts#L27-L27"
     }
   ],
-  "truthFingerprint": "sha256:06ad8c18d3c08cce295b9093af907b4379ae046fd6880ad896e0c54b31fe2cb6"
+  "truthFingerprint": "sha256:c03f480b0e71674123de912a2bc044038889ceb39dc8fbb45b55cc14bffa0afd"
 }
