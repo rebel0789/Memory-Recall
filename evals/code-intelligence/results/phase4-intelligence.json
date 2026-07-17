@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-3",
   "phase": 4,
-  "generatedAt": "2026-07-17T05:11:25.445Z",
+  "generatedAt": "2026-07-17T13:18:19.621Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,7 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:18244cf1480348cec4f788205b2d941e6b4a70d2fb1dbef2814415ae04790636",
-    "implementationFingerprint": "sha256:b93de660c01f4b986b7cefaee0c043704b2840e561b11205ac88024d47f503e2",
+    "implementationFingerprint": "sha256:a8a84eef7720e75a4d382cf5ce01dcca1b50e171ddc2d2b72a11f0477baacb18",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
@@ -24,21 +24,36 @@
   "results": {
     "communityCount": 4,
     "processCount": 1,
+    "routeCount": 1,
+    "impactNodeCount": 5,
+    "impactRelationshipCount": 7,
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 8.447,
-      "p50": 8.606,
-      "p95": 8.884,
-      "maximum": 8.884
+      "minimum": 8.143,
+      "p50": 8.818,
+      "p95": 8.97,
+      "maximum": 8.97
     },
     "processQueryWallMs": {
-      "minimum": 7.39,
-      "p50": 8.023,
-      "p95": 8.873,
-      "maximum": 8.873
+      "minimum": 7.666,
+      "p50": 7.705,
+      "p95": 8.983,
+      "maximum": 8.983
     },
-    "deterministicProjectionFingerprint": "sha256:102a9f8c1b1e07db1c4ba741c8f7059265a1e86aec9fda4c23c08018ab9193f1",
+    "routeQueryWallMs": {
+      "minimum": 6.613,
+      "p50": 7.174,
+      "p95": 7.331,
+      "maximum": 7.331
+    },
+    "impactQueryWallMs": {
+      "minimum": 6.858,
+      "p50": 7.515,
+      "p95": 7.659,
+      "maximum": 7.659
+    },
+    "deterministicProjectionFingerprint": "sha256:ce3f24f84fc56d4cae323dc3dc43405e55539cbce424894a6dcff053b75eb35b",
     "readQueriesPreservedIndex": true,
     "evidenceComplete": true,
     "representativeProcess": {
@@ -65,38 +80,85 @@
         "relationshipId": "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
         "kind": "handles_route",
         "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
-        "toNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a"
+        "toNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a",
+        "confidence": 0.95,
+        "resolution": "exact"
       },
       "executionSteps": [
         {
           "relationshipId": "ciedge_3c2f44f961a8e4b3ee861679a46599c6",
           "kind": "calls",
           "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
-          "toNodeId": "cinode_b1d9033581223f492d71170fff0c3e34"
+          "toNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+          "confidence": 0.75,
+          "resolution": "inferred"
         },
         {
           "relationshipId": "ciedge_39df168f0f66d16fd2b64aca3de198f9",
           "kind": "calls",
           "fromNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
-          "toNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+          "toNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+          "confidence": 0.75,
+          "resolution": "inferred"
         },
         {
           "relationshipId": "ciedge_624958b6dcac5a19d032cd04baad1c47",
           "kind": "listens",
           "fromNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
-          "toNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a"
+          "toNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a",
+          "confidence": 1,
+          "resolution": "exact"
         }
       ]
+    },
+    "representativeRoute": {
+      "routeNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a",
+      "routeLabel": "GET_api_users",
+      "routeLocator": "workspace://app/api/users/route.ts#L2-L2",
+      "relationshipId": "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
+      "relationshipKind": "handles_route",
+      "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+      "toNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a",
+      "confidence": 0.95,
+      "resolution": "exact"
+    },
+    "representativeImpact": {
+      "seedNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+      "seedLabel": "persistUser",
+      "dependantNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+      "dependantLabel": "handleUser",
+      "relationshipId": "ciedge_39df168f0f66d16fd2b64aca3de198f9",
+      "relationshipKind": "calls",
+      "confidence": 0.75,
+      "resolution": "inferred"
+    },
+    "confidenceEvidence": {
+      "range": [
+        0,
+        1
+      ],
+      "routeConfidence": 0.95,
+      "impactConfidence": 0.75,
+      "processRelationshipConfidences": [
+        0.95,
+        0.75,
+        0.75,
+        1
+      ],
+      "processMinimumConfidence": 0.75,
+      "processReportedConfidence": 0.75,
+      "processUsesMinimumRelationshipConfidence": true
     }
   },
   "failures": [],
   "gateDecision": "pass",
   "claims": {
-    "phase4IntelligenceProven": true,
+    "phase4EvidenceSliceProven": true,
+    "phase4IntelligenceProven": false,
     "competitorParity": false,
     "leadership": false,
     "millionNodeScale": false,
-    "reason": "This local fixture gate proves deterministic bounded communities, entry-to-sink processes, evidence integrity, read-only behavior, and the two-second query deadline. It does not measure competitors, packaged native binaries, multi-repository behavior, or million-node scale."
+    "reason": "This local fixture gate proves deterministic bounded communities, entry-to-sink processes, route evidence, reverse impact, confidence propagation, read-only behavior, and the two-second query deadline. It does not prove hybrid search, constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
   },
   "safeguards": {
     "networkCalls": 0,
@@ -105,5 +167,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:a729d538305f7ea4d27260889dd61d93959c67d43eacb2bf1ed516186026e199"
+  "reportFingerprint": "sha256:e5a17462b33a3217e7a510c3a98faf14050fb0c9d588983bf85ade857874d72b"
 }
