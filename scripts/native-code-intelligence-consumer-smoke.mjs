@@ -35,7 +35,9 @@ const languages = Object.freeze([
 ]);
 const rawSourceSentinel = 'RAW_SOURCE_SENTINEL_INSTALLED_CONSUMER_9f47c2';
 const governedMemory = path.join(workspace, '.local', 'memory.sqlite');
-const goCrossRepositoryReceiptPath = parseGoCrossRepositoryReceiptPath(process.argv.slice(2));
+const smokeArguments = process.argv.slice(2);
+const nativePolyglotOnly = smokeArguments.length === 1 && smokeArguments[0] === '--native-polyglot-only';
+const goCrossRepositoryReceiptPath = nativePolyglotOnly ? null : parseGoCrossRepositoryReceiptPath(smokeArguments);
 const goCrossRepositoryImplementationFiles = Object.freeze([
   'apps/cli/oaf.mjs',
   'packages/protocol/schemas/code-intelligence-repository-request.schema.json',
@@ -49,7 +51,7 @@ const goCrossRepositoryImplementationFiles = Object.freeze([
 ]);
 let pendingGoCrossRepositoryReceipt = null;
 
-try {
+consumerSmoke: try {
   if (goCrossRepositoryReceiptPath !== null) await rm(goCrossRepositoryReceiptPath, { force: true });
   must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
   await mkdir(home, { recursive: true });
@@ -136,6 +138,18 @@ try {
   const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
 
   const providerUrl = pathToFileURL(path.join(packageRoot, 'providers', 'native', 'code-intelligence-rust', 'src', 'index.mjs')).href;
+  if (nativePolyglotOnly) {
+    const legacyIntelligence = path.join(
+      packageRoot,
+      'providers',
+      'native',
+      'context-candidate-ast-code',
+      'src',
+      'index.mjs'
+    );
+    must((await stat(legacyIntelligence)).isFile(), 'installed package contains the legacy JS intelligence implementation');
+    await writeFile(legacyIntelligence, "throw new Error('legacy_js_intelligence_invoked');\n");
+  }
   const { RustCodeIntelligenceProvider } = await import(providerUrl);
   assertCommandUnavailable('cargo', isolatedEnvironment);
   assertCommandUnavailable('rustc', isolatedEnvironment);
@@ -197,6 +211,12 @@ try {
   const installedReports = JSON.stringify({ health, providerGraph, built, status, query });
   must(!installedReports.includes(workspace), 'installed native reports redact the workspace path');
   must(!installedReports.includes(rawSourceSentinel), 'installed native reports omit raw source bodies');
+  if (nativePolyglotOnly) {
+    must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'native fixture gate leaves consumer source unchanged');
+    console.log(`PASS installed verified native platform package ${target}`);
+    console.log('PASS compiler-free 14-language native graph and SQLite index without legacy JS intelligence');
+    break consumerSmoke;
+  }
 
   await withProcessEnvironment(isolatedEnvironment, async () => {
     const provider = new RustCodeIntelligenceProvider({ timeoutMs: 60_000 });
@@ -699,7 +719,7 @@ function initializeGitRepository(repositoryRoot) {
 function parseGoCrossRepositoryReceiptPath(argv) {
   if (argv.length === 0) return null;
   if (argv.length !== 2 || argv[0] !== '--go-cross-repository-receipt' || argv[1].length === 0) {
-    throw new Error('usage: native-code-intelligence-consumer-smoke [--go-cross-repository-receipt <path>]');
+    throw new Error('usage: native-code-intelligence-consumer-smoke [--native-polyglot-only | --go-cross-repository-receipt <path>]');
   }
   return path.resolve(argv[1]);
 }
