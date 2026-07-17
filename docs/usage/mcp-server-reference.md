@@ -109,8 +109,8 @@ recall mcp server --read-only --engine native-preview --root . --stdio
 
 Its fixed path is `.local/source-index/index.v1.sqlite`. The native MCP preview
 queries that prebuilt index and fails clearly if it is unavailable; it never
-builds, refreshes, repairs, or falls back to the JS engine. Normal MCP startup
-continues to use the JS index behavior above.
+builds, refreshes, repairs, or falls back to the JS engine. Direct `mcp server`
+commands without `--engine` continue to use the JS index behavior above.
 
 Explicit automatic selection is available without changing that default:
 
@@ -150,6 +150,13 @@ recall mcp install --client claude-code --dry-run --format json
 recall mcp install --client cursor --dry-run --format json
 recall mcp install --client codex --dry-run --format json
 ```
+
+The installer-generated server uses `--engine auto`. Install preview and apply
+never build or refresh a graph index. The report prints `indexBuildCommand` as
+the separate explicit write needed to create the native preview index; until
+that command is run successfully, structural tools use the labeled bounded JS
+fallback. A healthy, current native index is then read automatically without
+MCP writes.
 
 Apply only after reviewing the dry-run fingerprint:
 

@@ -26,7 +26,7 @@
     "PROJECT_STATUS.json": "sha256:8b9a3e01b6e45bb04156d20f7bcfe60e3e4f2995a33b90f40434564b93b30518",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
-    "docs/usage/support-matrix.md": "sha256:49839cb27aec22ab44d05608b523bd650a342c63b584a21a999f3469b90a5469",
+    "docs/usage/support-matrix.md": "sha256:9e00f423b475e42137682ec7829d62f0ff348e5ec5882c288dcd04e4d4a89802",
     "docs/benchmarks.md": "sha256:e47fb07b6d2321af0e77eef0fc306dd4b213125c606777d8f03715fadd91143e",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:af8c910a7f2092f3adc8a9be30f79618d040101c6eda0fda705fdd8f9327b472",
@@ -35,7 +35,7 @@
   "publicEvidence": [
     {
       "path": "docs/usage/support-matrix.md",
-      "sha256": "sha256:49839cb27aec22ab44d05608b523bd650a342c63b584a21a999f3469b90a5469"
+      "sha256": "sha256:9e00f423b475e42137682ec7829d62f0ff348e5ec5882c288dcd04e4d4a89802"
     },
     {
       "path": "docs/benchmarks.md",

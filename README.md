@@ -116,7 +116,11 @@ approval.
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
 command only when the fingerprint matches. That path installs the twelve-tool
-read-only MCP server. Reverse it with `recall mcp uninstall --client
+read-only MCP server with `--engine auto`; install never builds or refreshes an
+index, and its `indexBuildCommand` is the separate explicit native-index write.
+Until a healthy, current native index exists, structural tools report a labeled
+bounded JS path. Direct `mcp server` commands without `--engine` still default
+to JS. Reverse the install with `recall mcp uninstall --client
 claude-code --dry-run --format json`, then the printed confirmed command. It
 removes only the exact package-owned entry and preserves neighboring servers.
 `recall connect` is separate: it installs a resource
@@ -190,8 +194,11 @@ cross-product benchmark leaderboard.
   generation store, incremental refresh, doctor/confirm-gated repair, bounded
   queries, and read-only MCP access to a prebuilt index. Native
   `repo.architecture` returns deterministic communities, bounded entry-to-sink
-  processes, and their source relationships. It requires a locally built Rust
-  binary and never changes the JS public default.
+  processes, and their source relationships. Native use requires a verified
+  matching binary from a local build, an explicit environment path, or an
+  optional platform package; no platform package is published in the registry
+  yet. Graph commands and direct MCP startup without `--engine` remain on JS,
+  while installer-generated MCP config uses freshness-gated auto selection.
 - Explicit persistent JS/TS source index with atomic writes, per-file structural
   shards, incremental refresh, stale detection, and watch mode. MCP can read a
   current index but never creates or refreshes one.
@@ -202,15 +209,16 @@ cross-product benchmark leaderboard.
 - Local `/memory` cockpit over the loopback Control API with temporal facts,
   proposal counts, MCP delivery stats, and confirm-gated approvals.
 - Experimental Rust acceleration paths for local ingest, governed graph/search,
-  wiki, MCP, and static analysis when explicitly invoked. They require a local
-  `cargo build --release` before use; Rust source ships in the npm package, but
-  build output stays out of the tarball.
+  wiki, MCP, and static analysis when explicitly invoked. Source checkouts can
+  use a local release build; the resolver can also use a verified matching
+  optional platform package when one is available.
 - Release-candidate native packaging now has five target-specific optional
   package manifests and a checksum-, version-, target-, and path-verified
   resolver. A local macOS arm64 packed-install gate passes without Cargo or
   Rust and covers all fourteen Tier 1 parsers plus the SQLite lifecycle. These
-  platform packages are not published or signed yet, and the JS path remains
-  the public default.
+  platform packages are not published or signed yet, so installed auto mode
+  normally reaches the labeled JS path unless a verified binary and current
+  prebuilt index are supplied.
 - Deterministic local benches for temporal correctness, session delta delivery,
   and checkout-derived structured-ingest sufficiency.
 
@@ -221,7 +229,9 @@ Memory Recall is built around explicit authority:
 - memory ingest creates proposals, not trusted facts;
 - active memory requires review and approval;
 - rejections and supersessions are recorded, not silently deleted;
-- MCP resources are read-only by default;
+- MCP structural reads do not write canonical memory, source indexes, config,
+  network, or external systems; `memory.recall` and `context.profile` may persist
+  local cursors and append delivery statistics;
 - setup and connect commands support dry-run previews;
 - local storage remains local unless you intentionally move it;
 - external adapters stay disabled until reviewed, pinned, licensed, and tested.

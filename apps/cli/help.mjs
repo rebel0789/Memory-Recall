@@ -409,10 +409,13 @@ preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install and uninstall remain dry-run unless explicitly confirmed.
 Uninstall removes only an exact Memory Recall-owned entry and preserves .local.
-The MCP server keeps the JS engine by default. Explicit auto mode uses a
-current, healthy native index and otherwise labels a bounded JS fallback. Native
-preview reads only a prebuilt .local/source-index database and never builds or
-refreshes it.`],
+Direct MCP server commands without --engine keep the JS default. mcp install
+configures auto mode and prints indexBuildCommand; install never builds or
+refreshes an index. Run the explicit writer when wanted:
+  oaf graph index --write --engine native-preview --root . --format summary
+Auto mode reads a current, healthy native index and otherwise labels a bounded
+JS fallback. Native preview reads only a prebuilt
+.local/source-index database and never builds or refreshes it.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

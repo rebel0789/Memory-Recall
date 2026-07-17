@@ -44,8 +44,9 @@ containment, SHA-256, executable availability, and exact binary version before
 use. The macOS arm64 package path passes an isolated local packed-install gate;
 the other targets, signing, release publication, and public-default promotion
 remain unproven.
-Graph commands without `--engine`, the web workbench, and normal MCP startup
-continue to use the Node path. An MCP server started with both `--read-only` and
+Graph commands without `--engine`, the web workbench, and direct MCP startup
+without `--engine` continue to use the Node path. Installer-generated MCP
+startup uses `--engine auto`. An MCP server started with both `--read-only` and
 `--engine native-preview` may query a prebuilt SQLite index; it never builds,
 refreshes, or repairs one. Explicit MCP `--engine auto` checks that prebuilt
 index before each structural read, uses it only while it is healthy and current,
@@ -174,8 +175,9 @@ generation. Persisted file, node, or edge omissions continue to report partial
 coverage rather than current coverage.
 
 Normal `index.query` calls remain SQLite-only and do not rescan the workspace.
-The future automatic native selector must run one status check before reusing a
-generation. Indexes written before the scan-scope marker was added report
+The automatic native selector runs one status check and reuses a generation only
+when it is current, healthy, committed, read-only, and requires no repair or
+local write. Indexes written before the scan-scope marker was added report
 unverified until rebuilt. A historical custom `maxFileBytes` value is not yet
 persisted, so status uses the protocol's 10 MiB maximum and may conservatively
 report stale for a file that an earlier lower limit excluded. It cannot turn

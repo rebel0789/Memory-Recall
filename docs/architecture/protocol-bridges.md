@@ -82,8 +82,15 @@ Dry-run is the default and writes nothing. The preview uses the same
 harness-setup planner and prints the ready-to-paste stdio server:
 
 ```text
-npm --silent run recall -- mcp server --read-only --root . --stdio
+npm --silent run recall -- mcp server --read-only --engine auto --root . --stdio
 ```
+
+Installer-generated servers use freshness-gated auto selection. The install
+does not build or refresh a graph index: its report prints `indexBuildCommand`
+as a separate explicit write. Without a healthy, current native index, the
+read-only structural tools use the labeled bounded JS fallback; with one, they
+read the native index without writing it. Direct `mcp server` commands without
+`--engine` remain on the JS default.
 
 Applying the preview requires the matching plan fingerprint from that dry-run:
 

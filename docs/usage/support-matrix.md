@@ -13,7 +13,7 @@ For per-language code-intelligence evidence and benchmark status, see
 
 There are two different local MCP paths:
 
-- `recall mcp install` installs `recall mcp server --read-only` for Codex,
+- `recall mcp install` installs `recall mcp server --read-only --engine auto` for Codex,
   Claude Code, or Cursor. It exposes twelve tools: `memory.recall`,
   `context.profile`, `context.pack`, `repo.map`, `repo.architecture`,
   `repo.index_status`, `code.search`, `code.context`, `code.trace`,
@@ -30,9 +30,9 @@ reversal path.
 
 | Client or surface | Install mode | Config write behavior | Hook behavior | Graph coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command; reverse with `mcp uninstall` | Writes or removes only the exact entry in `$HOME/.codex/config.toml` after matching confirmation; backs up existing config | None from this install | Twelve read-only memory, context, and bounded JS/TS structural tools | Implemented |
-| Claude Code tool server | `recall mcp install --client claude-code --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.claude/mcp.json` | None from this install | Same bounded JS/TS graph tools | Implemented |
-| Cursor tool server | `recall mcp install --client cursor --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.cursor/mcp.json` | No hook writer | Same bounded JS/TS graph tools | Implemented |
+| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command; reverse with `mcp uninstall` | Writes or removes only the exact entry in `$HOME/.codex/config.toml` after matching confirmation; backs up existing config | None from this install | Twelve read-only tools; installed auto reads a healthy, current prebuilt native index when a verified binary exists, otherwise it labels the bounded JS/TS path | Implemented |
+| Claude Code tool server | `recall mcp install --client claude-code --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.claude/mcp.json` | None from this install | Same freshness-gated auto selection and labeled bounded JS/TS fallback | Implemented |
+| Cursor tool server | `recall mcp install --client cursor --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.cursor/mcp.json` | No hook writer | Same freshness-gated auto selection and labeled bounded JS/TS fallback | Implemented |
 | Codex resource bridge | `recall connect codex --dry-run --format json`, then `--yes` | `connect --yes` writes only matching resource-bridge entries and creates backups when it changes existing home config | Connect-owned `SessionStart`, `UserPromptSubmit`, and `PreCompact` hook entries | Resources only; no MCP graph tools | Implemented |
 | Claude Code resource bridge | `recall connect claude-code --dry-run --format json`, then `--yes` | Same narrow connect-owned writer and backup behavior | Same three connect-owned hook events | Resources only; no MCP graph tools | Implemented |
 | OpenCode, OpenClaw, Gemini CLI, Zed, Aider, Goose, VS Code, Cline, Roo, Windsurf, Generic MCP | `recall harness setup plan --client <client> --server oaf --dry-run --format json`, then copy the shown snippet yourself | Preview and manual snippet only; `harness setup` never writes config | No writer; use the read-only MCP server manually if the client supports it | No installer-backed graph-tool proof for each client | Experimental |
@@ -50,11 +50,15 @@ files only, up to 1,000 files and 512 KiB per file, and reports skipped or
 partial coverage. It is not a language server, semantic graph database, or
 universal code index.
 
-`recall graph index --write` creates an optional local structural index under
+`recall graph index --write` creates an optional JS/TS structural index under
 `.local/source-graph/`. `--refresh` reparses changed and added files, reuses
 unchanged shards, and removes deleted files. `--refresh --watch` keeps it
-current while the process runs. Index writes are explicit; MCP only reads a
-current index and falls back to a fresh bounded scan when it is stale.
+current while the process runs. Direct MCP startup without `--engine` stays on
+this JS path, which reuses a current index or performs a bounded scan when the
+index is absent or stale. Strict `native-preview` reads only a prebuilt SQLite
+index and does not fall back. Installer-generated `auto` status-gates that
+native index, then uses the labeled JS path when native is unavailable. Every
+build, refresh, and repair remains explicit.
 
 `recall graph stats`, `recall graph search`, `recall graph trace`, and
 `recall graph impact` accept `--engine native-preview` or `--engine
@@ -85,6 +89,9 @@ setup` and `hook install` are previews/manual snippets only. Normal
 `memory.recall` and `context.profile` calls can persist local cursor and
 delivery telemetry; structural map, search, trace, route, dependency, impact,
 architecture, and index-status tools do not record that telemetry.
+Here, read-only means no canonical-memory, source-index, client-config, network,
+or external writes; it does not mean that optional local cursor and statistics
+files are disabled.
 
 For current commands and limitations, see the [MCP server reference](mcp-server-reference.md)
 and [developer-first contract](../product/memory-recall-developer-first.md).
