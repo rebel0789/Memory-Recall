@@ -139,6 +139,32 @@ test('compatibility preserves the official node:path import key', async (t) => {
   });
 });
 
+test('compatibility resolves a CommonJS member call to the required module', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-commonjs-member-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'application.js'), 'exports.create = function create(){ return 1; };\n');
+  await writeFile(path.join(root, 'express.js'), [
+    "var create = require('./application').create;",
+    'function createApplication(){ return create(); }',
+    'module.exports = createApplication;'
+  ].join('\n'));
+
+  const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
+  const [baseline, native] = await Promise.all([
+    buildJsTsSourceGraph({ root, workspaceId: 'ws_local', clock: () => fixedNow }),
+    provider.buildGraph({ root, workspaceId: 'ws_local', languages: ['javascript'] })
+  ]);
+  const comparison = compareSourceGraphCompatibility(baseline, translateCodeIntelligenceGraph(native));
+
+  assert.deepEqual(comparison.dimensions.find((item) => item.name === 'calls'), {
+    name: 'calls',
+    baselineCount: 1,
+    nativeCount: 1,
+    matchedCount: 1,
+    recall: 1
+  });
+});
+
 test('source graph intelligence keeps JS default and makes native selection strict', async (t) => {
   const root = await compatibilityWorkspace(t);
   const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });

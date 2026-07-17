@@ -889,7 +889,8 @@ impl ParsedRepo {
     }
 
     fn resolve_scoped_call_target(&self, call: &CallRef) -> Option<String> {
-        let name = sanitize_symbol(&call.callee_name)?;
+        let direct_name = sanitize_symbol(&call.callee_name)?;
+        let name = self.lookup_symbol_name_in_source(&call.callee_name, &call.source)?;
         let subjects = self.definitions_by_name.get(&name)?;
         let local = subjects
             .iter()
@@ -903,7 +904,13 @@ impl ParsedRepo {
             })
             .cloned()
             .collect::<Vec<_>>();
-        (local.len() == 1).then(|| local[0].clone())
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        if name != direct_name && subjects.len() == 1 {
+            return subjects.iter().next().cloned();
+        }
+        None
     }
 
     fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
@@ -3156,6 +3163,16 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
     let mut suppress_child_calls = false;
+    if node.kind() == "variable_declarator"
+        && matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        )
+    {
+        if let Some((alias, target)) = commonjs_require_member_binding(node, source, context) {
+            parsed.add_symbol_alias(&context.source, &alias, &target);
+        }
+    }
     if context.lang == LangKind::Go && node.kind() == "composite_literal" {
         if let (Some(caller), Some(type_name)) = (
             context.caller.as_deref(),
@@ -3596,6 +3613,19 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                 parsed.add_symbol_name(&format!("{receiver}_{callable}"), &subject);
             }
         }
+        if node.kind() == "assignment_expression"
+            && matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            )
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
         next.caller = Some(subject);
         next.type_bindings = local_type_bindings(node, source, context);
         next.suppress_calls = false;
@@ -3609,6 +3639,71 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             walk_node(child, source, &next, parsed);
         }
     }
+}
+
+fn commonjs_exported_function(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<String> {
+    let left = node.child_by_field_name("left")?;
+    let right = node.child_by_field_name("right")?;
+    if !matches!(right.kind(), "function_expression" | "function") {
+        return None;
+    }
+    let export_name = node_text(left, source)
+        .strip_prefix("exports.")
+        .or_else(|| node_text(left, source).strip_prefix("module.exports."))
+        .and_then(sanitize_symbol)?;
+    let function_name = right
+        .child_by_field_name("name")
+        .map(|name| node_text(name, source))
+        .and_then(sanitize_symbol)?;
+    if function_name != export_name {
+        return None;
+    }
+    let module_name = context.module.strip_prefix("module:")?;
+    Some(format!("{module_name}.{export_name}"))
+}
+
+fn commonjs_require_member_binding(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<(String, String)> {
+    let alias = node
+        .child_by_field_name("name")
+        .map(|name| node_text(name, source))
+        .and_then(sanitize_symbol)?;
+    let value = node.child_by_field_name("value")?;
+    if value.kind() != "member_expression" {
+        return None;
+    }
+    let require_call = value.child_by_field_name("object")?;
+    if require_call.kind() != "call_expression"
+        || callee_name(require_call, source).as_deref() != Some("require")
+    {
+        return None;
+    }
+    let raw = quoted_literals(node_text(require_call, source))
+        .into_iter()
+        .next()?;
+    if !raw.starts_with('.') {
+        return None;
+    }
+    let member = value
+        .child_by_field_name("property")
+        .map(|property| node_text(property, source))
+        .and_then(sanitize_symbol)?;
+    let source_rel = context
+        .source
+        .strip_prefix("workspace://")
+        .unwrap_or(&context.source);
+    let target_module = resolve_relative_import(source_rel, &raw)?;
+    Some((
+        alias,
+        format!("{}.{}", module_token(&target_module), member),
+    ))
 }
 
 fn apply_scoped_namespace(
@@ -3847,6 +3942,19 @@ fn callable_definition(
             let signature = callable_parameter_signature(node, source, context.lang);
             let qualified = format!("{owner}.new{signature}");
             Some((qualified.clone(), format!("method:{qualified}"), "Method"))
+        }
+        "assignment_expression"
+            if matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            ) =>
+        {
+            let qualified = commonjs_exported_function(node, source, context)?;
+            Some((
+                qualified.clone(),
+                format!("function:{qualified}"),
+                "Function",
+            ))
         }
         "variable_declarator" => {
             let value = node.child_by_field_name("value")?;
