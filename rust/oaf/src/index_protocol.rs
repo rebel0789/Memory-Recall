@@ -27,7 +27,8 @@ const INDEX_RELATIVE_PATH: &str = ".local/source-index/index.v1.sqlite";
 const MAX_LINE_BYTES: usize = 64 * 1024;
 const SOURCE_FRESHNESS_MAX_CANDIDATE_FILES: usize = 1_000_000;
 const SOURCE_FRESHNESS_MAX_HASHED_BYTES: u64 = 350 * 1024 * 1024;
-const SOURCE_FRESHNESS_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
+const LEGACY_SOURCE_FRESHNESS_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
+const SCAN_MAX_FILE_BYTES_CAPABILITY: &str = "scan-max-file-bytes";
 const FALLBACK_REQUEST_ID: &str = "ciidxreq_00000000000000000000000000000000";
 const LANGUAGES: &[&str] = &[
     "typescript",
@@ -580,6 +581,7 @@ fn refresh_index(
     };
     if partial_refresh {
         build.generation.coverage = active.input.coverage.clone();
+        record_max_file_bytes(&mut build.generation.coverage, arguments.max_file_bytes)?;
     }
     let mut writer = SourceIndex::open(path, options)?;
     let invalidated = plan
@@ -773,7 +775,8 @@ fn verify_source_freshness(
         languages.extend(active.files.iter().map(|file| file.language.clone()));
     }
     let mut ingest_options = IngestOptions::new(root);
-    ingest_options.max_file_bytes = SOURCE_FRESHNESS_MAX_FILE_BYTES;
+    ingest_options.max_file_bytes =
+        persisted_max_file_bytes(active).unwrap_or(LEGACY_SOURCE_FRESHNESS_MAX_FILE_BYTES);
     ingest_options.prefer_cpp_headers = languages.contains("cpp") && !languages.contains("c");
     let selected_file_limit =
         (persisted_omitted_file_count(active) > 0).then_some(active.files.len());
@@ -843,7 +846,11 @@ fn build_generation(
         request.deadline_ms,
         engine_version,
     )?;
-    record_omissions(&mut build, arguments.languages.is_empty())?;
+    record_omissions(
+        &mut build,
+        arguments.languages.is_empty(),
+        arguments.max_file_bytes,
+    )?;
     Ok(build)
 }
 
@@ -918,7 +925,11 @@ fn refresh_parse_sources(
     selected
 }
 
-fn record_omissions(build: &mut IndexGenerationBuild, scope_all_languages: bool) -> Result<()> {
+fn record_omissions(
+    build: &mut IndexGenerationBuild,
+    scope_all_languages: bool,
+    max_file_bytes: u64,
+) -> Result<()> {
     let counts = [
         (
             "omitted-files",
@@ -955,8 +966,36 @@ fn record_omissions(build: &mut IndexGenerationBuild, scope_all_languages: bool)
         failed_count: 0,
         reason_code: None,
     });
+    record_max_file_bytes(&mut build.generation.coverage, max_file_bytes)?;
     build.generation.structural_fingerprint = normalized_generation_fingerprint(&build.generation)?;
     Ok(())
+}
+
+fn record_max_file_bytes(coverage: &mut Vec<CoverageRecord>, max_file_bytes: u64) -> Result<()> {
+    coverage.retain(|record| {
+        record.language != "source-index" || record.capability != SCAN_MAX_FILE_BYTES_CAPABILITY
+    });
+    coverage.push(CoverageRecord {
+        language: "source-index".to_string(),
+        capability: SCAN_MAX_FILE_BYTES_CAPABILITY.to_string(),
+        represented_count: i64::try_from(max_file_bytes)
+            .context("source_index_max_file_bytes_invalid")?,
+        omitted_count: 0,
+        failed_count: 0,
+        reason_code: None,
+    });
+    Ok(())
+}
+
+fn persisted_max_file_bytes(input: &GenerationInput) -> Option<u64> {
+    input
+        .coverage
+        .iter()
+        .find(|record| {
+            record.language == "source-index" && record.capability == SCAN_MAX_FILE_BYTES_CAPABILITY
+        })
+        .and_then(|record| u64::try_from(record.represented_count).ok())
+        .filter(|value| *value > 0)
 }
 
 fn persisted_omitted_count(input: &GenerationInput) -> u64 {
@@ -2174,6 +2213,78 @@ mod tests {
         )
         .unwrap();
         assert_eq!(refreshed_status["result"]["freshness"], "current");
+    }
+
+    #[test]
+    fn status_uses_persisted_max_file_bytes_without_false_stale_or_writes() {
+        let workspace = tempdir().unwrap();
+        fs::write(
+            workspace.path().join("main.ts"),
+            "export const value = 1;\n",
+        )
+        .unwrap();
+        let mut arguments = writer_arguments();
+        arguments["maxFileBytes"] = json!(64);
+        let build = execute_request(
+            parse_request(request("index.build", arguments.clone())).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(build["result"]["summary"]["omittedCount"], 0);
+
+        let canonical_root = workspace.path().canonicalize().unwrap();
+        let index_path = canonical_root.join(INDEX_RELATIVE_PATH);
+        let repository_identity = repository_identity_hash(&canonical_root, "ws_local");
+        let options = SourceIndexOptions::new(repository_identity, "1.1.1");
+        let index = SourceIndex::open_read_only(&index_path, &options).unwrap();
+        let active = index.load_active_generation().unwrap().unwrap();
+        assert_eq!(persisted_max_file_bytes(&active.input), Some(64));
+        drop(index);
+
+        fs::write(
+            workspace.path().join("main.ts"),
+            "export const value = 2;\n",
+        )
+        .unwrap();
+        arguments["maxFileBytes"] = json!(96);
+        let refresh = execute_request(
+            parse_request(request("index.refresh", arguments)).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(refresh["result"]["measurements"]["changedFileCount"], 1);
+        assert_eq!(refresh["result"]["measurements"]["localFilesWritten"], 1);
+        let index = SourceIndex::open_read_only(&index_path, &options).unwrap();
+        let active = index.load_active_generation().unwrap().unwrap();
+        assert_eq!(persisted_max_file_bytes(&active.input), Some(96));
+        drop(index);
+
+        fs::write(
+            workspace.path().join("oversized.ts"),
+            format!("export const oversized = '{}';\n", "x".repeat(128)),
+        )
+        .unwrap();
+        let before = bundle_snapshot(&index_path);
+        let status = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(status["result"]["state"], "ready");
+        assert_eq!(status["result"]["freshness"], "current");
+        assert_eq!(
+            status["result"]["health"]["reasonCodes"],
+            json!(["source_index_ready"])
+        );
+        assert_eq!(status["result"]["measurements"]["reusedFileCount"], 1);
+        assert_eq!(status["result"]["measurements"]["changedFileCount"], 0);
+        assert_eq!(status["result"]["measurements"]["deletedFileCount"], 0);
+        assert_eq!(status["result"]["measurements"]["localFilesWritten"], 0);
+        assert_eq!(status["result"]["safeguards"]["readOnly"], true);
+        assert_eq!(bundle_snapshot(&index_path), before);
     }
 
     #[test]
