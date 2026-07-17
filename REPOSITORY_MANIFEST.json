@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-17T16:56:53.622Z",
+  "generatedAt": "2026-07-17T17:29:54.299Z",
   "fileCount": 1175,
-  "totalBytes": 9449817,
+  "totalBytes": 9452395,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 30997,
-      "sha256": "274036bf0341df2d8dcaacce6dd50d6d47a124f855272dc8a72aa94342fb3ca5"
+      "bytes": 31050,
+      "sha256": "81d3c99fbe53a407f4b61b67a2bc90bdb7e338a63cdf0959d693e283e930c4f6"
     },
     {
       "path": "CITATION.cff",
@@ -892,8 +892,8 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "bytes": 18335,
-      "sha256": "cf181ae653c15d9d98ad94fcafdef7404020009ad2233eb77ba77eb1b59ef467"
+      "bytes": 18472,
+      "sha256": "36d32bd817c48eea0c19106bc8d418f28af98150c105fa740f36dc4ba7f29c47"
     },
     {
       "path": "docs/implementation/AGENT_EXECUTION_PLAYBOOK.md",
@@ -1148,12 +1148,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "27b60260c5e42c6251c0638ff82f2b74e762d9a7106d0158743b4b9d520bab4b"
+      "sha256": "5e4df5344d3166eb71492cc8f8779e89b544a21bbc449d6c475892ef813d9977"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3381,
-      "sha256": "655b3c0c7ef9a6cfa05d793199121213477c08908ad5b2c5baeb24e29cde0d64"
+      "sha256": "29f8089783ff5a46b23b628bfe1e5209d452adb7341d638a557466d300585d00"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1163,7 +1163,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "2eeb452801d922032e843cf0525300cb47e6fae1d85f081cbaaf2419e9f8565a"
+      "sha256": "ab923e6304213e8c66cfaf40778c82c67eb9e5a35efa1eac25b574b609cb2754"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1252,8 +1252,8 @@
     },
     {
       "path": "docs/usage/code-intelligence-support.md",
-      "bytes": 15551,
-      "sha256": "a9dff9fe277fd3faaff32308910858dee7a144c3a39bd5cdce2edb260366ac36"
+      "bytes": 15643,
+      "sha256": "fed8c0f61721e69ee9b771105ad8c8ca4855aff13f5b5f94758f4efb75ca7c43"
     },
     {
       "path": "docs/usage/codex-setup.md",
@@ -1382,8 +1382,8 @@
     },
     {
       "path": "evals/code-intelligence/capability-matrix.v1.json",
-      "bytes": 176029,
-      "sha256": "10e8a0001e76f384a9157943aeaebb7af91bb80b90f71b9947b5cefe5e58ffed"
+      "bytes": 176394,
+      "sha256": "325b39b1944f49dd49db189bd76f1fe8f42f23fc8a38e9bdcccfdaf06a859b3a"
     },
     {
       "path": "evals/code-intelligence/corpus-candidates.v1.json",
@@ -1657,8 +1657,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-a.json",
-      "bytes": 46787,
-      "sha256": "7c3d0a4b260937ad3835948d218944c10a82bc25e2e43d36eb0ec50b8105b825"
+      "bytes": 46613,
+      "sha256": "c18a2f1df3e36371573970661873d1bb8ecf245b3ea34b5867251e90a3fbd569"
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-b.json",
@@ -1682,8 +1682,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-tier1-summary.json",
-      "bytes": 354791,
-      "sha256": "fee1c0c5bc75ffa2f6856672d1e2f36c10237ef33f540654fe20bf32d138da34"
+      "bytes": 354584,
+      "sha256": "07ab200e05781e5fa1b1ea62c5d90fa76c846913491787a10389069ecc47fbc7"
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
@@ -1977,13 +1977,13 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
-      "bytes": 4472,
-      "sha256": "3f144fb5c81f34ea657da6f29a3fd7fb8877bc1f2ec33740d47c7e5231a263e4"
+      "bytes": 5633,
+      "sha256": "d5790697006add791a3850c5a98f34e091e6cca79ae3459322e2d50f39f36561"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
-      "bytes": 4213,
-      "sha256": "1899e3075d8a878459f8c2b9e8166127ac1265ecb113d4accd1e83ceb8e6238b"
+      "bytes": 4863,
+      "sha256": "027b8602f753b28ff04d5b6109d37d5d8813490e77d7bfb2ab8e80aaa4125ebf"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json",
@@ -3183,7 +3183,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 967,
-      "sha256": "a2728725e73d703aa9bd7f5f4c28732af9b756b733f5153a336e66f1a32c8de8"
+      "sha256": "0f5c4c948d367e99f9bf5984e317d6dee6504674208934f5601733e7ea455933"
     },
     {
       "path": "LICENSE",
@@ -4382,8 +4382,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 72046,
-      "sha256": "9baf00d3ab5d971c4bffbb6551840b28768400bb11f425a608bcf695acdc6241"
+      "bytes": 72193,
+      "sha256": "242dda6b203e9e75e8a9b8fc121e29f2128e2686f79eb079dc8dff3090dd53a5"
     },
     {
       "path": "providers/AGENTS.md",
@@ -4807,8 +4807,8 @@
     },
     {
       "path": "scripts/code-intelligence-batch-a.mjs",
-      "bytes": 15218,
-      "sha256": "41b6cde74b079e48cdcc26f29c421eeaeae0765e6ad90db9f32b5175d71adeb3"
+      "bytes": 15521,
+      "sha256": "bd17041484d5ad1203ebcac7417dd7d360aa32f14e845a3fe59504944d19fdc2"
     },
     {
       "path": "scripts/code-intelligence-batch-b.mjs",
@@ -5347,8 +5347,8 @@
     },
     {
       "path": "tests/code-intelligence-contract.test.mjs",
-      "bytes": 9324,
-      "sha256": "e73d9c3026aa0ac768d9c0a5bf17ae98484060945811974aebc3ec4abce5aa38"
+      "bytes": 9338,
+      "sha256": "84a4a8beec62b7b6e15d47bab1ce675486dadc19ab93a679c06aacabfc963fad"
     },
     {
       "path": "tests/code-intelligence-index-contract.test.mjs",
@@ -5382,8 +5382,8 @@
     },
     {
       "path": "tests/code-intelligence-tier1.test.mjs",
-      "bytes": 4321,
-      "sha256": "b497b97899d5ef9a3c1396e746ffeb9ff76c7afc8b22f20ea41e4c4456263664"
+      "bytes": 4358,
+      "sha256": "1c7cc4db19485f99b1547539b6e8b1b10111258c61611e47f676d08ac9ac7700"
     },
     {
       "path": "tests/content-intelligence.test.mjs",

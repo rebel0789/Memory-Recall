@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
@@ -63,6 +63,28 @@
         "locator": "workspace://actions.ts#L60-L166"
       },
       "locator": "workspace://actions.ts#L60-L166",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_vscode_import_event",
+      "semanticKey": "edge:imports:actions.ts:event.ts",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "actions",
+        "qualifiedName": "actions.ts::actions",
+        "locator": "workspace://actions.ts#L1-L295"
+      },
+      "to": {
+        "kind": "module",
+        "name": "event",
+        "qualifiedName": "event.ts::event",
+        "locator": "workspace://event.ts#L1-L1965"
+      },
+      "locator": "workspace://actions.ts#L6-L6",
       "resolution": "exact"
     },
     {
@@ -131,5 +153,5 @@
       "locator": "workspace://fuzzyScorer.ts#L296-L296"
     }
   ],
-  "truthFingerprint": "sha256:9707f7400c8392620c614987db2db79a895875d34d06f63d67024dfdc4bac0da"
+  "truthFingerprint": "sha256:4680d48ac75b7936ca53134f3e5e7142d75ee98720cb61c6b792546f58a0bc76"
 }

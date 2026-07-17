@@ -5,13 +5,13 @@
   "language": "typescript",
   "source": {
     "class": "real-repo",
-    "ref": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers"
+    "ref": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/testRunner/unittests/helpers"
   },
   "review": {
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
@@ -33,103 +33,125 @@
   },
   "items": [
     {
-      "id": "cititem_ts_compiler_class_facts",
-      "semanticKey": "node:enum:classFields.ts:ClassFacts",
+      "id": "cititem_ts_helpers_test_server_host",
+      "semanticKey": "node:class:virtualFileSystemWithWatch.ts:TestServerHost",
       "capability": "structure",
       "expectation": "present",
       "recordKind": "node",
-      "kind": "enum",
-      "name": "ClassFacts",
-      "qualifiedName": "classFields.ts::ClassFacts",
-      "locator": "workspace://classFields.ts#L333-L340"
+      "kind": "class",
+      "name": "TestServerHost",
+      "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost",
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290"
     },
     {
-      "id": "cititem_ts_compiler_export_transform_class_fields",
-      "semanticKey": "edge:exports:classFields.ts:transformClassFields",
+      "id": "cititem_ts_helpers_import_tsserver",
+      "semanticKey": "edge:imports:typingsInstaller.ts:tsserver.ts",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "typingsInstaller",
+        "qualifiedName": "typingsInstaller.ts::typingsInstaller",
+        "locator": "workspace://typingsInstaller.ts#L1-L234"
+      },
+      "to": {
+        "kind": "module",
+        "name": "tsserver",
+        "qualifiedName": "tsserver.ts::tsserver",
+        "locator": "workspace://tsserver.ts#L1-L662"
+      },
+      "locator": "workspace://typingsInstaller.ts#L9-L9",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_ts_helpers_export_test_server_host",
+      "semanticKey": "edge:exports:virtualFileSystemWithWatch.ts:TestServerHost",
       "capability": "exports",
       "expectation": "present",
       "recordKind": "edge",
       "kind": "exports",
       "from": {
         "kind": "module",
-        "name": "classFields",
-        "qualifiedName": "classFields.ts::classFields",
-        "locator": "workspace://classFields.ts#L1-L3361"
-      },
-      "to": {
-        "kind": "function",
-        "name": "transformClassFields",
-        "qualifiedName": "classFields.ts::transformClassFields",
-        "locator": "workspace://classFields.ts#L354-L3316"
-      },
-      "locator": "workspace://classFields.ts#L354-L3316",
-      "resolution": "exact"
-    },
-    {
-      "id": "cititem_ts_compiler_identifier_map_construct",
-      "semanticKey": "edge:constructs:module/module.ts:appendExportsOfImportDeclaration:IdentifierNameMap",
-      "capability": "types",
-      "expectation": "present",
-      "recordKind": "edge",
-      "kind": "constructs",
-      "from": {
-        "kind": "function",
-        "name": "appendExportsOfImportDeclaration",
-        "qualifiedName": "module/module.ts::transformModule::appendExportsOfImportDeclaration",
-        "locator": "workspace://module/module.ts#L1960-L1992"
+        "name": "virtualFileSystemWithWatch",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::virtualFileSystemWithWatch",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L1-L1405"
       },
       "to": {
         "kind": "class",
-        "name": "IdentifierNameMap",
-        "qualifiedName": "utilities.ts::IdentifierNameMap",
-        "locator": "workspace://utilities.ts#L389-L439"
+        "name": "TestServerHost",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290"
       },
-      "locator": "workspace://module/module.ts#L1970-L1970",
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290",
       "resolution": "exact"
     },
     {
-      "id": "cititem_ts_compiler_chain_bundle_call",
-      "semanticKey": "edge:calls:es2016.ts:transformES2016:chainBundle",
+      "id": "cititem_ts_helpers_reset_token_typed_call",
+      "semanticKey": "edge:calls:tsserver.ts:TestServerCancellationToken.setRequestToCancel:resetToken",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "setRequestToCancel",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::setRequestToCancel",
+        "locator": "workspace://tsserver.ts#L410-L414"
+      },
+      "to": {
+        "kind": "method",
+        "name": "resetToken",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::resetToken",
+        "locator": "workspace://tsserver.ts#L432-L436"
+      },
+      "locator": "workspace://tsserver.ts#L412-L412",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_ts_helpers_rename_folder_entries_call",
+      "semanticKey": "edge:calls:virtualFileSystemWithWatch.ts:TestServerHost.renameFolder:renameFolderEntries",
       "capability": "calls",
       "expectation": "present",
       "recordKind": "edge",
       "kind": "calls",
       "from": {
-        "kind": "function",
-        "name": "transformES2016",
-        "qualifiedName": "es2016.ts::transformES2016",
-        "locator": "workspace://es2016.ts#L21-L122"
+        "kind": "method",
+        "name": "renameFolder",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolder",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L709-L730"
       },
       "to": {
-        "kind": "function",
-        "name": "chainBundle",
-        "qualifiedName": "utilities.ts::chainBundle",
-        "locator": "workspace://utilities.ts#L135-L145"
+        "kind": "method",
+        "name": "renameFolderEntries",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolderEntries",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L732-L749"
       },
-      "locator": "workspace://es2016.ts#L27-L27",
-      "resolution": "inferred"
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L719-L719",
+      "resolution": "typed"
     },
     {
-      "id": "cititem_ts_compiler_chain_bundle_false_call",
-      "semanticKey": "edge:calls:es2016.ts:transformES2016:ClassFacts:absent",
+      "id": "cititem_ts_helpers_rename_reset_false_call",
+      "semanticKey": "edge:calls:virtualFileSystemWithWatch.ts:TestServerHost.renameFolder:resetToken:absent",
       "capability": "calls",
       "expectation": "absent",
       "recordKind": "edge",
       "kind": "calls",
       "from": {
-        "kind": "function",
-        "name": "transformES2016",
-        "qualifiedName": "es2016.ts::transformES2016",
-        "locator": "workspace://es2016.ts#L21-L122"
+        "kind": "method",
+        "name": "renameFolder",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolder",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L709-L730"
       },
       "to": {
-        "kind": "enum",
-        "name": "ClassFacts",
-        "qualifiedName": "classFields.ts::ClassFacts",
-        "locator": "workspace://classFields.ts#L333-L340"
+        "kind": "method",
+        "name": "resetToken",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::resetToken",
+        "locator": "workspace://tsserver.ts#L432-L436"
       },
-      "locator": "workspace://es2016.ts#L27-L27"
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L719-L719"
     }
   ],
-  "truthFingerprint": "sha256:20df4d82cae4de2affd9be6a812da313fa61e020932fedf28eaa074694d868e9"
+  "truthFingerprint": "sha256:c1212992d14eb84811588132f3bfb45f4cc943cc5a71b042938ddcdaf8284e2c"
 }

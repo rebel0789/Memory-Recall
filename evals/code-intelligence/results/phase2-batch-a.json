@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-a-1",
   "phase": 2,
   "batch": "A",
-  "generatedAt": "2026-07-17T16:50:35.255Z",
+  "generatedAt": "2026-07-17T17:23:03.566Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -25,7 +25,7 @@
       "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
     ],
     "repositoryRefs": [
-      "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/testRunner/unittests/helpers",
       "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common",
       "corpus://cirepo_typescript_vercel_next_js@153bf8ac5fa00888ef5fbb2b65cac12f0942a44f#packages/next/src/server/route-modules/app-route",
       "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core",
@@ -70,9 +70,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 29.489,
-        "secondElapsedMs": 8.144,
-        "evaluatorMaxRssKb": 59248,
+        "firstElapsedMs": 27.249,
+        "secondElapsedMs": 8.095,
+        "evaluatorMaxRssKb": 59456,
         "graphResponseBytes": 10929,
         "workspaceFingerprintUnchanged": true
       },
@@ -238,9 +238,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 7.092,
-        "secondElapsedMs": 7.456,
-        "evaluatorMaxRssKb": 65136,
+        "firstElapsedMs": 7.461,
+        "secondElapsedMs": 7.234,
+        "evaluatorMaxRssKb": 65392,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
@@ -383,30 +383,21 @@
       "id": "cirepo_typescript_microsoft_typescript",
       "language": "typescript",
       "sourceClass": "real-repo",
-      "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/testRunner/unittests/helpers",
       "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
       "graph": {
-        "fingerprint": "sha256:9c3a43450f8dc1fb3c259d9a502b29f89ae645040b4212c06624d34aa4090440",
-        "nodeCount": 3829,
-        "edgeCount": 10000,
-        "diagnosticCount": 2,
-        "diagnostics": [
-          {
-            "code": "edge_budget_reached",
-            "count": 850
-          },
-          {
-            "code": "parse_recovered",
-            "count": 1
-          }
-        ],
+        "fingerprint": "sha256:e6f932775e1ff36c39226e5c69d1e7d194b58f367ac1f6977204cfdd62414d98",
+        "nodeCount": 845,
+        "edgeCount": 2242,
+        "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "typescript",
             "support": "partial",
-            "discoveredFileCount": 26,
-            "indexedFileCount": 26,
+            "discoveredFileCount": 21,
+            "indexedFileCount": 21,
             "failedFileCount": 0,
             "omittedFileCount": 0,
             "reasonCodes": [
@@ -416,10 +407,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 932.245,
-        "secondElapsedMs": 909.308,
-        "evaluatorMaxRssKb": 169184,
-        "graphResponseBytes": 6809185,
+        "firstElapsedMs": 136.597,
+        "secondElapsedMs": 138.429,
+        "evaluatorMaxRssKb": 88976,
+        "graphResponseBytes": 1526827,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -427,10 +418,10 @@
         "reportVersion": "memory-recall-code-intelligence-language-report-1",
         "truthId": "citruth_typescript_microsoft_typescript",
         "language": "typescript",
-        "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+        "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/testRunner/unittests/helpers",
         "graphFingerprints": [
-          "sha256:9c3a43450f8dc1fb3c259d9a502b29f89ae645040b4212c06624d34aa4090440",
-          "sha256:9c3a43450f8dc1fb3c259d9a502b29f89ae645040b4212c06624d34aa4090440"
+          "sha256:e6f932775e1ff36c39226e5c69d1e7d194b58f367ac1f6977204cfdd62414d98",
+          "sha256:e6f932775e1ff36c39226e5c69d1e7d194b58f367ac1f6977204cfdd62414d98"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -449,15 +440,15 @@
             "value": 1
           },
           "reviewedCallPrecision": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -476,10 +467,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "exports",
@@ -554,7 +545,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:6288eb4b50da0130ea2318950d81828eeb5703ecd7f03603efbe32ff39573016"
+        "reportFingerprint": "sha256:386d75cf5004a2011f8829074cac29e09f22cdbb7bb224dedfba3fe869666faa"
       }
     },
     {
@@ -594,9 +585,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1080.998,
-        "secondElapsedMs": 1055.216,
-        "evaluatorMaxRssKb": 222704,
+        "firstElapsedMs": 1072.949,
+        "secondElapsedMs": 1041.383,
+        "evaluatorMaxRssKb": 178128,
         "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
@@ -622,8 +613,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -634,8 +625,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -654,10 +645,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "exports",
@@ -732,7 +723,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:cee027fbba8beccadcf5db29b93aaf0d692c92433d7beddb6952e5e4a50c7b81"
+        "reportFingerprint": "sha256:8be1666ffd70865903667f6f77d085f9b26d8670c031fcb1e14712be923535d5"
       }
     },
     {
@@ -763,9 +754,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 30.958,
-        "secondElapsedMs": 29.242,
-        "evaluatorMaxRssKb": 222704,
+        "firstElapsedMs": 28.618,
+        "secondElapsedMs": 27.037,
+        "evaluatorMaxRssKb": 178128,
         "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
@@ -932,9 +923,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 34.109,
-        "secondElapsedMs": 34.82,
-        "evaluatorMaxRssKb": 222704,
+        "firstElapsedMs": 32.308,
+        "secondElapsedMs": 32.44,
+        "evaluatorMaxRssKb": 178128,
         "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
@@ -1101,9 +1092,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 33.426,
-        "secondElapsedMs": 31.927,
-        "evaluatorMaxRssKb": 222704,
+        "firstElapsedMs": 35.077,
+        "secondElapsedMs": 34.677,
+        "evaluatorMaxRssKb": 178128,
         "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
@@ -1270,9 +1261,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 184.347,
-        "secondElapsedMs": 186.893,
-        "evaluatorMaxRssKb": 222704,
+        "firstElapsedMs": 181.314,
+        "secondElapsedMs": 181.388,
+        "evaluatorMaxRssKb": 178128,
         "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
@@ -1452,13 +1443,13 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 9,
-          "denominator": 9,
+          "numerator": 10,
+          "denominator": 10,
           "value": 1
         },
         "reviewedCallPrecision": {
-          "numerator": 5,
-          "denominator": 5,
+          "numerator": 6,
+          "denominator": 6,
           "value": 1
         },
         "duplicateCanonicalSymbolCount": 0,
@@ -1489,5 +1480,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:8e60372a5cad3ec67bbd6314da8209f1b40c4c46712ee63c82fcac9a8444eca9"
+  "reportFingerprint": "sha256:b5bac7e51199d8dd6928782d93555a1accfe07f77b624aa33d71aab26e2c0169"
 }

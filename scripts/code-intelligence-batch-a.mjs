@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 const OUTPUT = 'evals/code-intelligence/results/phase2-batch-a.json';
 const BOUNDS = Object.freeze({ maxFiles: 5_000, maxFileBytes: 512 * 1024, maxNodes: 5_000, maxEdges: 10_000 });
 const REPOSITORY_SCOPES = Object.freeze({
-  cirepo_typescript_microsoft_typescript: 'src/compiler/transformers',
+  cirepo_typescript_microsoft_typescript: 'src/testRunner/unittests/helpers',
   cirepo_typescript_microsoft_vscode: 'src/vs/base/common',
   cirepo_typescript_vercel_next_js: 'packages/next/src/server/route-modules/app-route',
   cirepo_javascript_axios_axios: 'lib/core',
@@ -35,7 +35,7 @@ try {
     if (!repository) throw new Error(`batch_a_repository_missing:${id}`);
     const truthPath = `evals/code-intelligence/truth/repositories/${repository.primaryLanguage}/${id}.json`;
     const truth = await readJson(truthPath);
-    const checkout = await ensurePinnedRepository(repository);
+    const checkout = await ensurePinnedRepository(repository, scope);
     repositories.push({
       id,
       language: repository.primaryLanguage,
@@ -250,7 +250,7 @@ async function fixtureDefinition(language, fixtureRoot, id) {
   return { id, language, root: fixtureRoot, sourceClass: 'fixture', sourceRef: truth.source.ref, truth, truthPath };
 }
 
-async function ensurePinnedRepository(repository) {
+async function ensurePinnedRepository(repository, scope) {
   const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', repository.id);
   await mkdir(directory, { recursive: true });
   if (!(await exists(path.join(directory, '.git')))) {
@@ -264,6 +264,12 @@ async function ensurePinnedRepository(repository) {
   } catch {}
   if (!present) await command('git', ['fetch', '--quiet', '--depth', '1', 'origin', repository.commit], { cwd: directory, timeout: 300_000 });
   await command('git', ['-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach', repository.commit], { cwd: directory });
+  if (scope === '.') {
+    await command('git', ['sparse-checkout', 'disable'], { cwd: directory });
+  } else {
+    await command('git', ['sparse-checkout', 'init', '--cone'], { cwd: directory });
+    await command('git', ['sparse-checkout', 'set', scope], { cwd: directory });
+  }
   const commit = await command('git', ['rev-parse', 'HEAD'], { cwd: directory });
   if (commit !== repository.commit) throw new Error(`batch_a_repository_commit_mismatch:${repository.id}`);
   return directory;

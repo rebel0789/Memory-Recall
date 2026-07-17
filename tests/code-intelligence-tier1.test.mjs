@@ -23,18 +23,18 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 50);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 51);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 104);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 103);
   assert.equal(
     summary.cases.filter((item) => item.graph.diagnostics.some((diagnostic) => diagnostic.code.endsWith('_budget_reached'))).length,
-    6
+    5
   );
   assert.equal(summary.cases.every((item) => item.graph.diagnostics.every((diagnostic) => !Object.hasOwn(diagnostic, 'locator'))), true);
-  const unmeasuredLanguages = summary.languages.filter((language) => language.language !== 'javascript');
+  const unmeasuredLanguages = summary.languages.filter((language) => !['typescript', 'javascript'].includes(language.language));
   assert.deepEqual(
     summary.languages.filter((language) => language.benchmarkStatus === 'meets-floor').map((language) => language.language),
-    ['javascript']
+    ['typescript', 'javascript']
   );
   assert.equal(unmeasuredLanguages.every((language) => language.benchmarkStatus === 'unmeasured'), true);
   assert.equal(unmeasuredLanguages.every((language) => (

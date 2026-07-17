@@ -96,7 +96,7 @@ test('capability matrix covers every Tier 1 language and capability honestly', a
   assert.deepEqual(await auditCodeIntelligenceCapabilityMatrix(matrix, { root: new URL('..', import.meta.url) }), []);
   assert.deepEqual(
     matrix.languages.filter((item) => item.benchmarkStatus === 'meets-floor').map((item) => item.id),
-    ['javascript']
+    ['typescript', 'javascript']
   );
 });
 
