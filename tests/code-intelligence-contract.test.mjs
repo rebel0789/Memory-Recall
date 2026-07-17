@@ -151,6 +151,26 @@ test('Phase 1 compatibility evidence is reproducible and does not claim parity',
   assert.equal(report.cases.filter((item) => item.sourceClass === 'real-repo').length, 2);
   assert.equal(report.cases.every((item) => item.deterministic === true), true);
   assert.equal(report.cases.every((item) => item.compatibility.parityClaimed === false), true);
+  for (const item of report.cases) {
+    assert.equal(item.compatibility.comparisonVersion, 'memory-recall-js-ts-native-preview-2');
+    for (const dimension of item.compatibility.dimensions) {
+      assert.equal(dimension.baselineOnlyCount, dimension.baselineCount - dimension.matchedCount);
+      assert.equal(dimension.nativeOnlyCount, dimension.nativeCount - dimension.matchedCount);
+      const maximumCount = Math.max(dimension.baselineCount, dimension.nativeCount);
+      const expectedAgreement = maximumCount
+        ? Number((dimension.matchedCount / maximumCount).toFixed(4))
+        : 1;
+      assert.equal(dimension.nativeAgreement, expectedAgreement);
+      for (const sample of [dimension.baselineOnlySample, dimension.nativeOnlySample]) {
+        assert.equal(sample.length <= 10, true);
+        assert.deepEqual(sample, [...sample].sort());
+        for (const key of sample) {
+          assert.doesNotMatch(key, /(?:^|[|>])(?:\/(?!\/)|[A-Za-z]:\\)/u);
+          assert.doesNotMatch(key, /#L[0-9]+-L[0-9]+/u);
+        }
+      }
+    }
+  }
   assert.equal(report.failures.length, 0);
   assert.equal(report.claims.parity, false);
   assert.equal(report.claims.leadership, false);
