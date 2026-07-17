@@ -87,9 +87,9 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 42 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 49,661 nodes, 111,408 edges, 78,309,501 serialized
-graph bytes, 14,440.065 ms summed first-run wall time, 14,444.668 ms summed
-second-run wall time, and 205,344 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 49,660 nodes, 111,406 edges, 78,308,064 serialized
+graph bytes, 15,772.268 ms summed first-run wall time, 14,409.55 ms summed
+second-run wall time, and 181,600 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -106,7 +106,10 @@ it can say `meets-floor`. TypeScript and JavaScript are the first two languages
 to meet every row marked applicable in this Phase 2 sample; the other twelve
 remain overall `unmeasured`. Python exact imports, reviewed sampled heritage,
 and exact reviewed construction edges now meet the floor, while its configuration
-and frameworks remain unmeasured.
+and frameworks remain unmeasured. The pinned FastAPI and Flask scopes contain
+framework implementation code rather than executable application routes, and
+the Requests scope is an HTTP client. Documentation examples do not qualify as
+route evidence.
 TypeScript heritage, configuration, frameworks, impact, and processes remain
 unevaluated here. The native engine stays an
 unbundled preview; the npm, MCP, and
@@ -124,15 +127,16 @@ node scripts/code-intelligence-phase3-index.mjs --check
 ```
 
 Run the script without `--check` to fetch the same exact commits into temporary
-directories and remeasure them. The stored clean run used Memory Recall commit
-`25775b43786f3608e756c1b3636b63e842cc75d5` on macOS 25.5 arm64, Apple M2 Max,
-Node 22.22.3. It covers a 600-file TypeScript dependency fixture, the pinned
+directories and remeasure them. The receipt records the exact Memory Recall
+checkout commit and whether that checkout was dirty at measurement time. The
+current environment is macOS 25.5 arm64, Apple M2 Max, Node 22.22.3. It covers a
+600-file TypeScript dependency fixture, the pinned
 HashiCorp go-multierror repository, the pinned Express repository, and the
 pinned TypeScript compiler-transformers scope.
 
 Across 781 files, 6,646 nodes, and 15,540 edges, the four cold builds had a
-machine-specific p50 of 190.189 ms and maximum of 899.82 ms. Warm status p50
-was 20.707 ms; no-change refresh p50 was 19.613 ms. The 600-file fixture parsed
+machine-specific p50 of 189.13 ms and maximum of 897.849 ms. Warm status p50
+was 20.095 ms; no-change refresh p50 was 20.171 ms. The 600-file fixture parsed
 zero files on an exact no-op refresh, 11 files after the sampled isolated file
 change, and 5 files after the sampled dependency-impact change. All no-op and
 reader checks preserved the exact SQLite bytes and modification time.
@@ -178,7 +182,7 @@ node scripts/code-intelligence-phase5-cross-service.mjs --check
 
 Five TypeScript fixture reads prove a gateway-to-orders import, call, trace,
 and process. Negative cases and bounds pass, reads preserve SQLite, and the
-recorded macOS arm64 p95 was 8.027 ms. This is single-repository evidence; no
+recorded macOS arm64 p95 was 9.603 ms. This is single-repository evidence; no
 registry, multi-repository, parity, leadership, or scale claim is made.
 
 ## Native package consumer gate

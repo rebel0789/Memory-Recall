@@ -30,6 +30,39 @@ mod tests {
     }
 
     #[test]
+    fn python_route_decorator_ignores_docstring_examples() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-python-route-docstring-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("scaffold.py"),
+            [
+                "@setupmethod",
+                "def route():",
+                "    \"\"\"Example:",
+                "        @app.route('/not-executable')",
+                "        def index():",
+                "            return 'example'",
+                "    \"\"\"",
+                "    return None",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(!report
+            .facts
+            .iter()
+            .any(|fact| fact.predicate == "HANDLES"), "{:#?}", report.facts);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_calls_to_functions_not_modules() {
         let mut parsed = ParsedRepo::new();
         parsed.add_symbol_name("runServer", "function:runServer");

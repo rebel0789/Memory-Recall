@@ -30,6 +30,7 @@
 - Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
 - Native `index.status` now verifies the active SQLite generation against a bounded source snapshot and reports changed, added, deleted, partial, or unverified state without writing the database. Normal queries remain SQLite-only, and stale source state requires refresh rather than repair.
 - Native `index.refresh` now refuses to plan or write from incomplete discovery. If `maxFiles`, the byte budget, or the deadline prevents a complete source snapshot, it returns partial with zero writes and keeps the active generation unchanged; raising `maxFiles` permits a complete recovery refresh.
+- Python route extraction now inspects only executable decorator syntax, so `@app.route(...)` examples inside docstrings no longer become route nodes or handler edges.
 
 ### Changed
 

@@ -107,6 +107,12 @@ inheritance, and sampled construction edges within the existing bounded package
 scopes. Package-root imports, imported-name expansion, configuration,
 frameworks, impact, and processes remain unevaluated.
 
+Python framework extraction currently has exact FastAPI and Django route
+evidence in the fixture only. The pinned FastAPI and Flask scopes are framework
+implementation packages without executable application routes, while Requests
+is an HTTP client. Route-like text inside docstrings is ignored and does not
+count toward the framework floor.
+
 Reproduce the stored batch receipts and aggregate from a source checkout with a
 local release binary:
 
@@ -133,10 +139,10 @@ refresh is covered across reviewed fixtures for all fourteen Tier 1 languages:
 it parses and writes zero files, preserves the active generation, and leaves the
 database bytes and modification time unchanged.
 
-The clean Phase 3 receipt is
+The Phase 3 receipt is
 [`phase3-source-index.json`](../../evals/code-intelligence/results/phase3-source-index.json).
 It measures one 600-file dependency fixture and three exact-commit repository
-scopes. The run covers 781 files, 6,808 nodes, and 15,115 edges with no recorded
+scopes. The run covers 781 files, 6,646 nodes, and 15,540 edges with no recorded
 omissions. On the dependency fixture, one sampled file change reparsed 11 files
 and the sampled dependency-impact change reparsed 5, instead of reparsing all
 600. Timings and RSS are machine-specific evidence, not performance promises.

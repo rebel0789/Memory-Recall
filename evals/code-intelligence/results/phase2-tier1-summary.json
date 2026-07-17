@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-17T18:35:09.739Z",
+  "generatedAt": "2026-07-17T18:47:03.669Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -29,7 +29,7 @@
       {
         "batch": "B",
         "path": "evals/code-intelligence/results/phase2-batch-b.json",
-        "reportFingerprint": "sha256:cf55a80cfa9f67091dd0ee96a201a1463f9160c91f15979946cc5313a532fba9",
+        "reportFingerprint": "sha256:4978e340bf26705891fb4f190ef3b5fb6e1ee5dee8eb903af93a57289d7d0be0",
         "caseCount": 12,
         "languageCount": 3
       },
@@ -61,12 +61,12 @@
     "repositoryCount": 42,
     "languageCount": 14,
     "caseCount": 56,
-    "graphNodeCount": 49661,
-    "graphEdgeCount": 111408,
-    "graphResponseBytes": 78309501,
-    "firstRunWallTimeMs": 14440.065,
-    "secondRunWallTimeMs": 14444.668,
-    "peakEvaluatorRssKb": 205344,
+    "graphNodeCount": 49660,
+    "graphEdgeCount": 111406,
+    "graphResponseBytes": 78308064,
+    "firstRunWallTimeMs": 15772.268,
+    "secondRunWallTimeMs": 14409.55,
+    "peakEvaluatorRssKb": 181600,
     "meetsFloorCapabilityCount": 54,
     "doesNotMeetFloorCapabilityCount": 0,
     "unmeasuredCapabilityCount": 100
@@ -1243,9 +1243,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 31.201,
-        "secondElapsedMs": 10.445,
-        "evaluatorMaxRssKb": 60464,
+        "firstElapsedMs": 1389.7,
+        "secondElapsedMs": 12.823,
+        "evaluatorMaxRssKb": 60336,
         "graphResponseBytes": 15618,
         "workspaceFingerprintUnchanged": true
       },
@@ -1384,9 +1384,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.821,
-        "secondElapsedMs": 9.742,
-        "evaluatorMaxRssKb": 66128,
+        "firstElapsedMs": 11.306,
+        "secondElapsedMs": 10.858,
+        "evaluatorMaxRssKb": 66208,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -1525,9 +1525,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.649,
-        "secondElapsedMs": 9.769,
-        "evaluatorMaxRssKb": 66496,
+        "firstElapsedMs": 10.146,
+        "secondElapsedMs": 9.486,
+        "evaluatorMaxRssKb": 67968,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -1667,9 +1667,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 229.333,
-        "secondElapsedMs": 225.676,
-        "evaluatorMaxRssKb": 115760,
+        "firstElapsedMs": 219.576,
+        "secondElapsedMs": 221.95,
+        "evaluatorMaxRssKb": 119456,
         "graphResponseBytes": 2231553,
         "workspaceFingerprintUnchanged": true
       },
@@ -1789,9 +1789,9 @@
       "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
       "graph": {
-        "fingerprint": "sha256:fc1950922c6cde8d422cc36cfc771b2aab07b830e067bdb4c1b58dbb127f6853",
-        "nodeCount": 1044,
-        "edgeCount": 1959,
+        "fingerprint": "sha256:f2ce712f5f55f41300dc67bffe5dca2d02b237d4c0a0f779bb52700b5e04753f",
+        "nodeCount": 1043,
+        "edgeCount": 1957,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -1809,14 +1809,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 131.414,
-        "secondElapsedMs": 129.872,
-        "evaluatorMaxRssKb": 127536,
-        "graphResponseBytes": 1403813,
+        "firstElapsedMs": 127.344,
+        "secondElapsedMs": 127.963,
+        "evaluatorMaxRssKb": 128336,
+        "graphResponseBytes": 1402376,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:ccbf9155b5ac171bdff4ebbb19f1ab361f263a89192e75e40d4800068bfb8c77",
+        "reportFingerprint": "sha256:110cafe9b9d064d6c4764643f0d2eeb604643df72b9948291914d7c156eaa7e2",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -1951,9 +1951,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 97.562,
-        "secondElapsedMs": 96.785,
-        "evaluatorMaxRssKb": 129552,
+        "firstElapsedMs": 99.927,
+        "secondElapsedMs": 99.609,
+        "evaluatorMaxRssKb": 128880,
         "graphResponseBytes": 1041879,
         "workspaceFingerprintUnchanged": true
       },
@@ -2098,9 +2098,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 890.102,
-        "secondElapsedMs": 896.062,
-        "evaluatorMaxRssKb": 177552,
+        "firstElapsedMs": 866.797,
+        "secondElapsedMs": 866.269,
+        "evaluatorMaxRssKb": 162256,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -2240,9 +2240,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 277.885,
-        "secondElapsedMs": 278.877,
-        "evaluatorMaxRssKb": 193328,
+        "firstElapsedMs": 278.863,
+        "secondElapsedMs": 274.165,
+        "evaluatorMaxRssKb": 162256,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -2382,9 +2382,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.205,
-        "secondElapsedMs": 26.482,
-        "evaluatorMaxRssKb": 193360,
+        "firstElapsedMs": 26.495,
+        "secondElapsedMs": 25.938,
+        "evaluatorMaxRssKb": 162256,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -2524,9 +2524,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.555,
-        "secondElapsedMs": 11.908,
-        "evaluatorMaxRssKb": 193360,
+        "firstElapsedMs": 13.372,
+        "secondElapsedMs": 15.136,
+        "evaluatorMaxRssKb": 162256,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -2666,9 +2666,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 297.487,
-        "secondElapsedMs": 302.62,
-        "evaluatorMaxRssKb": 205344,
+        "firstElapsedMs": 312.02,
+        "secondElapsedMs": 300.341,
+        "evaluatorMaxRssKb": 163552,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -2808,9 +2808,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 468.64,
-        "secondElapsedMs": 458.007,
-        "evaluatorMaxRssKb": 205344,
+        "firstElapsedMs": 459.511,
+        "secondElapsedMs": 456.589,
+        "evaluatorMaxRssKb": 169360,
         "graphResponseBytes": 4237455,
         "workspaceFingerprintUnchanged": true
       },
@@ -11755,5 +11755,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:cd1b14c4467345251297788d9f49c57ded5023a2146ceb60de8d981fb4c1133a"
+  "reportFingerprint": "sha256:09ae6d759afc91beb35601720b266974815e20d09ba0e7aa929c8111d04fc65d"
 }

@@ -5849,12 +5849,14 @@ fn callable_route(
     if parent.kind() != "decorated_definition" {
         return None;
     }
-    for line in node_text(parent, source).lines() {
-        let line = line.trim();
-        if !line.starts_with('@') {
+    for index in 0..parent.named_child_count() {
+        let Some(decorator) = parent.named_child(index) else {
+            continue;
+        };
+        if decorator.kind() != "decorator" {
             continue;
         }
-        if let Some((method, path)) = python_route_decorator(line) {
+        if let Some((method, path)) = python_route_decorator(node_text(decorator, source)) {
             return Some(RouteRef {
                 method,
                 path,

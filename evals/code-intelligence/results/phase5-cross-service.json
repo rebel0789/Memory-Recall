@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-17T18:03:12.005Z",
+  "generatedAt": "2026-07-17T18:47:33.052Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:a3b6b5ab91eb0172ddc55dcd7c998dc48b3ea4417e7e1f4ea44859a13666961d",
+    "implementationFingerprint": "sha256:970128aa48c5e836742bd71b3a63c46480ff092f5ea05cdb4e6ffce8efc86576",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:5b5c4cf446dae3021deb057e1f515a394c5af6d4e86a52723aa5f2cee2533444",
+    "repositoryIdentityHash": "sha256:19965ad1a826a3170f9dac9942c8d65a69ea82da67c18469fab88c35ca47d6b1",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:9ed06fefbae58b4baacf2824223f88b762883114ef9a813128c50e2594c32ad1",
+    "deterministicFingerprint": "sha256:569554d59b285129909ed220f391a8425f80a8bdca887d9da9885b0983cf5543",
     "queryWallMs": {
-      "minimum": 7.126,
-      "p50": 8.612,
-      "p95": 9.595,
-      "maximum": 9.595
+      "minimum": 6.791,
+      "p50": 7.891,
+      "p95": 9.603,
+      "maximum": 9.603
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:294393534664ca66708d64aaec470aff8fa4aec7c3667ed1e89cbf4ea9e3cf02"
+  "reportFingerprint": "sha256:e7d6877978594035551aaaba7b84df7d737563ff56db38dbf4a5661a1063367f"
 }
