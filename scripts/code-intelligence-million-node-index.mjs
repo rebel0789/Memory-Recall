@@ -14,6 +14,7 @@ import responseSchema from '../packages/protocol/schemas/code-intelligence-index
 import { resolveNativeBinary } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
 
 const OUTPUT = 'evals/code-intelligence/results/million-node-rust-index.json';
+const REPORT_VERSION = 'memory-recall-million-node-rust-index-2';
 const INDEX_RELATIVE = '.local/source-index/index.v1.sqlite';
 const PRIVATE_PATH = /(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u;
 const WORKSPACE_ID = 'ws_million_node_index';
@@ -23,7 +24,7 @@ const READER_DEADLINE_MS = 2_000;
 const QUERY_REPETITIONS = 20;
 const MAX_STDOUT_BYTES = 8 * 1024 * 1024;
 const MAX_STDERR_BYTES = 1024 * 1024;
-const MAX_FILE_BYTES = 1024 * 1024;
+const MAX_FILE_BYTES = 512 * 1024;
 const MAX_NODES = 1_000_000;
 const MAX_EDGES = 1_000_000;
 const RSS_SAMPLE_INTERVAL_MS = 250;
@@ -31,15 +32,15 @@ const RSS_SAMPLE_TIMEOUT_MS = 500;
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const execFileAsync = promisify(execFile);
 
-export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997 } = {}) {
+export function createDenseFixturePlan({ fileCount = 1_000, classesPerFile = 998 } = {}) {
   if (!Number.isInteger(fileCount) || fileCount < 1 || fileCount > 1_000_000) {
     throw new Error('million_node_fixture_file_count_invalid');
   }
-  if (!Number.isInteger(methodsPerFile) || methodsPerFile < 1) {
-    throw new Error('million_node_fixture_method_count_invalid');
+  if (!Number.isInteger(classesPerFile) || classesPerFile < 1) {
+    throw new Error('million_node_fixture_class_count_invalid');
   }
-  const expectedNodeCount = fileCount * (3 + methodsPerFile);
-  const expectedEdgeCount = fileCount * (2 + methodsPerFile);
+  const expectedNodeCount = fileCount * (2 + classesPerFile);
+  const expectedEdgeCount = fileCount * (1 + classesPerFile);
   if (!Number.isSafeInteger(expectedNodeCount) || expectedNodeCount > MAX_NODES) {
     throw new Error('million_node_fixture_node_count_invalid');
   }
@@ -48,14 +49,15 @@ export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997
   }
   return Object.freeze({
     language: 'javascript',
+    shape: 'base36-empty-classes-v2',
     fileCount,
-    methodsPerFile,
+    classesPerFile,
     expectedNodeCount,
     expectedEdgeCount,
     maxFileBytes: MAX_FILE_BYTES,
     maxNodes: MAX_NODES,
     maxEdges: MAX_EDGES,
-    seedQuery: 'm0'
+    seedQuery: 'ScaleProbe'
   });
 }
 
@@ -69,11 +71,16 @@ export async function writeDenseFixture(workspace, plan = MILLION_NODE_PLAN) {
   let maxSourceFileBytes = 0;
   for (let fileIndex = 0; fileIndex < plan.fileCount; fileIndex += 1) {
     const name = `dense-${String(fileIndex).padStart(4, '0')}.js`;
-    const methods = Array.from(
-      { length: plan.methodsPerFile },
-      (_, methodIndex) => `m${methodIndex.toString(36)}(){}\n`
+    const classes = Array.from(
+      { length: plan.classesPerFile },
+      (_, classIndex) => {
+        const className = fileIndex === 0 && classIndex === 0
+          ? plan.seedQuery
+          : `C${classIndex.toString(36)}`;
+        return `class ${className}{}`;
+      }
     ).join('');
-    const body = `class C{\n${methods}}\n`;
+    const body = `${classes}\n`;
     const bytes = Buffer.byteLength(body);
     if (bytes > plan.maxFileBytes) throw new Error('million_node_fixture_file_too_large');
     await writeFile(path.join(source, name), body, { mode: 0o600 });
@@ -84,8 +91,9 @@ export async function writeDenseFixture(workspace, plan = MILLION_NODE_PLAN) {
   return Object.freeze({
     ref: `fixture://sha256:${hash.digest('hex')}`,
     language: plan.language,
+    shape: plan.shape,
     fileCount: plan.fileCount,
-    methodsPerFile: plan.methodsPerFile,
+    classesPerFile: plan.classesPerFile,
     expectedNodeCount: plan.expectedNodeCount,
     expectedEdgeCount: plan.expectedEdgeCount,
     totalSourceBytes,
@@ -178,7 +186,7 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
     });
     report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-million-node-rust-index-1',
+      reportVersion: REPORT_VERSION,
       generatedAt: new Date().toISOString(),
       environment: {
         platform: os.platform(),
@@ -558,20 +566,17 @@ function summarizeQueries(operations) {
     failedOperation: operationReceipt(failed)
   };
   const fingerprints = operations.map((operation) => fingerprint(projectQueryResults(operation.result.results)));
-  const expectedMethodLocators = Array.from(
-    { length: MILLION_NODE_PLAN.fileCount },
-    (_, index) => `workspace://src/dense-${String(index).padStart(4, '0')}.js#L2-L2`
-  );
+  const expectedSeedLocators = ['workspace://src/dense-0000.js#L1-L1'];
   return {
     status: 'complete',
     repetitions: operations.length,
     resultCount: operations[0].result.results.length,
-    expectedMethodLocators,
-    methodLocators: operations[0].result.results.map((item) => item.locator).sort(),
-    expectedMethodsPresent: operations.every((operation) => (
-      operation.result.results.length === expectedMethodLocators.length &&
-      operation.result.results.every((item) => item.kind === 'method' && item.label === 'm0') &&
-      JSON.stringify(operation.result.results.map((item) => item.locator).sort()) === JSON.stringify(expectedMethodLocators)
+    expectedSeedLocators,
+    seedLocators: operations[0].result.results.map((item) => item.locator).sort(),
+    expectedSeedPresent: operations.every((operation) => (
+      operation.result.results.length === expectedSeedLocators.length &&
+      operation.result.results.every((item) => item.kind === 'class' && item.label === MILLION_NODE_PLAN.seedQuery) &&
+      JSON.stringify(operation.result.results.map((item) => item.locator).sort()) === JSON.stringify(expectedSeedLocators)
     )),
     stableResultFingerprint: new Set(fingerprints).size === 1 ? fingerprints[0] : null,
     committedNodeCount: operations.every((operation) => operation.result.summary.nodeCount === MAX_NODES)
@@ -642,7 +647,7 @@ function collectFailures({
   fail(oneFileRefresh.ok && oneFileRefresh.result.measurements.parsedFileCount !== 1, 'one_file_parse_count_invalid');
   fail(queryReceipt.status !== 'complete', `exact_query_${queryReceipt.code ?? 'incomplete'}`);
   fail(queryReceipt.status === 'complete' && queryReceipt.resultCount < 1, 'exact_query_empty');
-  fail(queryReceipt.status === 'complete' && !queryReceipt.expectedMethodsPresent, 'exact_query_expected_methods_missing');
+  fail(queryReceipt.status === 'complete' && !queryReceipt.expectedSeedPresent, 'exact_query_expected_seed_missing');
   fail(queryReceipt.status === 'complete' && queryReceipt.stableResultFingerprint === null, 'exact_query_results_not_stable');
   fail(queryReceipt.status === 'complete' && queryReceipt.localFilesWritten !== 0, 'exact_query_wrote_files');
   fail(queryReceipt.status === 'complete' && queryReceipt.omittedCount !== 0, 'exact_query_items_omitted');
@@ -728,13 +733,14 @@ function comparableReport(report) {
 function failureReport(error) {
   return {
     schemaVersion: '1.0.0',
-    reportVersion: 'memory-recall-million-node-rust-index-1',
+    reportVersion: REPORT_VERSION,
     generatedAt: new Date().toISOString(),
     environment: { platform: os.platform(), architecture: os.arch(), nodeVersion: process.version },
     fixture: {
       language: MILLION_NODE_PLAN.language,
+      shape: MILLION_NODE_PLAN.shape,
       fileCount: MILLION_NODE_PLAN.fileCount,
-      methodsPerFile: MILLION_NODE_PLAN.methodsPerFile,
+      classesPerFile: MILLION_NODE_PLAN.classesPerFile,
       expectedNodeCount: MILLION_NODE_PLAN.expectedNodeCount,
       expectedEdgeCount: MILLION_NODE_PLAN.expectedEdgeCount
     },
@@ -769,6 +775,7 @@ async function atomicWrite(file, value) {
 function planReport() {
   return {
     mode: 'plan',
+    reportVersion: REPORT_VERSION,
     requiresExplicitRun: true,
     output: OUTPUT,
     fixture: MILLION_NODE_PLAN,

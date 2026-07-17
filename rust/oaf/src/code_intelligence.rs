@@ -477,7 +477,7 @@ pub(crate) fn build_index_generation_at_root(
     let build = build_graph_at_root(&request, engine_version, root, Instant::now())
         .map_err(|failure| anyhow::anyhow!(failure.code))?;
     let generation = index_generation_from_graph_with_options(
-        &build.graph,
+        build.graph,
         root,
         &request.languages,
         request.max_files,
@@ -524,7 +524,7 @@ pub(crate) fn build_index_generation_for_sources_at_root(
     )
     .map_err(|failure| anyhow::anyhow!(failure.code))?;
     let generation = index_generation_from_graph_with_options(
-        &build.graph,
+        build.graph,
         root,
         &request.languages,
         request.max_files,
@@ -543,7 +543,7 @@ pub(crate) fn build_index_generation_for_sources_at_root(
 #[cfg(test)]
 fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<GenerationInput> {
     index_generation_from_graph_with_options(
-        graph,
+        graph.clone(),
         root,
         &BTreeSet::new(),
         usize::MAX,
@@ -553,7 +553,7 @@ fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<
 }
 
 fn index_generation_from_graph_with_options(
-    graph: &Value,
+    mut graph: Value,
     root: &std::path::Path,
     requested_languages: &BTreeSet<String>,
     max_files: usize,
@@ -573,12 +573,12 @@ fn index_generation_from_graph_with_options(
     if let Some(selected) = only_sources {
         hashes.retain(|item| selected.contains(&item.source));
     }
-    let graph_nodes = graph["nodes"]
-        .as_array()
-        .context("code intelligence graph nodes missing")?;
-    let graph_edges = graph["edges"]
-        .as_array()
-        .context("code intelligence graph edges missing")?;
+    let created_at = json_string(&graph["generation"], "builtAt")?;
+    let structural_fingerprint = json_string(&graph, "graphFingerprint")?;
+    let graph_nodes = take_json_array(&mut graph, "nodes")?;
+    let graph_edges = take_json_array(&mut graph, "edges")?;
+    let graph_coverage = take_json_array(&mut graph, "coverage")?;
+    let graph_diagnostics = take_json_array(&mut graph, "diagnostics")?;
     let file_nodes = graph_nodes
         .iter()
         .filter(|node| node["kind"] == "file")
@@ -598,10 +598,8 @@ fn index_generation_from_graph_with_options(
             ))
         })
         .collect::<BTreeMap<_, _>>();
-    let diagnostics_by_file = graph["diagnostics"]
-        .as_array()
-        .into_iter()
-        .flatten()
+    let diagnostics_by_file = graph_diagnostics
+        .iter()
         .filter_map(|item| item["locator"].as_str())
         .map(locator_file)
         .fold(BTreeMap::<String, i64>::new(), |mut counts, locator| {
@@ -658,53 +656,63 @@ fn index_generation_from_graph_with_options(
         represented_files.insert(locator.clone());
     }
     let nodes = graph_nodes
-        .iter()
-        .map(|node| {
+        .into_iter()
+        .map(|mut node| {
+            let start_line = json_i64(&node["span"], "startLine")?;
+            let end_line = json_i64(&node["span"], "endLine")?;
+            let content_hash = node["contentHash"].as_str().map(str::to_string);
             Ok(NodeRecord {
-                canonical_id: json_string(node, "id")?,
-                kind: json_string(node, "kind")?,
-                language_kind: json_string(node, "languageKind")?,
-                qualified_name: json_string(node, "qualifiedName")?,
-                locator: json_string(node, "locator")?,
-                start_line: json_i64(&node["span"], "startLine")?,
-                end_line: json_i64(&node["span"], "endLine")?,
-                content_hash: node["contentHash"].as_str().map(str::to_string),
+                canonical_id: take_json_string(&mut node, "id")?,
+                kind: take_json_string(&mut node, "kind")?,
+                language_kind: take_json_string(&mut node, "languageKind")?,
+                qualified_name: take_json_string(&mut node, "qualifiedName")?,
+                locator: take_json_string(&mut node, "locator")?,
+                start_line,
+                end_line,
+                content_hash,
                 visibility: "unknown".to_string(),
             })
         })
         .collect::<Result<Vec<_>>>()?;
     let edges = graph_edges
-        .iter()
-        .map(|edge| {
+        .into_iter()
+        .map(|mut edge| {
+            let start_line = json_i64(&edge["evidence"]["span"], "startLine")?;
+            let end_line = json_i64(&edge["evidence"]["span"], "endLine")?;
+            let confidence = edge["confidence"]
+                .as_f64()
+                .context("code intelligence edge confidence missing")?;
+            let stale = edge["freshness"] == "stale";
+            let mut evidence = take_json_value(&mut edge, "evidence")?;
+            let mut resolver = take_json_value(&mut edge, "resolver")?;
             Ok(EdgeRecord {
-                canonical_id: json_string(edge, "id")?,
-                source_id: json_string(edge, "fromNodeId")?,
-                target_id: json_string(edge, "toNodeId")?,
-                kind: json_string(edge, "kind")?,
-                locator: json_string(&edge["evidence"], "locator")?,
-                start_line: json_i64(&edge["evidence"]["span"], "startLine")?,
-                end_line: json_i64(&edge["evidence"]["span"], "endLine")?,
-                resolver: json_string(&edge["resolver"], "name")?,
-                resolver_version: json_string(&edge["resolver"], "version")?,
-                confidence: edge["confidence"]
-                    .as_f64()
-                    .context("code intelligence edge confidence missing")?,
-                resolution_class: json_string(edge, "resolution")?,
-                stale: edge["freshness"] == "stale",
+                canonical_id: take_json_string(&mut edge, "id")?,
+                source_id: take_json_string(&mut edge, "fromNodeId")?,
+                target_id: take_json_string(&mut edge, "toNodeId")?,
+                kind: take_json_string(&mut edge, "kind")?,
+                locator: take_json_string(&mut evidence, "locator")?,
+                start_line,
+                end_line,
+                resolver: take_json_string(&mut resolver, "name")?,
+                resolver_version: take_json_string(&mut resolver, "version")?,
+                confidence,
+                resolution_class: take_json_string(&mut edge, "resolution")?,
+                stale,
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    let coverage = graph["coverage"]
-        .as_array()
+    let coverage = graph_coverage
         .into_iter()
-        .flatten()
-        .map(|item| {
+        .map(|mut item| {
+            let represented_count = json_i64(&item, "indexedFileCount")?;
+            let omitted_count = json_i64(&item, "omittedFileCount")?;
+            let failed_count = json_i64(&item, "failedFileCount")?;
             Ok(CoverageRecord {
-                language: json_string(item, "language")?,
+                language: take_json_string(&mut item, "language")?,
                 capability: "files".to_string(),
-                represented_count: json_i64(item, "indexedFileCount")?,
-                omitted_count: json_i64(item, "omittedFileCount")?,
-                failed_count: json_i64(item, "failedFileCount")?,
+                represented_count,
+                omitted_count,
+                failed_count,
                 reason_code: item["reasonCodes"]
                     .as_array()
                     .and_then(|reasons| reasons.first())
@@ -717,23 +725,20 @@ fn index_generation_from_graph_with_options(
         .iter()
         .map(|file| file.locator.as_str())
         .collect::<BTreeSet<_>>();
-    let diagnostics = graph["diagnostics"]
-        .as_array()
+    let diagnostics = graph_diagnostics
         .into_iter()
-        .flatten()
         .filter(|item| {
             item["locator"]
                 .as_str()
                 .is_some_and(|locator| file_locators.contains(locator_file(locator)))
         })
-        .map(|item| {
-            let locator = json_string(item, "locator")?;
-            let hash = fingerprint(item);
+        .map(|mut item| {
+            let hash = fingerprint(&item);
             Ok(DiagnosticRecord {
                 canonical_id: format!("diagnostic_{}", &hash[7..39]),
-                severity: json_string(item, "severity")?,
-                code: json_string(item, "code")?,
-                locator,
+                severity: take_json_string(&mut item, "severity")?,
+                code: take_json_string(&mut item, "code")?,
+                locator: take_json_string(&mut item, "locator")?,
                 start_line: 1,
                 end_line: 1,
                 message_hash: hash,
@@ -742,8 +747,8 @@ fn index_generation_from_graph_with_options(
         .collect::<Result<Vec<_>>>()?;
     Ok(GenerationInput {
         reason: "graph_build".to_string(),
-        created_at: json_string(&graph["generation"], "builtAt")?,
-        structural_fingerprint: json_string(graph, "graphFingerprint")?,
+        created_at,
+        structural_fingerprint,
         ignore_fingerprint: None,
         files,
         nodes,
@@ -752,6 +757,27 @@ fn index_generation_from_graph_with_options(
         coverage,
         diagnostics,
     })
+}
+
+fn take_json_array(value: &mut Value, key: &str) -> Result<Vec<Value>> {
+    match take_json_value(value, key)? {
+        Value::Array(items) => Ok(items),
+        _ => anyhow::bail!("code intelligence array missing: {key}"),
+    }
+}
+
+fn take_json_string(value: &mut Value, key: &str) -> Result<String> {
+    match take_json_value(value, key)? {
+        Value::String(item) => Ok(item),
+        _ => anyhow::bail!("code intelligence field missing: {key}"),
+    }
+}
+
+fn take_json_value(value: &mut Value, key: &str) -> Result<Value> {
+    value
+        .as_object_mut()
+        .and_then(|object| object.remove(key))
+        .with_context(|| format!("code intelligence field missing: {key}"))
 }
 
 fn json_string(value: &Value, key: &str) -> Result<String> {

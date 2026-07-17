@@ -13,17 +13,18 @@ import {
 test('million-node benchmark plan and dense fixture are exact, bounded, and deterministic', async () => {
   assert.deepEqual(MILLION_NODE_PLAN, {
     language: 'javascript',
-    fileCount: 10,
-    methodsPerFile: 99_997,
+    shape: 'base36-empty-classes-v2',
+    fileCount: 1_000,
+    classesPerFile: 998,
     expectedNodeCount: 1_000_000,
-    expectedEdgeCount: 999_990,
-    maxFileBytes: 1_048_576,
+    expectedEdgeCount: 999_000,
+    maxFileBytes: 524_288,
     maxNodes: 1_000_000,
     maxEdges: 1_000_000,
-    seedQuery: 'm0'
+    seedQuery: 'ScaleProbe'
   });
   assert.throws(
-    () => createDenseFixturePlan({ fileCount: 10, methodsPerFile: 99_998 }),
+    () => createDenseFixturePlan({ fileCount: 1_000, classesPerFile: 999 }),
     /million_node_fixture_node_count_invalid/u
   );
 
@@ -45,20 +46,27 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
   assert.equal(planned.exitCode, 0, planned.stderr.toString('utf8'));
   const planReceipt = JSON.parse(planned.stdout.toString('utf8'));
   assert.equal(planReceipt.requiresExplicitRun, true);
+  assert.equal(planReceipt.reportVersion, 'memory-recall-million-node-rust-index-2');
   assert.equal(planReceipt.fixture.expectedNodeCount, 1_000_000);
-  assert.equal(planReceipt.fixture.seedQuery, 'm0');
+  assert.equal(planReceipt.fixture.expectedEdgeCount, 999_000);
+  assert.equal(planReceipt.fixture.seedQuery, 'ScaleProbe');
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-million-node-test-'));
   try {
-    const plan = createDenseFixturePlan({ fileCount: 2, methodsPerFile: 3 });
+    const plan = createDenseFixturePlan({ fileCount: 2, classesPerFile: 3 });
     const first = await writeDenseFixture(root, plan);
     const source = await readFile(path.join(root, 'src', 'dense-0000.js'), 'utf8');
+    const secondSource = await readFile(path.join(root, 'src', 'dense-0001.js'), 'utf8');
     const metadata = await stat(path.join(root, 'src', 'dense-0000.js'));
+    const secondMetadata = await stat(path.join(root, 'src', 'dense-0001.js'));
     assert.equal(first.fileCount, 2);
-    assert.equal(first.expectedNodeCount, 12);
-    assert.equal(first.expectedEdgeCount, 10);
-    assert.equal(first.totalSourceBytes, metadata.size * 2);
+    assert.equal(first.shape, 'base36-empty-classes-v2');
+    assert.equal(first.expectedNodeCount, 10);
+    assert.equal(first.expectedEdgeCount, 8);
+    assert.equal(first.totalSourceBytes, metadata.size + secondMetadata.size);
     assert(metadata.size <= plan.maxFileBytes);
-    assert.equal(source, 'class C{\nm0(){}\nm1(){}\nm2(){}\n}\n');
+    assert(secondMetadata.size <= plan.maxFileBytes);
+    assert.equal(source, 'class ScaleProbe{}class C1{}class C2{}\n');
+    assert.equal(secondSource, 'class C0{}class C1{}class C2{}\n');
 
     const secondRoot = `${root}-copy`;
     try {
