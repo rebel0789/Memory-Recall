@@ -75,8 +75,71 @@ test('compatibility comparison is deterministic and never claims parity', async 
     'routes'
   ]);
   assert.equal(comparison.parityClaimed, false);
+  assert.equal(comparison.comparisonVersion, 'memory-recall-js-ts-native-preview-2');
   assert.equal(comparison.dimensions.every((item) => item.baselineCount >= item.matchedCount), true);
   assert.deepEqual(comparison, compareSourceGraphCompatibility(structuredClone(baseline), structuredClone(translated)));
+});
+
+test('compatibility comparison reports bounded deterministic normalized delta evidence', async (t) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-compatibility-deltas-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const baselineRoot = path.join(workspace, 'baseline');
+  const nativeRoot = path.join(workspace, 'native');
+  await mkdir(baselineRoot, { recursive: true });
+  await mkdir(nativeRoot, { recursive: true });
+  for (const root of [baselineRoot, nativeRoot]) {
+    await writeFile(path.join(root, 'shared.js'), 'export function shared(){ return 1; }\n');
+  }
+  for (let index = 0; index < 12; index += 1) {
+    const suffix = String(index).padStart(2, '0');
+    await writeFile(path.join(baselineRoot, `baseline-${suffix}.js`), [
+      "import { shared } from './shared.js';",
+      `export function baseline${suffix}(){ return shared(); }`
+    ].join('\n'));
+    await writeFile(path.join(nativeRoot, `native-${suffix}.js`), [
+      "import { shared } from './shared.js';",
+      `export function native${suffix}(){ return shared(); }`
+    ].join('\n'));
+  }
+
+  const [baseline, native] = await Promise.all([
+    buildJsTsSourceGraph({ root: baselineRoot, workspaceId: 'ws_local', clock: () => fixedNow }),
+    buildJsTsSourceGraph({ root: nativeRoot, workspaceId: 'ws_local', clock: () => fixedNow })
+  ]);
+  const first = compareSourceGraphCompatibility(baseline, native);
+  const second = compareSourceGraphCompatibility(structuredClone(baseline), structuredClone(native));
+
+  assert.deepEqual(first, second);
+  assert.deepEqual(first.dimensions.map((item) => ({
+    name: item.name,
+    baselineOnlyCount: item.baselineOnlyCount,
+    nativeOnlyCount: item.nativeOnlyCount,
+    nativeAgreement: item.nativeAgreement
+  })), [
+    { name: 'files', baselineOnlyCount: 12, nativeOnlyCount: 12, nativeAgreement: 0.0769 },
+    { name: 'symbols', baselineOnlyCount: 12, nativeOnlyCount: 12, nativeAgreement: 0.0769 },
+    { name: 'imports', baselineOnlyCount: 12, nativeOnlyCount: 12, nativeAgreement: 0 },
+    { name: 'calls', baselineOnlyCount: 12, nativeOnlyCount: 12, nativeAgreement: 0 },
+    { name: 'routes', baselineOnlyCount: 0, nativeOnlyCount: 0, nativeAgreement: 1 }
+  ]);
+  for (const dimension of first.dimensions) {
+    assert.equal(dimension.baselineOnlySample.length <= 10, true);
+    assert.equal(dimension.nativeOnlySample.length <= 10, true);
+    assert.deepEqual(dimension.baselineOnlySample, [...dimension.baselineOnlySample].sort());
+    assert.deepEqual(dimension.nativeOnlySample, [...dimension.nativeOnlySample].sort());
+  }
+  assert.deepEqual(first.dimensions[0].baselineOnlySample, Array.from(
+    { length: 10 },
+    (_, index) => `workspace://baseline-${String(index).padStart(2, '0')}.js`
+  ));
+  assert.deepEqual(first.dimensions[0].nativeOnlySample, Array.from(
+    { length: 10 },
+    (_, index) => `workspace://native-${String(index).padStart(2, '0')}.js`
+  ));
+  const serializedSamples = JSON.stringify(first.dimensions.flatMap((item) => [item.baselineOnlySample, item.nativeOnlySample]));
+  assert.equal(serializedSamples.includes(workspace), false);
+  assert.equal(serializedSamples.includes('/Users/'), false);
+  assert.equal(serializedSamples.includes('#L'), false);
 });
 
 test('compatibility matches a TypeScript import that resolves outside the selected scope', async (t) => {
@@ -105,7 +168,12 @@ test('compatibility matches a TypeScript import that resolves outside the select
     baselineCount: 1,
     nativeCount: 1,
     matchedCount: 1,
-    recall: 1
+    recall: 1,
+    baselineOnlyCount: 0,
+    nativeOnlyCount: 0,
+    nativeAgreement: 1,
+    baselineOnlySample: [],
+    nativeOnlySample: []
   });
   assert.equal(comparison.dimensions.find((item) => item.name === 'calls')?.matchedCount, 1);
 });
@@ -135,7 +203,12 @@ test('compatibility preserves the official node:path import key', async (t) => {
     baselineCount: 1,
     nativeCount: 1,
     matchedCount: 1,
-    recall: 1
+    recall: 1,
+    baselineOnlyCount: 0,
+    nativeOnlyCount: 0,
+    nativeAgreement: 1,
+    baselineOnlySample: [],
+    nativeOnlySample: []
   });
 });
 
@@ -161,7 +234,12 @@ test('compatibility resolves a CommonJS member call to the required module', asy
     baselineCount: 1,
     nativeCount: 1,
     matchedCount: 1,
-    recall: 1
+    recall: 1,
+    baselineOnlyCount: 0,
+    nativeOnlyCount: 0,
+    nativeAgreement: 1,
+    baselineOnlySample: [],
+    nativeOnlySample: []
   });
 });
 

@@ -144,7 +144,7 @@ export function compareSourceGraphCompatibility(baseline, native) {
   ];
   const structural = {
     schemaVersion: '1.0.0',
-    comparisonVersion: 'memory-recall-js-ts-native-preview-1',
+    comparisonVersion: 'memory-recall-js-ts-native-preview-2',
     baselineGraphFingerprint: baseline.graphFingerprint,
     nativeGraphFingerprint: native.graphFingerprint,
     dimensions,
@@ -317,12 +317,20 @@ function nodeReference(node, extra = {}) {
 
 function dimension(name, baselineKeys, nativeKeys) {
   const matchedCount = [...baselineKeys].filter((key) => nativeKeys.has(key)).length;
+  const baselineOnly = [...baselineKeys].filter((key) => !nativeKeys.has(key)).sort();
+  const nativeOnly = [...nativeKeys].filter((key) => !baselineKeys.has(key)).sort();
+  const maximumCount = Math.max(baselineKeys.size, nativeKeys.size);
   return Object.freeze({
     name,
     baselineCount: baselineKeys.size,
     nativeCount: nativeKeys.size,
     matchedCount,
-    recall: baselineKeys.size ? Number((matchedCount / baselineKeys.size).toFixed(4)) : 1
+    recall: baselineKeys.size ? Number((matchedCount / baselineKeys.size).toFixed(4)) : 1,
+    baselineOnlyCount: baselineOnly.length,
+    nativeOnlyCount: nativeOnly.length,
+    nativeAgreement: maximumCount ? Number((matchedCount / maximumCount).toFixed(4)) : 1,
+    baselineOnlySample: baselineOnly.slice(0, 10),
+    nativeOnlySample: nativeOnly.slice(0, 10)
   });
 }
 
