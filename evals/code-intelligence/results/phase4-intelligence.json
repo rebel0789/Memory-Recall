@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-3",
   "phase": 4,
-  "generatedAt": "2026-07-17T13:18:19.621Z",
+  "generatedAt": "2026-07-17T15:12:42.709Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,7 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:18244cf1480348cec4f788205b2d941e6b4a70d2fb1dbef2814415ae04790636",
-    "implementationFingerprint": "sha256:a8a84eef7720e75a4d382cf5ce01dcca1b50e171ddc2d2b72a11f0477baacb18",
+    "implementationFingerprint": "sha256:2dc561a8eb824969a19786459c7b05da2c444f6b872ae89116d2407309740df3",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
@@ -30,28 +30,28 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 8.143,
-      "p50": 8.818,
-      "p95": 8.97,
-      "maximum": 8.97
+      "minimum": 9.066,
+      "p50": 9.668,
+      "p95": 9.9,
+      "maximum": 9.9
     },
     "processQueryWallMs": {
-      "minimum": 7.666,
-      "p50": 7.705,
-      "p95": 8.983,
-      "maximum": 8.983
+      "minimum": 7.578,
+      "p50": 7.702,
+      "p95": 8.605,
+      "maximum": 8.605
     },
     "routeQueryWallMs": {
-      "minimum": 6.613,
-      "p50": 7.174,
-      "p95": 7.331,
-      "maximum": 7.331
+      "minimum": 7.067,
+      "p50": 7.693,
+      "p95": 8.014,
+      "maximum": 8.014
     },
     "impactQueryWallMs": {
-      "minimum": 6.858,
-      "p50": 7.515,
-      "p95": 7.659,
-      "maximum": 7.659
+      "minimum": 7.367,
+      "p50": 7.489,
+      "p95": 8.03,
+      "maximum": 8.03
     },
     "deterministicProjectionFingerprint": "sha256:ce3f24f84fc56d4cae323dc3dc43405e55539cbce424894a6dcff053b75eb35b",
     "readQueriesPreservedIndex": true,
@@ -167,5 +167,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:e5a17462b33a3217e7a510c3a98faf14050fb0c9d588983bf85ade857874d72b"
+  "reportFingerprint": "sha256:b11a18a317d5c47866e190b6a2817511d57a16ae158b3bc66d2a97b2e76912f9"
 }
