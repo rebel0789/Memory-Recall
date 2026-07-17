@@ -6063,19 +6063,36 @@ fn module_from_import(value: &str) -> Option<String> {
     if let Some(builtin) = trimmed.strip_prefix("node:").and_then(sanitize_symbol) {
         return Some(format!("module:node:{builtin}"));
     }
+    if !relative {
+        if let Some((scope, package)) = trimmed
+            .strip_prefix('@')
+            .and_then(|value| value.split_once('/'))
+        {
+            if !package.contains('/')
+                && valid_npm_package_segment(scope)
+                && valid_npm_package_segment(package)
+            {
+                return Some(format!("module:{trimmed}"));
+            }
+        }
+    }
     let first = trimmed
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;
-    if !relative
-        && !trimmed.starts_with('@')
-        && first.bytes().next().is_some_and(|byte| byte.is_ascii_alphanumeric())
-        && first
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-    {
+    if !relative && !trimmed.starts_with('@') && valid_npm_package_segment(first) {
         return Some(format!("module:{first}"));
     }
     sanitize_symbol(first).map(|token| format!("module:{token}"))
+}
+
+fn valid_npm_package_segment(value: &str) -> bool {
+    value
+        .bytes()
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
 fn is_relative_source_reference(value: &str) -> bool {
