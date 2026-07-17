@@ -397,10 +397,18 @@ async function runInstalledNativeWorkbenchSmoke() {
       mkdir(home, { recursive: true }),
       mkdir(packDirectory, { recursive: true }),
       mkdir(runtimeBin, { recursive: true }),
+      mkdir(path.join(workspace, 'app', 'api', 'users'), { recursive: true }),
       mkdir(path.join(workspace, 'src'), { recursive: true })
     ]);
     await Promise.all([
       writeFile(path.join(workspace, 'package.json'), `${JSON.stringify({ name: 'installed-native-browser-smoke' }, null, 2)}\n`),
+      writeFile(path.join(workspace, 'app', 'api', 'users', 'route.js'), [
+        "import http from 'node:http';",
+        'export function GET() { return handleUser(); }',
+        'function handleUser() { return persistUser(); }',
+        'function persistUser() { return { ok: true }; }',
+        'http.createServer(persistUser);'
+      ].join('\n')),
       writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchBrowserSmoke(){ return true; }\n'),
       writeFile(path.join(workspace, 'src', 'worker.py'), 'def pythonControlProof():\n    return "native workbench"\n')
     ]);
@@ -506,8 +514,36 @@ async function runInstalledNativeWorkbenchSmoke() {
     await page.fill('input[name="password"]', localPassword);
     await page.getByRole('button', { name: 'Create local owner' }).click();
     await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+    const architectureResponsePromise = page.waitForResponse((response) => (
+      response.request().url().endsWith('/api/context/graph/preview')
+      && graphPreviewQuery(response.request()) === ''
+    ));
     await page.goto(`${base}/map`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Map', exact: true }).waitFor();
+    const architectureResponse = await architectureResponsePromise;
+    const architectureText = await architectureResponse.text();
+    must(architectureResponse.ok(), `installed native architecture request failed: ${architectureResponse.status()} ${architectureText}; server stderr=${serverStderr}`);
+    const architecture = JSON.parse(architectureText);
+    must(/^memory-recall-native-/u.test(architecture.graph?.parserVersion ?? ''), `Control API did not use the installed native index: ${architecture.graph?.parserVersion}`);
+    const group = architecture.orientation?.groups?.[0];
+    must(group?.prefix, `installed native architecture did not expose a community: ${JSON.stringify(architecture.orientation)}`);
+    await waitForText(page, group.prefix);
+    const nativeProcess = architecture.orientation?.processes?.find((item) => (
+      item.algorithmVersion === 'entry-path-v1'
+      && item.truncated === false
+      && item.entryPoint?.locator?.startsWith('workspace://app/api/users/route.js')
+      && item.sink?.locator?.startsWith('workspace://app/api/users/route.js')
+      && item.nodeIds?.length >= 2
+      && item.relationshipIds?.length >= 1
+    ));
+    must(nativeProcess, `installed native architecture did not expose an evidence-backed entry-to-sink process: ${JSON.stringify(architecture.orientation?.processes ?? [])}`);
+    const processPanel = await page.locator('.map-processes').innerText();
+    must(
+      processPanel.includes(nativeProcess.entryPoint.label)
+      && processPanel.includes(nativeProcess.sink.label)
+      && processPanel.includes(nativeProcess.sinkKind),
+      `installed Map did not render the native process: ${processPanel}`
+    );
     await page.fill('#source-graph-form input[name="query"]', 'pythonControlProof');
     const graphResponsePromise = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'pythonControlProof');
     await page.getByRole('button', { name: 'Search code' }).click();
