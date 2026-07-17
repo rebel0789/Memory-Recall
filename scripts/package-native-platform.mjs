@@ -44,6 +44,54 @@ export function buildPublishedPackageJson(template, target) {
   });
 }
 
+export function buildNativeDistributionReceipt({ packageReport, commit, runner, tarballSha256, consumerGateResult }) {
+  const expected = NATIVE_TARGETS[packageReport?.target];
+  if (!expected) throw new Error('native distribution receipt target is unsupported');
+  if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('native distribution receipt commit must be a full Git SHA');
+  if (!/^[A-Za-z0-9._-]+$/u.test(runner ?? '')) throw new Error('native distribution receipt runner is invalid');
+  if (packageReport.packageName !== `@memory-recall/native-${packageReport.target}`) throw new Error('native distribution receipt package name is invalid');
+  if (!/^\d+\.\d+\.\d+$/u.test(packageReport.version ?? '')) throw new Error('native distribution receipt package version is invalid');
+  if (!/^sha256:[a-f0-9]{64}$/u.test(packageReport?.binarySha256 ?? '')) throw new Error('native distribution receipt binary checksum is invalid');
+  if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('native distribution receipt tarball checksum is invalid');
+  if (consumerGateResult !== 'pass') throw new Error('native distribution receipt requires a passing consumer gate');
+  const tarball = path.basename(packageReport.tarball ?? '');
+  if (!tarball.endsWith('.tgz')) throw new Error('native distribution receipt tarball is invalid');
+  if (packageReport.entryCount !== 5 || !Number.isInteger(packageReport.size) || packageReport.size <= 0
+    || !Number.isInteger(packageReport.unpackedSize) || packageReport.unpackedSize <= 0) {
+    throw new Error('native distribution receipt package measurements are invalid');
+  }
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    receiptVersion: 'memory-recall-native-distribution-1',
+    commit,
+    runner,
+    target: packageReport.target,
+    abi: {
+      platform: expected.platform,
+      arch: expected.arch,
+      libc: expected.libc ?? null
+    },
+    package: {
+      name: packageReport.packageName,
+      version: packageReport.version,
+      tarball,
+      binarySha256: packageReport.binarySha256,
+      tarballSha256,
+      entryCount: packageReport.entryCount,
+      size: packageReport.size,
+      unpackedSize: packageReport.unpackedSize
+    },
+    consumerGate: {
+      command: 'node scripts/native-code-intelligence-consumer-smoke.mjs',
+      result: consumerGateResult
+    },
+    artifactState: {
+      signed: false,
+      published: false
+    }
+  });
+}
+
 export async function packageNativePlatform({
   target,
   binaryPath,

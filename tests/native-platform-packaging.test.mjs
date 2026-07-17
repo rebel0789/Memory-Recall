@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { buildNativeManifest, buildPublishedPackageJson, NATIVE_TARGETS, spawnNpmSync } from '../scripts/package-native-platform.mjs';
+import { buildNativeDistributionReceipt, buildNativeManifest, buildPublishedPackageJson, NATIVE_TARGETS, spawnNpmSync } from '../scripts/package-native-platform.mjs';
 
 const rootPackage = JSON.parse(await readFile('package.json', 'utf8'));
 const packageLock = JSON.parse(await readFile('package-lock.json', 'utf8'));
@@ -47,4 +47,61 @@ test('native packaging invokes npm through the cross-platform JavaScript CLI', (
   const result = spawnNpmSync(['--version'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+/u);
+});
+
+test('native CI retains a sanitized per-target receipt only after the consumer gate passes', async () => {
+  const packageReport = {
+    target: 'linux-x64-gnu',
+    packageName: '@memory-recall/native-linux-x64-gnu',
+    version: '1.1.1',
+    tarball: '/private/runner/output/memory-recall-native-linux-x64-gnu-1.1.1.tgz',
+    binarySha256: `sha256:${'a'.repeat(64)}`,
+    entryCount: 5,
+    size: 1024,
+    unpackedSize: 4096
+  };
+  const receipt = buildNativeDistributionReceipt({
+    packageReport,
+    commit: 'b'.repeat(40),
+    runner: 'ubuntu-22.04',
+    tarballSha256: `sha256:${'c'.repeat(64)}`,
+    consumerGateResult: 'pass'
+  });
+  assert.deepEqual(receipt, {
+    schemaVersion: '1.0.0',
+    receiptVersion: 'memory-recall-native-distribution-1',
+    commit: 'b'.repeat(40),
+    runner: 'ubuntu-22.04',
+    target: 'linux-x64-gnu',
+    abi: { platform: 'linux', arch: 'x64', libc: 'glibc' },
+    package: {
+      name: '@memory-recall/native-linux-x64-gnu',
+      version: '1.1.1',
+      tarball: 'memory-recall-native-linux-x64-gnu-1.1.1.tgz',
+      binarySha256: `sha256:${'a'.repeat(64)}`,
+      tarballSha256: `sha256:${'c'.repeat(64)}`,
+      entryCount: 5,
+      size: 1024,
+      unpackedSize: 4096
+    },
+    consumerGate: {
+      command: 'node scripts/native-code-intelligence-consumer-smoke.mjs',
+      result: 'pass'
+    },
+    artifactState: { signed: false, published: false }
+  });
+  assert.doesNotMatch(JSON.stringify(receipt), /\/private\/|\/Users\/|\/home\//u);
+  assert.throws(
+    () => buildNativeDistributionReceipt({ packageReport, commit: 'b'.repeat(40), runner: 'ubuntu-22.04', tarballSha256: `sha256:${'c'.repeat(64)}`, consumerGateResult: 'fail' }),
+    /requires a passing consumer gate/u
+  );
+
+  const workflow = await readFile('.github/workflows/rust.yml', 'utf8');
+  const consumerStep = workflow.indexOf('Verify exact artifact in installed consumer');
+  const receiptStep = workflow.indexOf('Record sanitized native package receipt');
+  const uploadStep = workflow.indexOf('Upload unsigned native package and receipt');
+  assert(consumerStep >= 0 && consumerStep < receiptStep && receiptStep < uploadStep);
+  assert.match(workflow, /buildNativeDistributionReceipt/u);
+  assert.match(workflow, /consumerGateResult: 'pass'/u);
+  assert.match(workflow, /output\/native-package-\*-receipt\.json/u);
 });

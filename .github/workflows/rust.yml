@@ -156,10 +156,36 @@ jobs:
         run: |
           export MEMORY_RECALL_NATIVE_PACKAGE_TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('output/native-package-report.json', 'utf8')).tarball")"
           node scripts/native-code-intelligence-consumer-smoke.mjs
-      - name: Upload unsigned native package
+      - name: Record sanitized native package receipt
+        shell: bash
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+          EXPECTED_RUNNER: ${{ matrix.runner }}
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { buildNativeDistributionReceipt } from './scripts/package-native-platform.mjs';
+
+          const packageReport = JSON.parse(readFileSync('output/native-package-report.json', 'utf8'));
+          if (packageReport.target !== process.env.EXPECTED_TARGET) throw new Error('native package report target mismatch');
+          const tarballSha256 = `sha256:${createHash('sha256').update(readFileSync(packageReport.tarball)).digest('hex')}`;
+          const receipt = buildNativeDistributionReceipt({
+            packageReport,
+            commit: process.env.GIT_COMMIT,
+            runner: process.env.EXPECTED_RUNNER,
+            tarballSha256,
+            consumerGateResult: 'pass'
+          });
+          writeFileSync(`output/native-package-${receipt.target}-receipt.json`, `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+      - name: Upload unsigned native package and receipt
         uses: actions/upload-artifact@v6
         with:
           name: memory-recall-native-${{ matrix.target }}-unsigned-${{ github.sha }}
-          path: output/native-packages/*.tgz
+          path: |
+            output/native-packages/*.tgz
+            output/native-package-*-receipt.json
           if-no-files-found: error
           retention-days: 14
