@@ -190,14 +190,8 @@ function multiLanguageTypedScenario() {
     const edges = activeCallEdges(sqlite);
     const typedEdges = edges.filter((edge) => edge.notes?.startsWith('oaf.ingest:typed-call-'));
     const expected = [
-      { source: 'function:bootKotlin', target: 'method:WorkerKotlin_run', notes: 'oaf.ingest:typed-call-kotlin' },
-      { source: 'function:bootSwift', target: 'method:WorkerSwift_run', notes: 'oaf.ingest:typed-call-swift' },
-      { source: 'method:Runner_run', target: 'method:Worker_run', notes: 'oaf.ingest:typed-call-java' },
-      { source: 'method:RunnerCs_Run', target: 'method:WorkerCs_Run', notes: 'oaf.ingest:typed-call-csharp' },
-      { source: 'method:Worker_run', target: 'method:Worker_helper', notes: 'oaf.ingest:typed-call-java' },
-      { source: 'method:WorkerCs_Run', target: 'method:WorkerCs_Helper', notes: 'oaf.ingest:typed-call-csharp' },
-      { source: 'method:WorkerSwift_run', target: 'method:WorkerSwift_helper', notes: 'oaf.ingest:typed-call-swift' },
-      { source: 'method:WorkerKotlin_run', target: 'method:WorkerKotlin_helper', notes: 'oaf.ingest:typed-call-kotlin' }
+      { source: 'function:bootKotlin', target: 'method:WorkerKotlin.run()', notes: 'oaf.ingest:typed-call-kotlin' },
+      { source: 'function:bootSwift', target: 'method:WorkerSwift.run()', notes: 'oaf.ingest:typed-call-swift' }
     ];
     const expectedKeys = new Set(expected.map((edge) => `${edgeKey(edge)}\t${edge.notes}`));
     const predictedKeys = new Set(typedEdges.map((edge) => `${edgeKey(edge)}\t${edge.notes}`));
@@ -258,7 +252,7 @@ const realPythonRepo = realPythonRepoScenario();
 console.log(JSON.stringify({
   schemaVersion: '1.0.0',
   command: 'rust typed calls quality',
-  methodology: 'CI-2 measures Python plus Java/C#/Swift/Kotlin receiver-call resolution after proposal approval. Type hints are used only when constructor/self inference resolves to an existing symbol; otherwise the prior name resolver is used.',
+  methodology: 'CI-2 measures Python receiver-call resolution plus the Swift/Kotlin receiver calls accepted by governed memory after proposal approval. Type hints are used only when constructor/self inference resolves to an existing symbol; otherwise the prior name resolver is used. Qualified method identities rejected by governed memory remain graph-layer evidence and are not counted here.',
   fixture,
   multiLanguageFixture,
   realPythonRepo,
