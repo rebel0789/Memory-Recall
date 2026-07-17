@@ -2,14 +2,14 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-17T02:37:46.531Z",
+  "generatedAt": "2026-07-17T03:05:14.113Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "0fa2c298a66a3043b856fa6edf832b89bc92201e",
+    "commit": "5a25cd27358c232bc3223dde01416bb864d6b0ad",
     "dirtyBeforeRun": false
   },
   "inputs": {
@@ -290,11 +290,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:84c899f09c9adf6146d3707ef8891e9fe384741adb15f7434e4af04a03920bc9",
-          "compatibilityGraphFingerprint": "sha256:166b842e518cdca0a1192dd2fa7a7e58b72b407266ce079557a9b18f5d1e7ad1",
+          "providerGraphFingerprint": "sha256:87f2b29d7559d5fef6697aa5239b8fe340c76bc46ac341d6bcb01930e0e08c48",
+          "compatibilityGraphFingerprint": "sha256:30bb208a5b25a9a7f6268e1747bbe4cfa3ca47e019824572c9581094576c2b2c",
           "fileCount": 26,
-          "symbolCount": 4125,
-          "edgeCount": 11029,
+          "symbolCount": 3777,
+          "edgeCount": 10687,
           "diagnosticCount": 2,
           "coverage": [
             {
@@ -310,7 +310,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-2",
-        "comparisonFingerprint": "sha256:3109ad59f474eee542a696708dc3ea2095e2afe23dd8a9d217a91885b3a3340f",
+        "comparisonFingerprint": "sha256:83511ebaa9da227bb6518f6f03a6a21841bf1d13191b0a9f35e2add905d60ec2",
         "dimensions": [
           {
             "name": "files",
@@ -366,12 +366,12 @@
           {
             "name": "calls",
             "baselineCount": 2673,
-            "nativeCount": 6771,
-            "matchedCount": 1799,
-            "recall": 0.673,
-            "baselineOnlyCount": 874,
-            "nativeOnlyCount": 4972,
-            "nativeAgreement": 0.2657,
+            "nativeCount": 6777,
+            "matchedCount": 1845,
+            "recall": 0.6902,
+            "baselineOnlyCount": 828,
+            "nativeOnlyCount": 4932,
+            "nativeAgreement": 0.2722,
             "baselineOnlySample": [
               "adddefaultvalueassignmentsifneeded|workspace://es2015.ts=>hasdefaultvalueorbindingpattern|workspace://es2015.ts",
               "addexportequalsifneeded|workspace://module/module.ts=>visitor|workspace://module/module.ts",
@@ -380,9 +380,9 @@
               "addvarforenumormoduledeclaration|workspace://ts.ts=>modifiervisitor|workspace://ts.ts",
               "appendexportsofbindingelement|workspace://module/module.ts=>identifiernamemap|workspace://utilities.ts",
               "appendexportsofimportequalsdeclaration|workspace://module/module.ts=>identifiernamemap|workspace://utilities.ts",
-              "appendexportstatement|workspace://module/system.ts=>createexportstatement|workspace://module/system.ts",
               "appendobjectrestassignmentsifneeded|workspace://es2018.ts=>visitor|workspace://es2018.ts",
-              "chainbundle|workspace://utilities.ts=>transformbundle|workspace://utilities.ts"
+              "chainbundle|workspace://utilities.ts=>transformbundle|workspace://utilities.ts",
+              "chainbundle|workspace://utilities.ts=>transformsourcefileorbundle|workspace://utilities.ts"
             ],
             "nativeOnlySample": [
               "accessorfieldresultvisitor|workspace://classFields.ts=>assertmissingnode|workspace://classFields.ts",
@@ -431,11 +431,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:31f6dfa023dd60cc3d3d73575f3fa6318c251c244cd3f335deebd8ec5233c0f3",
-          "compatibilityGraphFingerprint": "sha256:de6df37c4b8824d9ff410b845d425168d23ae459557f40bf7c28061bcfd2517c",
+          "providerGraphFingerprint": "sha256:9e4dd74d46f37ed5ddd53e23f6c0fcc7752cdf31c644e9a06d7d3935b1fa2658",
+          "compatibilityGraphFingerprint": "sha256:2b30077642d746af8e45fbf8908844af80159b1c72219e322952de441e5ef806",
           "fileCount": 141,
-          "symbolCount": 358,
-          "edgeCount": 1046,
+          "symbolCount": 523,
+          "edgeCount": 1439,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -451,7 +451,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-2",
-        "comparisonFingerprint": "sha256:455ec0d044ac6cfe9e611928dd0116d26e6d16dc261c404df65c1b34891b5991",
+        "comparisonFingerprint": "sha256:0b230fde89576179c33f30649ffac8a6ab2a16f9075d6c7fd91f4db27e03ccd7",
         "dimensions": [
           {
             "name": "files",
@@ -468,35 +468,35 @@
           {
             "name": "symbols",
             "baselineCount": 387,
-            "nativeCount": 293,
-            "matchedCount": 95,
-            "recall": 0.2455,
-            "baselineOnlyCount": 292,
-            "nativeOnlyCount": 198,
-            "nativeAgreement": 0.2455,
+            "nativeCount": 430,
+            "matchedCount": 155,
+            "recall": 0.4005,
+            "baselineOnlyCount": 232,
+            "nativeOnlyCount": 275,
+            "nativeAgreement": 0.3605,
             "baselineOnlySample": [
-              "acceptscharsets|workspace://lib/request.js",
-              "acceptsencodings|workspace://lib/request.js",
-              "acceptslanguages|workspace://lib/request.js",
-              "accepts|workspace://lib/request.js",
               "after|workspace://test/app.js",
-              "all|workspace://examples/view-locals/user.js",
-              "all|workspace://lib/application.js",
-              "append|workspace://lib/response.js",
               "app|workspace://lib/express.js",
-              "attachment|workspace://lib/response.js"
+              "before|workspace://examples/mvc/controllers/pet/index.js",
+              "before|workspace://examples/mvc/controllers/user/index.js",
+              "before|workspace://test/app.js",
+              "before|workspace://test/express.json.js",
+              "before|workspace://test/express.raw.js",
+              "before|workspace://test/express.static.js",
+              "before|workspace://test/express.text.js",
+              "before|workspace://test/express.urlencoded.js"
             ],
             "nativeOnlySample": [
               "address|workspace://test/req.ip.js",
               "after|workspace://test/res.format.js",
-              "all|workspace://examples/view-locals/index.js",
+              "apply|workspace://lib/application.js",
+              "apply|workspace://lib/request.js",
+              "apply|workspace://lib/view.js",
+              "array|workspace://lib/request.js",
               "assert|workspace://test/res.sendFile.js",
-              "callback|workspace://lib/application.js",
-              "callback|workspace://lib/response.js",
-              "callback|workspace://test/support/tmpl.js",
-              "charcodeat|workspace://lib/response.js",
-              "connect|workspace://examples/search/index.js",
-              "create|workspace://lib/express.js"
+              "basename|workspace://lib/response.js",
+              "basename|workspace://lib/view.js",
+              "bind|workspace://lib/application.js"
             ]
           },
           {
@@ -536,14 +536,13 @@
           {
             "name": "calls",
             "baselineCount": 451,
-            "nativeCount": 187,
-            "matchedCount": 3,
-            "recall": 0.0067,
-            "baselineOnlyCount": 448,
-            "nativeOnlyCount": 184,
-            "nativeAgreement": 0.0067,
+            "nativeCount": 411,
+            "matchedCount": 22,
+            "recall": 0.0488,
+            "baselineOnlyCount": 429,
+            "nativeOnlyCount": 389,
+            "nativeAgreement": 0.0488,
             "baselineOnlySample": [
-              "acceptscharsets|workspace://lib/request.js=>accepts|workspace://lib/request.js",
               "attachment|workspace://lib/response.js=>create|workspace://examples/mvc/controllers/user-pet/index.js",
               "before|workspace://test/express.json.js=>createapp|workspace://test/express.json.js",
               "before|workspace://test/express.json.js=>json|workspace://examples/content-negotiation/index.js",
@@ -552,7 +551,8 @@
               "before|workspace://test/express.raw.js=>createapp|workspace://test/express.raw.js",
               "before|workspace://test/express.raw.js=>json|workspace://examples/content-negotiation/index.js",
               "before|workspace://test/express.raw.js=>json|workspace://examples/error-pages/index.js",
-              "before|workspace://test/express.static.js=>createapp|workspace://test/express.static.js"
+              "before|workspace://test/express.static.js=>createapp|workspace://test/express.static.js",
+              "before|workspace://test/express.static.js=>use|workspace://lib/application.js"
             ],
             "nativeOnlySample": [
               "acceptparams|workspace://lib/utils.js=>indexof|workspace://lib/utils.js",
@@ -560,11 +560,11 @@
               "acceptparams|workspace://lib/utils.js=>parsefloat|workspace://lib/utils.js",
               "acceptparams|workspace://lib/utils.js=>slice|workspace://lib/utils.js",
               "acceptparams|workspace://lib/utils.js=>trim|workspace://lib/utils.js",
-              "andrestricttoself|workspace://examples/route-middleware/index.js=>next|workspace://examples/route-middleware/index.js",
-              "andrestrictto|workspace://examples/route-middleware/index.js=>next|workspace://examples/route-middleware/index.js",
-              "authenticate|workspace://examples/auth/index.js=>fn|workspace://test/app.router.js",
-              "authenticate|workspace://examples/auth/index.js=>hash|workspace://examples/auth/index.js",
-              "authenticate|workspace://examples/auth/index.js=>log|workspace://examples/auth/index.js"
+              "acceptscharsets|workspace://lib/request.js=>charsets|workspace://lib/request.js",
+              "acceptsencodings|workspace://lib/request.js=>accepts|workspace://lib/request.js",
+              "acceptsencodings|workspace://lib/request.js=>apply|workspace://lib/request.js",
+              "acceptslanguages|workspace://lib/request.js=>accepts|workspace://lib/request.js",
+              "acceptslanguages|workspace://lib/request.js=>languages|workspace://lib/request.js"
             ]
           },
           {
@@ -612,5 +612,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:3f892161d29cc4687b5223bc7b418a41411fdb7abcf565f917a99105ba247542"
+  "reportFingerprint": "sha256:16b753217700d5b7433fb5082854922eca16c772ee29374b5a087c754d6c7bd8"
 }
