@@ -890,10 +890,10 @@ impl ParsedRepo {
         if let Some(subject) = route.handler_subject.as_deref() {
             return Some(subject.to_string());
         }
-        route
-            .handler_name
-            .as_deref()
-            .and_then(|name| self.resolve_exact_symbol_name(name))
+        route.handler_name.as_deref().and_then(|name| {
+            self.resolve_unambiguous_symbol_name_in_source(name, &route.source)
+                .or_else(|| self.resolve_exact_symbol_name(name))
+        })
     }
 
     fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
@@ -5666,17 +5666,8 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
         });
     }
     if context.lang == LangKind::Python {
-        let callee = callee_name(node, source)?;
-        if matches!(callee.as_str(), "path" | "re_path") {
-            return Some(RouteRef {
-                method: "ANY".to_string(),
-                path: first_quoted_route_path(text)?,
-                handler_subject: None,
-                handler_name: Some(route_handler_name(text)?),
-                source: context.source.clone(),
-                note: "oaf.ingest:route-django",
-                span: CodeSpan::from_node(node),
-            });
+        if let Some(route) = django_route_registration(node, source, context) {
+            return Some(route);
         }
     }
     if context.lang == LangKind::Kotlin {
@@ -5783,6 +5774,51 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
 
 fn javascript_route_receiver(receiver: &str) -> bool {
     matches!(receiver, "app" | "router" | "fastify" | "server")
+}
+
+fn django_route_registration(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<RouteRef> {
+    let callee = callee_name(node, source)?;
+    if !matches!(callee.as_str(), "path" | "re_path") {
+        return None;
+    }
+    let arguments = node.child_by_field_name("arguments")?;
+    let mut cursor = arguments.walk();
+    let mut positional = arguments
+        .named_children(&mut cursor)
+        .filter(|argument| argument.kind() != "keyword_argument");
+    let pattern = positional.next()?;
+    let handler = positional.next()?;
+    if handler.kind() == "call" && callee_name(handler, source).as_deref() == Some("include") {
+        return None;
+    }
+    let path = quoted_literals(node_text(pattern, source))
+        .into_iter()
+        .next()
+        .map(|path| ensure_route_path(&path))?;
+    let handler_name = django_route_handler_name(handler, source)?;
+    Some(RouteRef {
+        method: "ANY".to_string(),
+        path,
+        handler_subject: None,
+        handler_name: Some(handler_name),
+        source: context.source.clone(),
+        note: "oaf.ingest:route-django",
+        span: CodeSpan::from_node(node),
+    })
+}
+
+fn django_route_handler_name(handler: Node<'_>, source: &[u8]) -> Option<String> {
+    if handler.kind() == "call" {
+        let function = handler.child_by_field_name("function")?;
+        let function_text = node_text(function, source);
+        let receiver = function_text.strip_suffix(".as_view")?;
+        return last_identifier(receiver).and_then(|name| sanitize_symbol(&name));
+    }
+    last_identifier(node_text(handler, source)).and_then(|name| sanitize_symbol(&name))
 }
 
 fn javascript_route_chain_receiver(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -6003,14 +6039,16 @@ fn callable_route(
         if decorator.kind() != "decorator" {
             continue;
         }
-        if let Some((method, path)) = python_route_decorator(node_text(decorator, source)) {
+        if let Some((method, path, note)) =
+            python_route_decorator(node_text(decorator, source), source)
+        {
             return Some(RouteRef {
                 method,
                 path,
                 handler_subject: Some(handler_subject.to_string()),
                 handler_name: None,
                 source: context.source.clone(),
-                note: "oaf.ingest:route-flask",
+                note,
                 span: CodeSpan::from_node(parent),
             });
         }
@@ -6196,19 +6234,66 @@ fn next_server_route_path(source: &str) -> Option<String> {
     Some(canon_route_path(&format!("/{}", segments.join("/"))))
 }
 
-fn python_route_decorator(line: &str) -> Option<(String, String)> {
+fn python_route_decorator(line: &str, source: &[u8]) -> Option<(String, String, &'static str)> {
     let before_paren = line.split_once('(')?.0;
-    let method = before_paren
-        .rsplit_once('.')
-        .and_then(|(_, method)| http_method(method))
-        .or_else(|| before_paren.ends_with(".route").then(|| "GET".to_string()))?;
-    let path = first_quoted_route_path(line)?;
-    let method = if before_paren.ends_with(".route") {
-        route_methods_argument(line).unwrap_or(method)
+    let (receiver, route_method) = before_paren.rsplit_once('.')?;
+    let receiver = last_identifier(receiver)?;
+    let note = python_framework_receiver(source, &receiver)?;
+    let method = if route_method == "route" {
+        if note != "oaf.ingest:route-flask" {
+            return None;
+        }
+        route_methods_argument(line).unwrap_or_else(|| "GET".to_string())
     } else {
-        method
+        http_method(route_method)?
     };
-    Some((method, path))
+    let path = first_quoted_route_path(line)?;
+    Some((method, path, note))
+}
+
+fn python_framework_receiver(source: &[u8], receiver: &str) -> Option<&'static str> {
+    let source = std::str::from_utf8(source).ok()?;
+    source
+        .lines()
+        .filter(|line| !line.starts_with([' ', '\t']))
+        .filter_map(python_assignment_type)
+        .filter(|(name, _)| name == receiver)
+        .find_map(|(_, constructor)| imported_python_framework(source, &constructor))
+}
+
+fn imported_python_framework(source: &str, local_constructor: &str) -> Option<&'static str> {
+    for raw_line in source.lines().filter(|line| !line.starts_with([' ', '\t'])) {
+        let line = raw_line.split('#').next().unwrap_or(raw_line).trim();
+        let Some(import) = line.strip_prefix("from ") else {
+            continue;
+        };
+        let Some((module, bindings)) = import.split_once(" import ") else {
+            continue;
+        };
+        let (note, supported): (&'static str, &[&str]) =
+            if module == "fastapi" || module.starts_with("fastapi.") {
+                ("oaf.ingest:route-fastapi", &["FastAPI", "APIRouter"])
+            } else if module == "flask" || module.starts_with("flask.") {
+                ("oaf.ingest:route-flask", &["Flask", "Blueprint"])
+            } else {
+                continue;
+            };
+        for binding in bindings.trim_matches(['(', ')']).split(',') {
+            let mut parts = binding.split_whitespace();
+            let Some(imported) = parts.next() else {
+                continue;
+            };
+            let local = match parts.next() {
+                Some("as") => parts.next().unwrap_or(imported),
+                Some(_) => continue,
+                None => imported,
+            };
+            if supported.contains(&imported) && local == local_constructor {
+                return Some(note);
+            }
+        }
+    }
+    None
 }
 
 fn route_methods_argument(line: &str) -> Option<String> {

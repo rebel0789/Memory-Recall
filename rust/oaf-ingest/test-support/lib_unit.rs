@@ -63,6 +63,77 @@ mod tests {
     }
 
     #[test]
+    fn python_framework_routes_require_structural_bindings() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-python-framework-routes-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("urls.py"),
+            [
+                "from django.urls import include, path",
+                "def django_item(request, item_id):",
+                "    return item_id",
+                "urlpatterns = [",
+                "    path('django/<int:item_id>/', django_item, name='django-item'),",
+                "    path('nested/', include('other.urls'))",
+                "]",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("app.py"),
+            [
+                "from fastapi import FastAPI",
+                "from httpx import Client",
+                "app = FastAPI()",
+                "client = Client()",
+                "@app.get('/bound/{item_id}')",
+                "def bound_item(item_id):",
+                "    return item_id",
+                "@client.get('/not-a-route')",
+                "def unbound_item():",
+                "    return None",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "function:django_item"
+                && fact.predicate == "HANDLES"
+                && fact.object == "route:ANY_django_param_"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-django")
+        }), "{:#?}", report.facts);
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "route:ANY_django_param_"
+                && fact.predicate == "HAS_PATH"
+                && fact.object == "path=/django/:param/"
+        }), "{:#?}", report.facts);
+        assert!(!report.facts.iter().any(|fact| {
+            fact.subject == "route:ANY_nested" || fact.object == "route:ANY_nested"
+        }), "{:#?}", report.facts);
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "function:bound_item"
+                && fact.predicate == "HANDLES"
+                && fact.object == "route:GET_bound_param"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-fastapi")
+        }), "{:#?}", report.facts);
+        assert!(!report.facts.iter().any(|fact| {
+            fact.subject == "function:unbound_item" && fact.predicate == "HANDLES"
+        }), "{:#?}", report.facts);
+        assert!(!report.facts.iter().any(|fact| {
+            fact.subject == "route:GET_not_a_route" || fact.object == "route:GET_not_a_route"
+        }), "{:#?}", report.facts);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_calls_to_functions_not_modules() {
         let mut parsed = ParsedRepo::new();
         parsed.add_symbol_name("runServer", "function:runServer");
@@ -679,6 +750,8 @@ mod tests {
         fs::write(
             root.join("app.py"),
             [
+                "from fastapi import FastAPI",
+                "app = FastAPI()",
                 "class BaseService:",
                 "    pass",
                 "class Other:",
