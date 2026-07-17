@@ -115,8 +115,25 @@ test('Phase 3 source-index evidence binds clean pinned cases without scale or pa
   const report = await readJson('evals/code-intelligence/results/phase3-source-index.json');
   const { generatedAt: _generatedAt, reportFingerprint, ...comparable } = report;
   const expectedFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`;
+  const implementationFiles = [
+    'scripts/code-intelligence-phase3-index.mjs',
+    'providers/native/code-intelligence-rust/src/index.mjs',
+    'rust/oaf-ingest/src/lib.rs',
+    'rust/oaf-index/src/lib.rs',
+    'rust/oaf/src/code_intelligence.rs',
+    'rust/oaf/src/index_protocol.rs',
+    'packages/protocol/schemas/code-intelligence-index-request.schema.json',
+    'packages/protocol/schemas/code-intelligence-index-response.schema.json'
+  ];
+  const implementation = await Promise.all(implementationFiles.map(async (file) => [
+    file,
+    await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+  ]));
+  const expectedImplementationFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(implementation)).digest('hex')}`;
 
   assert.equal(reportFingerprint, expectedFingerprint);
+  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase3-source-index-2');
+  assert.equal(report.inputs.implementationFingerprint, expectedImplementationFingerprint);
   assert.equal(report.gateDecision, 'pass');
   assert.deepEqual(report.failures, []);
   assert.equal(report.checkout.dirtyBeforeRun, false);

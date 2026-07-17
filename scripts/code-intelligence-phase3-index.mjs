@@ -19,6 +19,16 @@ const BOUNDS = Object.freeze({
   maxEdges: 250_000
 });
 const QUERY_REPETITIONS = 5;
+const IMPLEMENTATION_FILES = Object.freeze([
+  'scripts/code-intelligence-phase3-index.mjs',
+  'providers/native/code-intelligence-rust/src/index.mjs',
+  'rust/oaf-ingest/src/lib.rs',
+  'rust/oaf-index/src/lib.rs',
+  'rust/oaf/src/code_intelligence.rs',
+  'rust/oaf/src/index_protocol.rs',
+  'packages/protocol/schemas/code-intelligence-index-request.schema.json',
+  'packages/protocol/schemas/code-intelligence-index-response.schema.json'
+]);
 const REPOSITORY_CASES = Object.freeze([
   {
     id: 'phase3_go_multierror',
@@ -94,7 +104,7 @@ async function runBenchmark() {
     const failures = collectFailures(cases);
     const report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-code-intelligence-phase3-source-index-1',
+      reportVersion: 'memory-recall-code-intelligence-phase3-source-index-2',
       phase: 3,
       generatedAt: new Date().toISOString(),
       environment: {
@@ -110,6 +120,7 @@ async function runBenchmark() {
       checkout: { commit: currentCommit, dirtyBeforeRun },
       inputs: {
         corpusFingerprint: corpus.corpusFingerprint,
+        implementationFingerprint: await filesFingerprint(IMPLEMENTATION_FILES),
         bounds: BOUNDS,
         queryRepetitions: QUERY_REPETITIONS,
         repositoryRefs: cases
@@ -165,12 +176,13 @@ async function benchmarkCase({ id, language, sourceClass, sourceRef, commit, cas
 
   const coldBuild = await measure(() => provider.buildIndex(options));
   const warmStatus = await measure(() => provider.indexStatus({ root: caseRoot, workspaceId }));
-  const beforeNoChange = await fileSnapshot(indexPath);
+  const beforeNoChange = await sqliteBundleSnapshot(indexPath);
   const noChangeRefresh = await measure(() => provider.refreshIndex(options));
-  const afterNoChange = await fileSnapshot(indexPath);
+  const afterNoChange = await sqliteBundleSnapshot(indexPath);
 
   const sourceLocators = await discoverSourceLocators(caseRoot, language);
   if (sourceLocators.length === 0) throw new Error(`phase3_source_files_missing:${id}`);
+  const beforeReads = await sqliteBundleSnapshot(indexPath);
   const candidates = await classifyFileCandidates(provider, { root: caseRoot, workspaceId }, sourceLocators);
   const querySeed = candidates.dependency;
   const exactLookup = await measureRepeated(() => provider.queryIndex({
@@ -208,10 +220,9 @@ async function benchmarkCase({ id, language, sourceClass, sourceRef, commit, cas
         limit: 50
       }))
     : null;
-  const beforeReads = await fileSnapshot(indexPath);
   await provider.indexStatus({ root: caseRoot, workspaceId });
   await provider.doctorIndex({ root: caseRoot, workspaceId });
-  const afterReads = await fileSnapshot(indexPath);
+  const afterReads = await sqliteBundleSnapshot(indexPath);
 
   await appendBenchmarkMutation(caseRoot, candidates.single.locator, 'single-file');
   const oneFileRefresh = await measure(() => provider.refreshIndex(options));
@@ -490,8 +501,23 @@ async function fileSnapshot(file) {
   };
 }
 
+async function sqliteBundleSnapshot(file) {
+  return Promise.all([file, `${file}-wal`, `${file}-shm`].map(async (candidate) => {
+    try {
+      return await fileSnapshot(candidate);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+  }));
+}
+
 function snapshotsEqual(left, right) {
-  return left.sha256 === right.sha256 && left.size === right.size && left.mtimeNs === right.mtimeNs;
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+async function filesFingerprint(files) {
+  return fingerprint(await Promise.all(files.map(async (file) => [file, await readFile(path.resolve(root, file), 'utf8')])));
 }
 
 function locatorFile(locator) {
@@ -505,6 +531,7 @@ async function checkStoredReport() {
   ]);
   if (report.reportFingerprint !== fingerprint(comparableReport(report))) throw new Error('phase3_report_fingerprint_invalid');
   if (report.inputs.corpusFingerprint !== corpus.corpusFingerprint) throw new Error('phase3_corpus_fingerprint_stale');
+  if (report.inputs.implementationFingerprint !== await filesFingerprint(IMPLEMENTATION_FILES)) throw new Error('phase3_implementation_fingerprint_stale');
   if (report.gateDecision !== 'pass' || report.failures.length !== 0) throw new Error('phase3_gate_not_passing');
   if (report.summary.caseCount !== 4 || report.summary.repositoryCount !== 3 || report.summary.fixtureCount !== 1) {
     throw new Error('phase3_case_coverage_invalid');
