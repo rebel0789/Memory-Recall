@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-17T04:19:57.908Z",
+  "generatedAt": "2026-07-17T04:43:27.845Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:efcf2043dc91681ceae115df4455a9dd3aae184507be7850e9dfa5d612635dfc",
+    "implementationFingerprint": "sha256:dfbbbda20807d0578619f1f078b5c96b05600546a54493b9caf5eb099b795c45",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:4b0aee73d1db49abf5c079b4c2b4a70e87fcfc682f1fbcfe8b9d1c3d0a9877cc",
+    "repositoryIdentityHash": "sha256:412ddfd837054d931d1fadb634453a19160e083d7db9313efb11b3ce042913e2",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:45ce5e8d2884b804cf7d29e09c9f692c3290987f1aebe787a92c8f03635e79cc",
+    "deterministicFingerprint": "sha256:3b579e2fecd02ac06550ab8fa152c0a97cb7ba2dc08a3cba6d2cf6c8bc7a425d",
     "queryWallMs": {
-      "minimum": 5.72,
-      "p50": 7.183,
-      "p95": 8.754,
-      "maximum": 8.754
+      "minimum": 5.709,
+      "p50": 6.67,
+      "p95": 7.417,
+      "maximum": 7.417
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:ea07733c248728af448d32e03c79e64a4510f254a6bc95a4bb9f2759ad4f52f6"
+  "reportFingerprint": "sha256:6938598792cb848f14bd4949bc66b4ea054093dcbca7fcf00fd36eecaf0e2c1d"
 }
