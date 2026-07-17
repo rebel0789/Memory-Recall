@@ -465,6 +465,41 @@ async function runInstalledNativeWorkbenchSmoke() {
     must(buildReport.status === 'ready' && buildReport.safeguards?.localFilesWritten === 1, 'installed CLI explicitly builds the native index once');
     const indexBeforeBrowser = await fileBundleSnapshot(indexPath);
     must(indexBeforeBrowser[0] !== null, 'explicit installed writer creates SQLite before server start');
+    const mcp = runInstalled(process.execPath, [
+      installedCli, 'mcp', 'server', '--read-only', '--engine', 'native-preview',
+      '--root', workspace, '--stdio'
+    ], {
+      cwd: workspace,
+      env: isolatedEnvironment,
+      input: [
+        { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+        { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } }
+      ].map((request) => JSON.stringify(request)).join('\n')
+    });
+    const mcpResponse = mcp.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
+    must(mcpResponse && !mcpResponse.error, `installed MCP repo.architecture failed: ${JSON.stringify(mcpResponse?.error)}`);
+    const mcpArchitecture = JSON.parse(mcpResponse.result.content[0].text);
+    must(
+      mcpArchitecture.safeguards?.readOnly === true
+      && mcpArchitecture.safeguards?.localFilesWritten === 0,
+      'installed MCP repo.architecture is read-only'
+    );
+    must(
+      mcpArchitecture.data?.groups?.some((item) => item.algorithmVersion === 'label-propagation-v1'),
+      'installed MCP repo.architecture returns a native community'
+    );
+    const mcpNodeIds = new Set((mcpArchitecture.data?.nodes ?? []).map((item) => item.id));
+    const mcpRelationshipIds = new Set((mcpArchitecture.data?.relationships ?? []).map((item) => item.id));
+    const mcpProcess = mcpArchitecture.data?.processes?.find((item) => (
+      item.algorithmVersion === 'entry-path-v1'
+      && item.truncated === false
+      && item.nodeIds?.length >= 2
+      && item.relationshipIds?.length >= 1
+      && item.nodeIds?.every((id) => mcpNodeIds.has(id))
+      && item.relationshipIds?.every((id) => mcpRelationshipIds.has(id))
+      && mcpRelationshipIds.has(item.entryRelationshipId)
+    ));
+    must(mcpProcess, `installed MCP repo.architecture did not return an evidence-backed process: ${JSON.stringify(mcpArchitecture.data?.processes ?? [])}`);
     const legacyGraphPath = path.join(packageRoot, 'providers', 'native', 'context-candidate-ast-code', 'src', 'index.mjs');
     const legacyGraphSource = await readFile(legacyGraphPath, 'utf8');
     const legacyGraphImplementation = `export async function buildJsTsSourceGraph(options = {}) {
@@ -559,7 +594,7 @@ async function runInstalledNativeWorkbenchSmoke() {
       `browser Map finds the Python-only native symbol and locator: ${JSON.stringify(graph.search?.results ?? [])}`
     );
     must(graph.safeguards?.localFilesWritten === 0, 'browser graph request reports no local index write');
-    must(sameFileBundleSnapshot(indexBeforeBrowser, await fileBundleSnapshot(indexPath)), 'browser and Control API preserve SQLite bytes and mtime and create no WAL or SHM');
+    must(sameFileBundleSnapshot(indexBeforeBrowser, await fileBundleSnapshot(indexPath)), 'MCP, browser, and Control API preserve SQLite bytes and mtime and create no WAL or SHM');
     must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
     console.log(`PASS installed verified native workbench ${target}`);
     console.log('PASS compiler-free loopback Control API and browser Map read the prebuilt index without writing it');
