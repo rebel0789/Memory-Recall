@@ -12,6 +12,16 @@ const REPETITIONS = 5;
 const QUERY_LIMIT = 50;
 const QUERY_DEADLINE_MS = 2_000;
 const PROCESS_SINK_KINDS = new Set(['route', 'handler', 'storage', 'queue', 'event', 'sink', 'reads', 'writes', 'emits', 'listens']);
+const IMPLEMENTATION_FILES = Object.freeze([
+  'scripts/code-intelligence-phase4-intelligence.mjs',
+  'providers/native/code-intelligence-rust/src/index.mjs',
+  'rust/oaf-ingest/src/lib.rs',
+  'rust/oaf-index/src/lib.rs',
+  'rust/oaf/src/code_intelligence.rs',
+  'rust/oaf/src/index_protocol.rs',
+  'packages/protocol/schemas/code-intelligence-index-request.schema.json',
+  'packages/protocol/schemas/code-intelligence-index-response.schema.json'
+]);
 const mode = parseMode(process.argv.slice(2));
 const root = process.cwd();
 
@@ -41,7 +51,7 @@ async function runBenchmark() {
       maxEdges: 250_000
     });
     const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
-    const beforeReads = await snapshot(indexPath);
+    const beforeReads = await sqliteBundleSnapshot(indexPath);
     const communityRuns = await repeat(() => provider.queryIndex({
       root: workspace,
       workspaceId,
@@ -55,7 +65,8 @@ async function runBenchmark() {
       depth: 4,
       limit: QUERY_LIMIT
     }));
-    const afterReads = await snapshot(indexPath);
+    const afterReads = await sqliteBundleSnapshot(indexPath);
+    const readQueriesPreservedIndex = sameSnapshots(beforeReads, afterReads);
     const firstCommunities = communityRuns.results[0];
     const firstProcesses = processRuns.results[0];
     const projectionFingerprints = [
@@ -70,7 +81,7 @@ async function runBenchmark() {
       [firstProcesses.processes.length === 0, 'processes_missing'],
       [new Set(communityRuns.results.map(projectedResultFingerprint)).size !== 1, 'communities_not_deterministic'],
       [new Set(processRuns.results.map(projectedResultFingerprint)).size !== 1, 'processes_not_deterministic'],
-      [beforeReads.sha256 !== afterReads.sha256 || beforeReads.mtimeNs !== afterReads.mtimeNs, 'read_query_mutated_index'],
+      [!readQueriesPreservedIndex, 'read_query_mutated_index'],
       [communityRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'communities_latency_gate_failed'],
       [processRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'processes_latency_gate_failed'],
       [!firstProcesses.processes.every((item) => item.nodeIds.every((id) => processNodeIds.has(id))), 'process_node_evidence_missing'],
@@ -79,7 +90,7 @@ async function runBenchmark() {
     ].filter(([failed]) => failed).map(([, code]) => code);
     const report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-2',
+      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-3',
       phase: 4,
       generatedAt: new Date().toISOString(),
       environment: {
@@ -89,12 +100,7 @@ async function runBenchmark() {
       },
       inputs: {
         fixtureRef: `fixture://${fixtureFingerprint}`,
-        implementationFingerprint: await filesFingerprint([
-          'rust/oaf-index/src/lib.rs',
-          'rust/oaf/src/index_protocol.rs',
-          'packages/protocol/schemas/code-intelligence-index-request.schema.json',
-          'packages/protocol/schemas/code-intelligence-index-response.schema.json'
-        ]),
+        implementationFingerprint: await filesFingerprint(IMPLEMENTATION_FILES),
         repetitions: REPETITIONS,
         queryLimit: QUERY_LIMIT,
         queryDeadlineMs: QUERY_DEADLINE_MS
@@ -113,7 +119,7 @@ async function runBenchmark() {
         communityQueryWallMs: communityRuns.wallMs,
         processQueryWallMs: processRuns.wallMs,
         deterministicProjectionFingerprint: fingerprint(projectionFingerprints),
-        readQueriesPreservedIndex: beforeReads.sha256 === afterReads.sha256 && beforeReads.mtimeNs === afterReads.mtimeNs,
+        readQueriesPreservedIndex,
         evidenceComplete: representativeProcess !== null && failures.every((code) => !code.endsWith('_evidence_missing')),
         representativeProcess
       },
@@ -226,7 +232,22 @@ function representativeProcessEvidence(result) {
 
 async function snapshot(file) {
   const [bytes, metadata] = await Promise.all([readFile(file), stat(file, { bigint: true })]);
-  return { sha256: fingerprint(bytes), mtimeNs: metadata.mtimeNs.toString() };
+  return { sha256: fingerprint(bytes), size: metadata.size.toString(), mtimeNs: metadata.mtimeNs.toString() };
+}
+
+async function sqliteBundleSnapshot(file) {
+  return Promise.all([file, `${file}-wal`, `${file}-shm`].map(async (candidate) => {
+    try {
+      return await snapshot(candidate);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+  }));
+}
+
+function sameSnapshots(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 async function filesFingerprint(files) {
@@ -236,6 +257,7 @@ async function filesFingerprint(files) {
 async function checkStoredReport() {
   const report = JSON.parse(await readFile(path.resolve(root, OUTPUT), 'utf8'));
   if (report.reportFingerprint !== fingerprint(comparableReport(report))) throw new Error('phase4_report_fingerprint_invalid');
+  if (report.inputs.implementationFingerprint !== await filesFingerprint(IMPLEMENTATION_FILES)) throw new Error('phase4_implementation_fingerprint_stale');
   if (report.gateDecision !== 'pass' || report.failures.length !== 0) throw new Error('phase4_gate_not_passing');
   if (!report.results.readQueriesPreservedIndex || !report.results.evidenceComplete) throw new Error('phase4_evidence_gate_not_passing');
   if (report.results.representativeProcess?.truncated !== false || !PROCESS_SINK_KINDS.has(report.results.representativeProcess?.sinkKind)) throw new Error('phase4_representative_sink_invalid');

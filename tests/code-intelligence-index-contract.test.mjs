@@ -142,13 +142,29 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   const report = await readJson('evals/code-intelligence/results/phase4-intelligence.json');
   const { generatedAt: _generatedAt, reportFingerprint, ...comparable } = report;
   const expectedFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`;
+  const implementationFiles = [
+    'scripts/code-intelligence-phase4-intelligence.mjs',
+    'providers/native/code-intelligence-rust/src/index.mjs',
+    'rust/oaf-ingest/src/lib.rs',
+    'rust/oaf-index/src/lib.rs',
+    'rust/oaf/src/code_intelligence.rs',
+    'rust/oaf/src/index_protocol.rs',
+    'packages/protocol/schemas/code-intelligence-index-request.schema.json',
+    'packages/protocol/schemas/code-intelligence-index-response.schema.json'
+  ];
+  const implementation = await Promise.all(implementationFiles.map(async (file) => [
+    file,
+    await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+  ]));
+  const expectedImplementationFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(implementation)).digest('hex')}`;
 
   assert.equal(reportFingerprint, expectedFingerprint);
+  assert.equal(report.inputs.implementationFingerprint, expectedImplementationFingerprint);
   assert.equal(report.gateDecision, 'pass');
   assert.deepEqual(report.failures, []);
   assert(report.results.communityCount > 0);
   assert(report.results.processCount > 0);
-  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-2');
+  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-3');
   assert.equal(report.results.communityAlgorithm, 'label-propagation-v1');
   assert.equal(report.results.processAlgorithm, 'entry-path-v1');
   assert.equal(report.results.readQueriesPreservedIndex, true);
