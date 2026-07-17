@@ -15,6 +15,20 @@ const data = path.join(temp, 'data');
 const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
 const password = 'correct horse battery staple';
+const expectedMcpTools = Object.freeze([
+  'code.context',
+  'code.dependencies',
+  'code.impact',
+  'code.routes',
+  'code.search',
+  'code.trace',
+  'context.pack',
+  'context.profile',
+  'memory.recall',
+  'repo.architecture',
+  'repo.index_status',
+  'repo.map'
+]);
 let server = null;
 
 try {
@@ -53,6 +67,12 @@ try {
 
   const mcpSmoke = runJson(recall, ['mcp', 'smoke', 'context-pack', '--read-only', '--from', 'codex', '--root', '.', '--objective', 'Consumer smoke', '--step', 'verify context readback', '--target', 'codex', '--changed', 'src/app.js', '--format', 'json'], { cwd: workspace, env });
   must(mcpSmoke.checks?.resourceRead && mcpSmoke.safeguards?.readOnly === true, 'mcp context-pack smoke is read-only');
+  const mcpInspect = runJson(recall, ['mcp', 'inspect', '--read-only', '--root', '.', '--format', 'json'], { cwd: workspace, env });
+  must(
+    JSON.stringify(mcpInspect.serverTools.map(({ name }) => name).sort()) === JSON.stringify(expectedMcpTools),
+    'installed root package exposes exactly the twelve documented MCP tools'
+  );
+  must(mcpInspect.serverTools.every(({ sideEffectClass }) => sideEffectClass === 'read-only'), 'installed root package MCP tools are read-only');
 
   const connect = runJson(recall, ['connect', 'codex', '--dry-run', '--format', 'json'], { cwd: workspace, env });
   must(connect.dryRun === true && connect.safeguards?.homeConfigMutated === false, 'connect remains a dry-run by default');
@@ -151,6 +171,7 @@ try {
   console.log('PASS bundled benchmark fixtures from installed recall binary');
   console.log('PASS consumer Recall Map first-run report');
   console.log('PASS consumer temp HOME mcp install');
+  console.log('PASS installed root package exact 12-tool MCP inventory');
   console.log('PASS consumer real MCP client smoke');
   console.log('PASS consumer control-api smoke: workbench, Recall Map, handoff, memory review, source graph');
 } finally {
