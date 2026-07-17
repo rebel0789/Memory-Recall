@@ -94,7 +94,10 @@ test('capability matrix covers every Tier 1 language and capability honestly', a
     true
   );
   assert.deepEqual(await auditCodeIntelligenceCapabilityMatrix(matrix, { root: new URL('..', import.meta.url) }), []);
-  assert.equal(matrix.languages.every((item) => item.benchmarkStatus !== 'meets-floor'), true);
+  assert.deepEqual(
+    matrix.languages.filter((item) => item.benchmarkStatus === 'meets-floor').map((item) => item.id),
+    ['javascript']
+  );
 });
 
 test('matrix audit rejects unsupported full claims without fixture and real-repo evidence', async () => {
