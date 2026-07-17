@@ -84,7 +84,8 @@ async function runBenchmark() {
       if (!repository) throw new Error(`phase3_repository_missing:${selected.repositoryId}`);
       const checkout = await checkoutPinnedRepository(
         repository,
-        path.join(temporary, 'repositories', selected.repositoryId)
+        path.join(temporary, 'repositories', selected.repositoryId),
+        selected.scope
       );
       const caseRoot = path.resolve(checkout, selected.scope);
       if (!(await stat(caseRoot)).isDirectory()) throw new Error(`phase3_repository_scope_missing:${selected.id}`);
@@ -470,15 +471,19 @@ async function createDependencyFixture(directory) {
   return directory;
 }
 
-async function checkoutPinnedRepository(repository, directory) {
+async function checkoutPinnedRepository(repository, directory, scope) {
   await mkdir(path.dirname(directory), { recursive: true });
   await command('git', ['init', '--quiet', directory], { cwd: root });
   await command('git', ['-C', directory, 'remote', 'add', 'origin', repository.url], { cwd: root });
   await command('git', [
     '-C', directory,
     '-c', 'advice.detachedHead=false',
-    'fetch', '--quiet', '--depth', '1', 'origin', repository.commit
+    'fetch', '--quiet', '--filter=blob:none', '--depth', '1', 'origin', repository.commit
   ], { cwd: root, timeout: 180_000 });
+  if (scope !== '.') {
+    await command('git', ['-C', directory, 'sparse-checkout', 'init', '--cone'], { cwd: root });
+    await command('git', ['-C', directory, 'sparse-checkout', 'set', scope], { cwd: root });
+  }
   await command('git', ['-C', directory, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { cwd: root });
   const commit = await command('git', ['-C', directory, 'rev-parse', 'HEAD'], { cwd: root });
   if (commit !== repository.commit) throw new Error(`phase3_repository_commit_mismatch:${repository.id}`);
