@@ -3,9 +3,9 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-b-1",
   "phase": 2,
   "batch": "B",
-  "generatedAt": "2026-07-17T19:41:39.941Z",
+  "generatedAt": "2026-07-17T20:10:08.624Z",
   "inputs": {
-    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
       "maxFiles": 5000,
       "maxFileBytes": 524288,
@@ -26,7 +26,10 @@
       "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
       "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
       "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
-      "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
+      "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
+      "evals/code-intelligence/truth/repositories/python/cicase_python_fastapi_app_testing.json",
+      "evals/code-intelligence/truth/repositories/python/cicase_python_flask_tutorial.json",
+      "evals/code-intelligence/truth/repositories/python/cicase_python_djangoproject_accounts.json"
     ],
     "repositoryRefs": [
       "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
@@ -37,7 +40,10 @@
       "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
       "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
       "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
-      "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src"
+      "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
+      "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#docs_src/app_testing/app_b_py310",
+      "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#examples/tutorial/flaskr",
+      "corpus://cirepo_python_django_djangoproject_com@7a19ab3bce8f62fed03bb3eef2c19f2d0af15470#accounts"
     ]
   },
   "thresholds": {
@@ -54,12 +60,12 @@
       "id": "fixture_python_batch_b",
       "language": "python",
       "sourceClass": "fixture",
-      "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
+      "sourceRef": "fixture://sha256:fa53fbfa008dd69235e34438208448cf5973aade4f30deee64fc92a3b144f8bb",
       "truthPath": "evals/code-intelligence/truth/fixtures/python.json",
       "graph": {
-        "fingerprint": "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0",
-        "nodeCount": 17,
-        "edgeCount": 18,
+        "fingerprint": "sha256:13044ef9253a800767df31e83b456497473bed521004421e435aef75578ca4ad",
+        "nodeCount": 18,
+        "edgeCount": 19,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -77,10 +83,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1350.528,
-        "secondElapsedMs": 13.548,
-        "evaluatorMaxRssKb": 60272,
-        "graphResponseBytes": 16882,
+        "firstElapsedMs": 30.862,
+        "secondElapsedMs": 10.214,
+        "evaluatorMaxRssKb": 60544,
+        "graphResponseBytes": 17791,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -88,10 +94,10 @@
         "reportVersion": "memory-recall-code-intelligence-language-report-1",
         "truthId": "citruth_python_batch_b_fixture",
         "language": "python",
-        "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
+        "sourceRef": "fixture://sha256:fa53fbfa008dd69235e34438208448cf5973aade4f30deee64fc92a3b144f8bb",
         "graphFingerprints": [
-          "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0",
-          "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0"
+          "sha256:13044ef9253a800767df31e83b456497473bed521004421e435aef75578ca4ad",
+          "sha256:13044ef9253a800767df31e83b456497473bed521004421e435aef75578ca4ad"
         ],
         "reviewCoverage": {
           "declarations": "exhaustive",
@@ -215,7 +221,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:eeb772e1b47e43d7a3b7b4d1f3e3040c178336cbd201bf8701fb81bb1cd7571b"
+        "reportFingerprint": "sha256:6cd8db4561448296e8815ca0df416b3f6964d54183575e36d9c1192877d0dce1"
       }
     },
     {
@@ -245,9 +251,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.202,
-        "secondElapsedMs": 10.325,
-        "evaluatorMaxRssKb": 65856,
+        "firstElapsedMs": 10.363,
+        "secondElapsedMs": 9.155,
+        "evaluatorMaxRssKb": 66464,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -413,9 +419,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.255,
-        "secondElapsedMs": 9.581,
-        "evaluatorMaxRssKb": 66160,
+        "firstElapsedMs": 9.46,
+        "secondElapsedMs": 9.083,
+        "evaluatorMaxRssKb": 69216,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -556,6 +562,7 @@
     },
     {
       "id": "cirepo_python_fastapi_fastapi",
+      "repositoryId": "cirepo_python_fastapi_fastapi",
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
@@ -582,9 +589,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 224.142,
-        "secondElapsedMs": 224.13,
-        "evaluatorMaxRssKb": 118960,
+        "firstElapsedMs": 225.265,
+        "secondElapsedMs": 233.142,
+        "evaluatorMaxRssKb": 124400,
         "graphResponseBytes": 2232748,
         "workspaceFingerprintUnchanged": true
       },
@@ -725,6 +732,7 @@
     },
     {
       "id": "cirepo_python_pallets_flask",
+      "repositoryId": "cirepo_python_pallets_flask",
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
@@ -751,9 +759,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 133.057,
-        "secondElapsedMs": 130.994,
-        "evaluatorMaxRssKb": 127664,
+        "firstElapsedMs": 135.808,
+        "secondElapsedMs": 131.085,
+        "evaluatorMaxRssKb": 137456,
         "graphResponseBytes": 1403619,
         "workspaceFingerprintUnchanged": true
       },
@@ -894,6 +902,7 @@
     },
     {
       "id": "cirepo_python_psf_requests",
+      "repositoryId": "cirepo_python_psf_requests",
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
@@ -920,9 +929,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 101.013,
-        "secondElapsedMs": 98.835,
-        "evaluatorMaxRssKb": 128368,
+        "firstElapsedMs": 101.093,
+        "secondElapsedMs": 103.056,
+        "evaluatorMaxRssKb": 144304,
         "graphResponseBytes": 1043140,
         "workspaceFingerprintUnchanged": true
       },
@@ -1063,6 +1072,7 @@
     },
     {
       "id": "cirepo_go_gin_gonic_gin",
+      "repositoryId": "cirepo_go_gin_gonic_gin",
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
@@ -1094,9 +1104,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 906.972,
-        "secondElapsedMs": 892.301,
-        "evaluatorMaxRssKb": 177248,
+        "firstElapsedMs": 896.154,
+        "secondElapsedMs": 912.979,
+        "evaluatorMaxRssKb": 170816,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -1237,6 +1247,7 @@
     },
     {
       "id": "cirepo_go_go_chi_chi",
+      "repositoryId": "cirepo_go_go_chi_chi",
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#.",
@@ -1263,9 +1274,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 279.058,
-        "secondElapsedMs": 275.299,
-        "evaluatorMaxRssKb": 195408,
+        "firstElapsedMs": 277.946,
+        "secondElapsedMs": 279.436,
+        "evaluatorMaxRssKb": 178688,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -1406,6 +1417,7 @@
     },
     {
       "id": "cirepo_go_hashicorp_go_multierror",
+      "repositoryId": "cirepo_go_hashicorp_go_multierror",
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
@@ -1432,9 +1444,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 26.91,
-        "secondElapsedMs": 26.403,
-        "evaluatorMaxRssKb": 196656,
+        "firstElapsedMs": 29.13,
+        "secondElapsedMs": 27.624,
+        "evaluatorMaxRssKb": 179248,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -1575,6 +1587,7 @@
     },
     {
       "id": "cirepo_rust_dtolnay_itoa",
+      "repositoryId": "cirepo_rust_dtolnay_itoa",
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
@@ -1601,9 +1614,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.453,
-        "secondElapsedMs": 12.178,
-        "evaluatorMaxRssKb": 196656,
+        "firstElapsedMs": 14.282,
+        "secondElapsedMs": 14.486,
+        "evaluatorMaxRssKb": 179248,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -1744,6 +1757,7 @@
     },
     {
       "id": "cirepo_rust_serde_rs_json",
+      "repositoryId": "cirepo_rust_serde_rs_json",
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
@@ -1770,9 +1784,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 305.606,
-        "secondElapsedMs": 307.006,
-        "evaluatorMaxRssKb": 218000,
+        "firstElapsedMs": 317.559,
+        "secondElapsedMs": 315.883,
+        "evaluatorMaxRssKb": 202096,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -1913,15 +1927,16 @@
     },
     {
       "id": "cirepo_rust_tokio_rs_axum",
+      "repositoryId": "cirepo_rust_tokio_rs_axum",
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
       "commit": "98aea470f9190fad1915897166ac0f149522011a",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
       "graph": {
-        "fingerprint": "sha256:a3c959e7c036414b85b485165d25268c87fc800f08a0c89f5919a4961ea6ba76",
+        "fingerprint": "sha256:eb04fe9d96d800745fc591a14b358ffcfadda63826a8f1adfa5bdcf5498af823",
         "nodeCount": 2773,
-        "edgeCount": 6026,
+        "edgeCount": 6033,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -1939,10 +1954,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 520.654,
-        "secondElapsedMs": 466.826,
-        "evaluatorMaxRssKb": 218000,
-        "graphResponseBytes": 4237455,
+        "firstElapsedMs": 477.261,
+        "secondElapsedMs": 477.808,
+        "evaluatorMaxRssKb": 232768,
+        "graphResponseBytes": 4241187,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1952,8 +1967,8 @@
         "language": "rust",
         "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
         "graphFingerprints": [
-          "sha256:a3c959e7c036414b85b485165d25268c87fc800f08a0c89f5919a4961ea6ba76",
-          "sha256:a3c959e7c036414b85b485165d25268c87fc800f08a0c89f5919a4961ea6ba76"
+          "sha256:eb04fe9d96d800745fc591a14b358ffcfadda63826a8f1adfa5bdcf5498af823",
+          "sha256:eb04fe9d96d800745fc591a14b358ffcfadda63826a8f1adfa5bdcf5498af823"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -2077,16 +2092,526 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:976bbc70b81e0918195abc98d669d6e1215bde81c4519b187755e960ff3fd27f"
+        "reportFingerprint": "sha256:ac5665727ec1553e7f939f42929f1a8877a9132410f4352b775f1700d66b25e4"
+      }
+    },
+    {
+      "id": "cicase_python_fastapi_app_testing",
+      "repositoryId": "cirepo_python_fastapi_fastapi",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#docs_src/app_testing/app_b_py310",
+      "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_fastapi_app_testing.json",
+      "graph": {
+        "fingerprint": "sha256:c8792ad821a7a68b0ea8c9fa441182b1b4a0fddc60eed9ce99b0596ac20b9614",
+        "nodeCount": 28,
+        "edgeCount": 39,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 11.399,
+        "secondElapsedMs": 10.653,
+        "evaluatorMaxRssKb": 232880,
+        "graphResponseBytes": 31262,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_fastapi_app_testing",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#docs_src/app_testing/app_b_py310",
+        "graphFingerprints": [
+          "sha256:c8792ad821a7a68b0ea8c9fa441182b1b4a0fddc60eed9ce99b0596ac20b9614",
+          "sha256:c8792ad821a7a68b0ea8c9fa441182b1b4a0fddc60eed9ce99b0596ac20b9614"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:2fe43b6ed744c4356c0650e4b84d82fab49f99a214729a1ceae14b7d5ad82afa"
+      }
+    },
+    {
+      "id": "cicase_python_flask_tutorial",
+      "repositoryId": "cirepo_python_pallets_flask",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#examples/tutorial/flaskr",
+      "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_flask_tutorial.json",
+      "graph": {
+        "fingerprint": "sha256:2cf0eb18e3748125a72a6309888192b92c34ed2ec42b3307e6e2c37030be6882",
+        "nodeCount": 83,
+        "edgeCount": 139,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 4,
+            "indexedFileCount": 4,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 16.656,
+        "secondElapsedMs": 16.424,
+        "evaluatorMaxRssKb": 232976,
+        "graphResponseBytes": 101541,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_flask_tutorial",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#examples/tutorial/flaskr",
+        "graphFingerprints": [
+          "sha256:2cf0eb18e3748125a72a6309888192b92c34ed2ec42b3307e6e2c37030be6882",
+          "sha256:2cf0eb18e3748125a72a6309888192b92c34ed2ec42b3307e6e2c37030be6882"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:591c13e2d6bf6cda2f95b226e22e835210d4eb697b2751b9d1783e1787644003"
+      }
+    },
+    {
+      "id": "cicase_python_djangoproject_accounts",
+      "repositoryId": "cirepo_python_django_djangoproject_com",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_django_djangoproject_com@7a19ab3bce8f62fed03bb3eef2c19f2d0af15470#accounts",
+      "commit": "7a19ab3bce8f62fed03bb3eef2c19f2d0af15470",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_djangoproject_accounts.json",
+      "graph": {
+        "fingerprint": "sha256:87c5c59cbaf95573dbae7cc5884f3efd6f100cc5c1b626f7f17acac471ad9c1d",
+        "nodeCount": 128,
+        "edgeCount": 226,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 9,
+            "indexedFileCount": 9,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 21.909,
+        "secondElapsedMs": 21.378,
+        "evaluatorMaxRssKb": 232976,
+        "graphResponseBytes": 164735,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_djangoproject_accounts",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_django_djangoproject_com@7a19ab3bce8f62fed03bb3eef2c19f2d0af15470#accounts",
+        "graphFingerprints": [
+          "sha256:87c5c59cbaf95573dbae7cc5884f3efd6f100cc5c1b626f7f17acac471ad9c1d",
+          "sha256:87c5c59cbaf95573dbae7cc5884f3efd6f100cc5c1b626f7f17acac471ad9c1d"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:f7b8b3c36c7acadcfddae7dbfb64617d528ec174b3d0767df74c5465e34c3a04"
       }
     }
   ],
   "languages": [
     {
       "language": "python",
-      "caseCount": 4,
+      "caseCount": 7,
       "fixtureCount": 1,
-      "repositoryCount": 3,
+      "repositoryCount": 4,
       "metrics": {
         "declarationRecall": {
           "numerator": 20,
@@ -2094,8 +2619,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 19,
-          "denominator": 19,
+          "numerator": 22,
+          "denominator": 22,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -2185,5 +2710,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:05d58ab7eb7ebfe4fb90b0c7a3c18f05e43267f5961a3920d599de5f9001677b"
+  "reportFingerprint": "sha256:18ca0fdf07e5f9a281a9f430f589fbe2dfa326b24cf3e49a169172989ce09c6b"
 }

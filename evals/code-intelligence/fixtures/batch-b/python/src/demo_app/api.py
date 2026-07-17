@@ -1,5 +1,9 @@
 from django.urls import path
 from demo_app.service import Service
+from fastapi import FastAPI
+
+
+app = FastAPI()
 
 
 @app.get("/items/{item_id}")
