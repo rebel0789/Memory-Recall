@@ -2,15 +2,15 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-16T14:52:49.319Z",
+  "generatedAt": "2026-07-17T01:56:52.416Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "32060e41bd0e0f59c63a1868fa9e3e92e9d8be3f",
-    "dirtyBeforeRun": true
+    "commit": "f7eb9bec27f2d47613e5aa00bc718c746c86127d",
+    "dirtyBeforeRun": false
   },
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
@@ -102,43 +102,68 @@
         }
       },
       "compatibility": {
-        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:d5ce53b39dfafa7f4c349de6ec02e6ee9c3307a0ee756de83aea07f045c9954e",
+        "comparisonVersion": "memory-recall-js-ts-native-preview-2",
+        "comparisonFingerprint": "sha256:770e8e1762b26a44898cbd562370498432aeb5e857162576403fdfc8cfee31b1",
         "dimensions": [
           {
             "name": "files",
             "baselineCount": 2,
             "nativeCount": 2,
             "matchedCount": 2,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "symbols",
             "baselineCount": 3,
             "nativeCount": 3,
             "matchedCount": 3,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "imports",
             "baselineCount": 1,
             "nativeCount": 1,
             "matchedCount": 1,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "calls",
             "baselineCount": 1,
             "nativeCount": 1,
             "matchedCount": 1,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "routes",
             "baselineCount": 0,
             "nativeCount": 0,
             "matchedCount": 0,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           }
         ],
         "parityClaimed": false,
@@ -180,43 +205,68 @@
         }
       },
       "compatibility": {
-        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:c2780350b66de3058b20a0ec53d3aa4ef82e93017246208488ed4ce0f7c7ee2e",
+        "comparisonVersion": "memory-recall-js-ts-native-preview-2",
+        "comparisonFingerprint": "sha256:22dfec9d530de0ec9623d5c207902040e79a0f11ec88c58633e9240e4edff95b",
         "dimensions": [
           {
             "name": "files",
             "baselineCount": 2,
             "nativeCount": 2,
             "matchedCount": 2,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "symbols",
             "baselineCount": 2,
             "nativeCount": 2,
             "matchedCount": 2,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "imports",
             "baselineCount": 1,
             "nativeCount": 1,
             "matchedCount": 1,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "calls",
             "baselineCount": 1,
             "nativeCount": 1,
             "matchedCount": 1,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "routes",
             "baselineCount": 0,
             "nativeCount": 0,
             "matchedCount": 0,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           }
         ],
         "parityClaimed": false,
@@ -240,11 +290,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:56010279813f7af9c5c03c045a10ae765d32e1646dc73e288e25434a86a181f3",
-          "compatibilityGraphFingerprint": "sha256:e4ade3da9ba89f6627b2c7e3f2d68a4d09d1fab811ec2993205844682b7363a4",
+          "providerGraphFingerprint": "sha256:84c899f09c9adf6146d3707ef8891e9fe384741adb15f7434e4af04a03920bc9",
+          "compatibilityGraphFingerprint": "sha256:166b842e518cdca0a1192dd2fa7a7e58b72b407266ce079557a9b18f5d1e7ad1",
           "fileCount": 26,
           "symbolCount": 4125,
-          "edgeCount": 11030,
+          "edgeCount": 11029,
           "diagnosticCount": 2,
           "coverage": [
             {
@@ -259,43 +309,105 @@
         }
       },
       "compatibility": {
-        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:c63824967ce4abbd7e288f38a6964ed639efad8c97620e3f3cb548a173c82bb1",
+        "comparisonVersion": "memory-recall-js-ts-native-preview-2",
+        "comparisonFingerprint": "sha256:3109ad59f474eee542a696708dc3ea2095e2afe23dd8a9d217a91885b3a3340f",
         "dimensions": [
           {
             "name": "files",
             "baselineCount": 26,
             "nativeCount": 26,
             "matchedCount": 26,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "symbols",
             "baselineCount": 1317,
             "nativeCount": 3761,
             "matchedCount": 1316,
-            "recall": 0.9992
+            "recall": 0.9992,
+            "baselineOnlyCount": 1,
+            "nativeOnlyCount": 2445,
+            "nativeAgreement": 0.3499,
+            "baselineOnlySample": [
+              "visitor|workspace://destructuring.ts"
+            ],
+            "nativeOnlySample": [
+              "accessprivateidentifiercommon|workspace://classFields.ts",
+              "addblockscopedvariable|workspace://classFields.ts",
+              "adddeclaration|workspace://classFields.ts",
+              "adddiagnostic|workspace://declarations.ts",
+              "addemitflags|workspace://classFields.ts",
+              "addemitflags|workspace://es2017.ts",
+              "addemitflags|workspace://es2018.ts",
+              "addemitflags|workspace://es2020.ts",
+              "addemitflags|workspace://ts.ts",
+              "addemithelpers|workspace://classFields.ts"
+            ]
           },
           {
             "name": "imports",
             "baselineCount": 27,
             "nativeCount": 26,
-            "matchedCount": 0,
-            "recall": 0
+            "matchedCount": 26,
+            "recall": 0.963,
+            "baselineOnlyCount": 1,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 0.963,
+            "baselineOnlySample": [
+              "workspace://utilities.ts=>mod"
+            ],
+            "nativeOnlySample": []
           },
           {
             "name": "calls",
             "baselineCount": 2673,
             "nativeCount": 6771,
             "matchedCount": 1799,
-            "recall": 0.673
+            "recall": 0.673,
+            "baselineOnlyCount": 874,
+            "nativeOnlyCount": 4972,
+            "nativeAgreement": 0.2657,
+            "baselineOnlySample": [
+              "adddefaultvalueassignmentsifneeded|workspace://es2015.ts=>hasdefaultvalueorbindingpattern|workspace://es2015.ts",
+              "addexportequalsifneeded|workspace://module/module.ts=>visitor|workspace://module/module.ts",
+              "addrestparameterifneeded|workspace://es2015.ts=>visitor|workspace://es2015.ts",
+              "addstatementtostartofblock|workspace://es2015.ts=>visitor|workspace://es2015.ts",
+              "addvarforenumormoduledeclaration|workspace://ts.ts=>modifiervisitor|workspace://ts.ts",
+              "appendexportsofbindingelement|workspace://module/module.ts=>identifiernamemap|workspace://utilities.ts",
+              "appendexportsofimportequalsdeclaration|workspace://module/module.ts=>identifiernamemap|workspace://utilities.ts",
+              "appendexportstatement|workspace://module/system.ts=>createexportstatement|workspace://module/system.ts",
+              "appendobjectrestassignmentsifneeded|workspace://es2018.ts=>visitor|workspace://es2018.ts",
+              "chainbundle|workspace://utilities.ts=>transformbundle|workspace://utilities.ts"
+            ],
+            "nativeOnlySample": [
+              "accessorfieldresultvisitor|workspace://classFields.ts=>assertmissingnode|workspace://classFields.ts",
+              "accessprivateidentifier|workspace://classFields.ts=>accessprivateidentifiercommon|workspace://classFields.ts",
+              "addclasselementdecorationstatements|workspace://legacyDecorators.ts=>addrange|workspace://legacyDecorators.ts",
+              "addclasselementdecorationstatements|workspace://legacyDecorators.ts=>createexpressionstatement|workspace://legacyDecorators.ts",
+              "addclasselementdecorationstatements|workspace://legacyDecorators.ts=>map|workspace://legacyDecorators.ts",
+              "addclassmembers|workspace://es2015.ts=>failbadsyntaxkind|workspace://es2015.ts",
+              "addclassmembers|workspace://es2015.ts=>getallaccessordeclarations|workspace://es2015.ts",
+              "addclassmembers|workspace://es2015.ts=>push|workspace://es2015.ts",
+              "addconstructordecorationstatement|workspace://legacyDecorators.ts=>createexpressionstatement|workspace://legacyDecorators.ts",
+              "addconstructordecorationstatement|workspace://legacyDecorators.ts=>push|workspace://legacyDecorators.ts"
+            ]
           },
           {
             "name": "routes",
             "baselineCount": 0,
             "nativeCount": 0,
             "matchedCount": 0,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           }
         ],
         "parityClaimed": false,
@@ -319,11 +431,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:dcbc5fd39cc87ebf36632daab45190069b996122dbf9e3e58ae733e2977c374f",
-          "compatibilityGraphFingerprint": "sha256:cee15be8d1f0f66731a455633249a11e7fb7c601d84aae9b98d2637b8605466a",
+          "providerGraphFingerprint": "sha256:ebaccad4fc953d9fc1abfc364eb1c8fdde628a71cdfd1c1de9ea7dfcf59c108f",
+          "compatibilityGraphFingerprint": "sha256:64510f2945e822234a0cfd53e347180796a6887d4f1b748b9cc5411a472a5609",
           "fileCount": 141,
-          "symbolCount": 354,
-          "edgeCount": 988,
+          "symbolCount": 358,
+          "edgeCount": 1046,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -338,43 +450,134 @@
         }
       },
       "compatibility": {
-        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:e2f946886a78993a978dbd74a449c504ab5cd30917038057d4bf56c235ae81ca",
+        "comparisonVersion": "memory-recall-js-ts-native-preview-2",
+        "comparisonFingerprint": "sha256:16780d962a463fc1e21ff21a1492d13ffe29e59b7162b351e7c7cd153c0b0991",
         "dimensions": [
           {
             "name": "files",
             "baselineCount": 141,
             "nativeCount": 141,
             "matchedCount": 141,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           },
           {
             "name": "symbols",
             "baselineCount": 387,
-            "nativeCount": 289,
-            "matchedCount": 93,
-            "recall": 0.2403
+            "nativeCount": 293,
+            "matchedCount": 95,
+            "recall": 0.2455,
+            "baselineOnlyCount": 292,
+            "nativeOnlyCount": 198,
+            "nativeAgreement": 0.2455,
+            "baselineOnlySample": [
+              "acceptscharsets|workspace://lib/request.js",
+              "acceptsencodings|workspace://lib/request.js",
+              "acceptslanguages|workspace://lib/request.js",
+              "accepts|workspace://lib/request.js",
+              "after|workspace://test/app.js",
+              "all|workspace://examples/view-locals/user.js",
+              "all|workspace://lib/application.js",
+              "append|workspace://lib/response.js",
+              "app|workspace://lib/express.js",
+              "attachment|workspace://lib/response.js"
+            ],
+            "nativeOnlySample": [
+              "address|workspace://test/req.ip.js",
+              "after|workspace://test/res.format.js",
+              "all|workspace://examples/view-locals/index.js",
+              "assert|workspace://test/res.sendFile.js",
+              "callback|workspace://lib/application.js",
+              "callback|workspace://lib/response.js",
+              "callback|workspace://test/support/tmpl.js",
+              "charcodeat|workspace://lib/response.js",
+              "connect|workspace://examples/search/index.js",
+              "create|workspace://lib/express.js"
+            ]
           },
           {
             "name": "imports",
             "baselineCount": 334,
-            "nativeCount": 262,
-            "matchedCount": 134,
-            "recall": 0.4012
+            "nativeCount": 295,
+            "matchedCount": 221,
+            "recall": 0.6617,
+            "baselineOnlyCount": 113,
+            "nativeOnlyCount": 74,
+            "nativeAgreement": 0.6617,
+            "baselineOnlySample": [
+              "workspace://examples/auth/index.js=>express-session",
+              "workspace://examples/auth/index.js=>pbkdf2-password",
+              "workspace://examples/mvc/index.js=>express-session",
+              "workspace://examples/mvc/lib/boot.js=>..",
+              "workspace://examples/route-map/index.js=>escape-html",
+              "workspace://lib/application.js=>ejs",
+              "workspace://lib/application.js=>express",
+              "workspace://lib/application.js=>node:https",
+              "workspace://lib/express.js=>merge-descriptors",
+              "workspace://lib/express.js=>serve-static"
+            ],
+            "nativeOnlySample": [
+              "workspace://examples/auth/index.js=>node:path",
+              "workspace://examples/auth/index.js=>password",
+              "workspace://examples/auth/index.js=>session",
+              "workspace://examples/cookie-sessions/index.js=>session",
+              "workspace://examples/cookies/index.js=>morgan",
+              "workspace://examples/cookies/index.js=>parser",
+              "workspace://examples/downloads/index.js=>node:path",
+              "workspace://examples/ejs/index.js=>ejs",
+              "workspace://examples/ejs/index.js=>node:path",
+              "workspace://examples/error-pages/index.js=>morgan"
+            ]
           },
           {
             "name": "calls",
             "baselineCount": 451,
-            "nativeCount": 185,
+            "nativeCount": 187,
             "matchedCount": 3,
-            "recall": 0.0067
+            "recall": 0.0067,
+            "baselineOnlyCount": 448,
+            "nativeOnlyCount": 184,
+            "nativeAgreement": 0.0067,
+            "baselineOnlySample": [
+              "acceptscharsets|workspace://lib/request.js=>accepts|workspace://lib/request.js",
+              "attachment|workspace://lib/response.js=>create|workspace://examples/mvc/controllers/user-pet/index.js",
+              "before|workspace://test/express.json.js=>createapp|workspace://test/express.json.js",
+              "before|workspace://test/express.json.js=>json|workspace://examples/content-negotiation/index.js",
+              "before|workspace://test/express.json.js=>json|workspace://examples/error-pages/index.js",
+              "before|workspace://test/express.json.js=>send|workspace://lib/response.js",
+              "before|workspace://test/express.raw.js=>createapp|workspace://test/express.raw.js",
+              "before|workspace://test/express.raw.js=>json|workspace://examples/content-negotiation/index.js",
+              "before|workspace://test/express.raw.js=>json|workspace://examples/error-pages/index.js",
+              "before|workspace://test/express.static.js=>createapp|workspace://test/express.static.js"
+            ],
+            "nativeOnlySample": [
+              "acceptparams|workspace://lib/utils.js=>indexof|workspace://lib/utils.js",
+              "acceptparams|workspace://lib/utils.js=>lastindexof|workspace://lib/utils.js",
+              "acceptparams|workspace://lib/utils.js=>parsefloat|workspace://lib/utils.js",
+              "acceptparams|workspace://lib/utils.js=>slice|workspace://lib/utils.js",
+              "acceptparams|workspace://lib/utils.js=>trim|workspace://lib/utils.js",
+              "andrestricttoself|workspace://examples/route-middleware/index.js=>next|workspace://examples/route-middleware/index.js",
+              "andrestrictto|workspace://examples/route-middleware/index.js=>next|workspace://examples/route-middleware/index.js",
+              "authenticate|workspace://examples/auth/index.js=>fn|workspace://test/app.router.js",
+              "authenticate|workspace://examples/auth/index.js=>hash|workspace://examples/auth/index.js",
+              "authenticate|workspace://examples/auth/index.js=>log|workspace://examples/auth/index.js"
+            ]
           },
           {
             "name": "routes",
             "baselineCount": 0,
             "nativeCount": 0,
             "matchedCount": 0,
-            "recall": 1
+            "recall": 1,
+            "baselineOnlyCount": 0,
+            "nativeOnlyCount": 0,
+            "nativeAgreement": 1,
+            "baselineOnlySample": [],
+            "nativeOnlySample": []
           }
         ],
         "parityClaimed": false,
@@ -409,5 +612,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:9bb20cf9c3e72a59221da6549da59495d672affe957c2ad9805cee0609ca6da0"
+  "reportFingerprint": "sha256:617df5c1cb5f86c9de50ee03fb5aa553da53b2e7b53d1c79bc17057fd5caa9a9"
 }
