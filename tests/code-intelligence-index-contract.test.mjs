@@ -148,12 +148,23 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert.deepEqual(report.failures, []);
   assert(report.results.communityCount > 0);
   assert(report.results.processCount > 0);
+  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-2');
   assert.equal(report.results.communityAlgorithm, 'label-propagation-v1');
   assert.equal(report.results.processAlgorithm, 'entry-path-v1');
   assert.equal(report.results.readQueriesPreservedIndex, true);
   assert.equal(report.results.evidenceComplete, true);
   assert(report.results.communityQueryWallMs.p95 <= report.inputs.queryDeadlineMs);
   assert(report.results.processQueryWallMs.p95 <= report.inputs.queryDeadlineMs);
+  const representative = report.results.representativeProcess;
+  assert.equal(representative.entryNodeId, representative.nodeIds[0]);
+  assert.equal(representative.sinkNodeId, representative.nodeIds.at(-1));
+  assert.equal(representative.entryRelationshipId, representative.relationshipIds[0]);
+  assert.equal(representative.entryEvidence.fromNodeId, representative.entryNodeId);
+  assert.equal(representative.executionSteps.length, representative.nodeIds.length - 1);
+  assert.deepEqual(
+    representative.executionSteps.map((item) => [item.fromNodeId, item.toNodeId]),
+    representative.nodeIds.slice(0, -1).map((nodeId, index) => [nodeId, representative.nodeIds[index + 1]])
+  );
   assert.equal(report.claims.competitorParity, false);
   assert.equal(report.claims.leadership, false);
   assert.equal(report.claims.millionNodeScale, false);

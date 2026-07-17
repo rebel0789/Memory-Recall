@@ -194,7 +194,12 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   ], { encoding: 'utf8', env, input: requests.map((request) => JSON.stringify(request)).join('\n') });
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
-  assert.deepEqual(responses.find((entry) => entry.id === 2).result.tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
+  const listedTools = responses.find((entry) => entry.id === 2).result.tools;
+  assert.deepEqual(listedTools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
+  assert.equal(
+    listedTools.find((tool) => tool.name === 'repo.architecture').description,
+    'Return bounded architecture groups, communities, entry points, hotspots, and evidence-backed entry-to-sink processes from local source metadata.'
+  );
   for (let id = 3; id <= 12; id += 1) {
     const response = responses.find((entry) => entry.id === id);
     assert.equal(response.error, undefined, `tool response ${id}: ${JSON.stringify(response.error)}`);

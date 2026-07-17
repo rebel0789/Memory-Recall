@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
-  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-1",
+  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-2",
   "phase": 4,
-  "generatedAt": "2026-07-16T18:36:20.914Z",
+  "generatedAt": "2026-07-17T00:57:16.453Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,7 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:21d5665b4f9f5ad95bdb96fe37897696ff532835496cb738e00545d5afe7e6e1",
-    "implementationFingerprint": "sha256:2689671d2e20eda6ca29dcc32fd00e38e40526d2f9bc4d0e55da0d8671f75a38",
+    "implementationFingerprint": "sha256:1c1bef0a525f6754202e2dc90f2f184c52f076706a551c3302cccdd55520200b",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
@@ -27,20 +27,58 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 7.263,
-      "p50": 7.931,
-      "p95": 8.364,
-      "maximum": 8.364
+      "minimum": 8.333,
+      "p50": 8.547,
+      "p95": 9.388,
+      "maximum": 9.388
     },
     "processQueryWallMs": {
-      "minimum": 6.834,
-      "p50": 7.627,
-      "p95": 11.66,
-      "maximum": 11.66
+      "minimum": 7.516,
+      "p50": 7.632,
+      "p95": 8.716,
+      "maximum": 8.716
     },
     "deterministicProjectionFingerprint": "sha256:747642cfd3c6b07c0c1ced68dda8303b929c70ad623831165523a9d98da9617b",
     "readQueriesPreservedIndex": true,
-    "evidenceComplete": true
+    "evidenceComplete": true,
+    "representativeProcess": {
+      "processId": "ciprocess_cafc5b03e409705166fbf78ed07fbc17",
+      "entryNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+      "entryRelationshipId": "ciedge_e40273e67bd45014357f1a6f1f64c300",
+      "sinkNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+      "sinkKind": "function",
+      "nodeIds": [
+        "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+        "cinode_b1d9033581223f492d71170fff0c3e34",
+        "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+      ],
+      "relationshipIds": [
+        "ciedge_e40273e67bd45014357f1a6f1f64c300",
+        "ciedge_c182ad43c5db5548a4ab932bf26ddaf1",
+        "ciedge_9eab5a0eb35dc56c1117021f4ae0da2d"
+      ],
+      "confidence": 0.75,
+      "entryEvidence": {
+        "relationshipId": "ciedge_e40273e67bd45014357f1a6f1f64c300",
+        "kind": "handles_route",
+        "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+        "toNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a"
+      },
+      "executionSteps": [
+        {
+          "relationshipId": "ciedge_c182ad43c5db5548a4ab932bf26ddaf1",
+          "kind": "calls",
+          "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+          "toNodeId": "cinode_b1d9033581223f492d71170fff0c3e34"
+        },
+        {
+          "relationshipId": "ciedge_9eab5a0eb35dc56c1117021f4ae0da2d",
+          "kind": "calls",
+          "fromNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+          "toNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+        }
+      ]
+    }
   },
   "failures": [],
   "gateDecision": "pass",
@@ -58,5 +96,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:b1cb43f44630e522464cfa3e6e911743716a8016241ac35f2a4672236295fc1e"
+  "reportFingerprint": "sha256:a86e38c24bae934a2156fdb64144e24066478be3888ca61b06b08de9affb21cc"
 }

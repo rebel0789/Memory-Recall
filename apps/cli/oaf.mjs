@@ -6895,7 +6895,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
   return [
     {
       name: 'repo.architecture',
-      description: 'Return bounded architecture groups, entry points, and structural hotspots from local source metadata.',
+      description: 'Return bounded architecture groups, communities, entry points, hotspots, and evidence-backed entry-to-sink processes from local source metadata.',
       operation: 'repo.architecture',
       sideEffectClass: 'read-only',
       inputSchema: {

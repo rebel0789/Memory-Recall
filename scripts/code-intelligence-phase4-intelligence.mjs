@@ -61,6 +61,7 @@ async function runBenchmark() {
       ...communityRuns.results.map(projectedResultFingerprint),
       ...processRuns.results.map(projectedResultFingerprint)
     ];
+    const representativeProcess = representativeProcessEvidence(firstProcesses);
     const processRelationshipIds = new Set(firstProcesses.relationships.map((item) => item.id));
     const processNodeIds = new Set(firstProcesses.results.map((item) => item.id));
     const failures = [
@@ -73,12 +74,11 @@ async function runBenchmark() {
       [processRuns.wallMs.p95 > QUERY_DEADLINE_MS, 'processes_latency_gate_failed'],
       [!firstProcesses.processes.every((item) => item.nodeIds.every((id) => processNodeIds.has(id))), 'process_node_evidence_missing'],
       [!firstProcesses.processes.every((item) => item.relationshipIds.every((id) => processRelationshipIds.has(id))), 'process_relationship_evidence_missing'],
-      [!firstProcesses.relationships.some((item) => item.kind === 'handles_route'), 'entry_evidence_missing'],
-      [!firstProcesses.relationships.some((item) => item.kind === 'calls'), 'execution_evidence_missing']
+      [representativeProcess === null, 'ordered_entry_to_sink_process_missing']
     ].filter(([failed]) => failed).map(([, code]) => code);
     const report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-1',
+      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-2',
       phase: 4,
       generatedAt: new Date().toISOString(),
       environment: {
@@ -113,7 +113,8 @@ async function runBenchmark() {
         processQueryWallMs: processRuns.wallMs,
         deterministicProjectionFingerprint: fingerprint(projectionFingerprints),
         readQueriesPreservedIndex: beforeReads.sha256 === afterReads.sha256 && beforeReads.mtimeNs === afterReads.mtimeNs,
-        evidenceComplete: failures.every((code) => !code.endsWith('_evidence_missing'))
+        evidenceComplete: representativeProcess !== null && failures.every((code) => !code.endsWith('_evidence_missing')),
+        representativeProcess
       },
       failures,
       gateDecision: failures.length === 0 ? 'pass' : 'fail',
@@ -178,6 +179,44 @@ function projectedResultFingerprint(result) {
     communities: result.communities ?? [],
     processes: result.processes ?? []
   });
+}
+
+function representativeProcessEvidence(result) {
+  const relationships = new Map(result.relationships.map((item) => [item.id, item]));
+  for (const process of result.processes) {
+    if (process.nodeIds[0] !== process.entryNodeId || process.nodeIds.at(-1) !== process.sinkNodeId) continue;
+    if (process.relationshipIds[0] !== process.entryRelationshipId) continue;
+    const entry = relationships.get(process.entryRelationshipId);
+    if (!entry || entry.fromNodeId !== process.entryNodeId) continue;
+    const executionSteps = process.relationshipIds.slice(1).map((relationshipId) => relationships.get(relationshipId));
+    if (executionSteps.length !== process.nodeIds.length - 1 || executionSteps.some((item) => item === undefined)) continue;
+    if (!executionSteps.every((item, index) => (
+      item.fromNodeId === process.nodeIds[index] && item.toNodeId === process.nodeIds[index + 1]
+    ))) continue;
+    return {
+      processId: process.id,
+      entryNodeId: process.entryNodeId,
+      entryRelationshipId: process.entryRelationshipId,
+      sinkNodeId: process.sinkNodeId,
+      sinkKind: process.sinkKind,
+      nodeIds: process.nodeIds,
+      relationshipIds: process.relationshipIds,
+      confidence: process.confidence,
+      entryEvidence: {
+        relationshipId: entry.id,
+        kind: entry.kind,
+        fromNodeId: entry.fromNodeId,
+        toNodeId: entry.toNodeId
+      },
+      executionSteps: executionSteps.map((item) => ({
+        relationshipId: item.id,
+        kind: item.kind,
+        fromNodeId: item.fromNodeId,
+        toNodeId: item.toNodeId
+      }))
+    };
+  }
+  return null;
 }
 
 async function snapshot(file) {
