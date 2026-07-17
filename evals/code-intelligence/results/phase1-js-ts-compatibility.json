@@ -2,18 +2,18 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-17T03:05:14.113Z",
+  "generatedAt": "2026-07-17T20:15:54.783Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "5a25cd27358c232bc3223dde01416bb864d6b0ad",
-    "dirtyBeforeRun": false
+    "commit": "fe66130b0e1ea1d773f7a49ecfe477860e05a705",
+    "dirtyBeforeRun": true
   },
   "inputs": {
-    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "repositoryRefs": [
       "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
       "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#."
@@ -290,7 +290,7 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:87f2b29d7559d5fef6697aa5239b8fe340c76bc46ac341d6bcb01930e0e08c48",
+          "providerGraphFingerprint": "sha256:c566b066d09c7721854d8e68d8b4eb1142829eab86607e1de76075b73b92dea0",
           "compatibilityGraphFingerprint": "sha256:30bb208a5b25a9a7f6268e1747bbe4cfa3ca47e019824572c9581094576c2b2c",
           "fileCount": 26,
           "symbolCount": 3777,
@@ -431,11 +431,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:9e4dd74d46f37ed5ddd53e23f6c0fcc7752cdf31c644e9a06d7d3935b1fa2658",
-          "compatibilityGraphFingerprint": "sha256:2b30077642d746af8e45fbf8908844af80159b1c72219e322952de441e5ef806",
+          "providerGraphFingerprint": "sha256:cec698d51e00c2435afc06be73efd7a0ccd742cea4d89758f199a78294c06576",
+          "compatibilityGraphFingerprint": "sha256:2abef348a48d01f81059087c61eff9477c14ae9b5117cc5d9d0feafd78de955a",
           "fileCount": 141,
           "symbolCount": 523,
-          "edgeCount": 1439,
+          "edgeCount": 1444,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -451,7 +451,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-2",
-        "comparisonFingerprint": "sha256:0b230fde89576179c33f30649ffac8a6ab2a16f9075d6c7fd91f4db27e03ccd7",
+        "comparisonFingerprint": "sha256:3bd58114a7fc208f431d5f80523b926f329fd9f97b69430469ca2702fb8c6448",
         "dimensions": [
           {
             "name": "files",
@@ -612,5 +612,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:16b753217700d5b7433fb5082854922eca16c772ee29374b5a087c754d6c7bd8"
+  "reportFingerprint": "sha256:9103bd93417213621fcc7ae617ba99299600ec7d1680b2651c398ff233c82cd3"
 }

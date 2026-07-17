@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-17T19:43:31.310Z",
+  "generatedAt": "2026-07-17T20:14:47.960Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:d7298c3589eb3ff735e8011599e52ab45fba6f82f489bb7116b866cc94c07d1d",
+    "implementationFingerprint": "sha256:a002a2a4d5d3a524d4f71ae61037dcabc192143dbe59586300c1a060186801d7",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:2ddb2978ec01a14b3dc8bca6b97888641456822f69762940792262f274255a9c",
+    "repositoryIdentityHash": "sha256:49ae5704bb62a5167e418726d231ef28be749ccb2813ef1e3ff5208aa8035c85",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:2a19763a0a1c99105d5b3a41daa3ba2fe2a227ae85218f456668cad1bbb23ae7",
+    "deterministicFingerprint": "sha256:8bb578b98cef1ae57254fa7c38946eb77e445e2d932464474c91f3b1e8afce41",
     "queryWallMs": {
-      "minimum": 6.664,
-      "p50": 8.87,
-      "p95": 9.128,
-      "maximum": 9.128
+      "minimum": 7.763,
+      "p50": 8.797,
+      "p95": 9.647,
+      "maximum": 9.647
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:7ad86fbf5e06a9e940432a10a95f42e112a9bd5861cc89b464ee9dcaaa5acfba"
+  "reportFingerprint": "sha256:dd3187fbbeff2bdfce7f5c4b24b419e2ce6b5e6a333518cb19ae785a2a02edef"
 }

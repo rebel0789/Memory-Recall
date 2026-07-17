@@ -3,9 +3,9 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-a-1",
   "phase": 2,
   "batch": "A",
-  "generatedAt": "2026-07-17T17:23:03.566Z",
+  "generatedAt": "2026-07-17T20:11:13.536Z",
   "inputs": {
-    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
       "maxFiles": 5000,
       "maxFileBytes": 524288,
@@ -70,9 +70,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.249,
-        "secondElapsedMs": 8.095,
-        "evaluatorMaxRssKb": 59456,
+        "firstElapsedMs": 33.012,
+        "secondElapsedMs": 8.028,
+        "evaluatorMaxRssKb": 59664,
         "graphResponseBytes": 10929,
         "workspaceFingerprintUnchanged": true
       },
@@ -238,9 +238,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 7.461,
-        "secondElapsedMs": 7.234,
-        "evaluatorMaxRssKb": 65392,
+        "firstElapsedMs": 8.17,
+        "secondElapsedMs": 7.49,
+        "evaluatorMaxRssKb": 65760,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
@@ -407,9 +407,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 136.597,
-        "secondElapsedMs": 138.429,
-        "evaluatorMaxRssKb": 88976,
+        "firstElapsedMs": 141.502,
+        "secondElapsedMs": 140.972,
+        "evaluatorMaxRssKb": 89360,
         "graphResponseBytes": 1526827,
         "workspaceFingerprintUnchanged": true
       },
@@ -585,9 +585,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1072.949,
-        "secondElapsedMs": 1041.383,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 1085.722,
+        "secondElapsedMs": 1075.759,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
@@ -754,9 +754,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 28.618,
-        "secondElapsedMs": 27.037,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 30.707,
+        "secondElapsedMs": 28.386,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
@@ -923,9 +923,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.308,
-        "secondElapsedMs": 32.44,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 33.919,
+        "secondElapsedMs": 35.606,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
@@ -1092,9 +1092,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 35.077,
-        "secondElapsedMs": 34.677,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 36.275,
+        "secondElapsedMs": 34.532,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
@@ -1261,9 +1261,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 181.314,
-        "secondElapsedMs": 181.388,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 186.105,
+        "secondElapsedMs": 189.195,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
@@ -1480,5 +1480,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:b5bac7e51199d8dd6928782d93555a1accfe07f77b624aa33d71aab26e2c0169"
+  "reportFingerprint": "sha256:96d595c82797eab8d335b477d150ae07973a0c46fa6fb565103b20a72b06a688"
 }

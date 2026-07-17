@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-17T19:41:43.348Z",
+  "generatedAt": "2026-07-17T20:14:33.401Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
     "protocolVersion": "1.0.0"
   },
   "inputs": {
-    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
       "maxFiles": 5000,
       "maxFileBytes": 524288,
@@ -22,35 +22,35 @@
       {
         "batch": "A",
         "path": "evals/code-intelligence/results/phase2-batch-a.json",
-        "reportFingerprint": "sha256:b5bac7e51199d8dd6928782d93555a1accfe07f77b624aa33d71aab26e2c0169",
+        "reportFingerprint": "sha256:96d595c82797eab8d335b477d150ae07973a0c46fa6fb565103b20a72b06a688",
         "caseCount": 8,
         "languageCount": 2
       },
       {
         "batch": "B",
         "path": "evals/code-intelligence/results/phase2-batch-b.json",
-        "reportFingerprint": "sha256:05d58ab7eb7ebfe4fb90b0c7a3c18f05e43267f5961a3920d599de5f9001677b",
-        "caseCount": 12,
+        "reportFingerprint": "sha256:18ca0fdf07e5f9a281a9f430f589fbe2dfa326b24cf3e49a169172989ce09c6b",
+        "caseCount": 15,
         "languageCount": 3
       },
       {
         "batch": "C",
         "path": "evals/code-intelligence/results/phase2-batch-c.json",
-        "reportFingerprint": "sha256:f760ad40dabef7af7e4c80a65fd4b188bb612b5ad36726b8f05d5b820573e7a2",
+        "reportFingerprint": "sha256:81233361babfbb4bded9fdc5e31b994092ba3a24a45629cf7af6787c29bc8b1c",
         "caseCount": 12,
         "languageCount": 3
       },
       {
         "batch": "D",
         "path": "evals/code-intelligence/results/phase2-batch-d.json",
-        "reportFingerprint": "sha256:7e2b4a78a1b0960b96c45328b4e4f0162942202cab0c1e48319da4d5079009dd",
+        "reportFingerprint": "sha256:225664f19b05f5091b8fb8b6b85b73f1ffb30e96309ab2bfa88421cdf2a99397",
         "caseCount": 16,
         "languageCount": 4
       },
       {
         "batch": "E",
         "path": "evals/code-intelligence/results/phase2-batch-e.json",
-        "reportFingerprint": "sha256:0501459b646b62a1788f2bdd072b16c484d5f4e3976513aecda98ddd7ec45a00",
+        "reportFingerprint": "sha256:79195ffdcbd93ad8848c00a44faab21680a9a762c3a582d9948a9735d1f15895",
         "caseCount": 8,
         "languageCount": 2
       }
@@ -58,18 +58,18 @@
   },
   "summary": {
     "fixtureCount": 14,
-    "repositoryCount": 42,
+    "repositoryCount": 43,
     "languageCount": 14,
-    "caseCount": 56,
-    "graphNodeCount": 49668,
-    "graphEdgeCount": 111410,
-    "graphResponseBytes": 78313027,
-    "firstRunWallTimeMs": 15840.061,
-    "secondRunWallTimeMs": 14455.849,
-    "peakEvaluatorRssKb": 218000,
-    "meetsFloorCapabilityCount": 55,
+    "caseCount": 59,
+    "graphNodeCount": 49824,
+    "graphEdgeCount": 111857,
+    "graphResponseBytes": 78601557,
+    "firstRunWallTimeMs": 21954.091,
+    "secondRunWallTimeMs": 21512.991,
+    "peakEvaluatorRssKb": 232976,
+    "meetsFloorCapabilityCount": 56,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 99
+    "unmeasuredCapabilityCount": 98
   },
   "cases": [
     {
@@ -100,9 +100,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.249,
-        "secondElapsedMs": 8.095,
-        "evaluatorMaxRssKb": 59456,
+        "firstElapsedMs": 33.012,
+        "secondElapsedMs": 8.028,
+        "evaluatorMaxRssKb": 59664,
         "graphResponseBytes": 10929,
         "workspaceFingerprintUnchanged": true
       },
@@ -241,9 +241,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 7.461,
-        "secondElapsedMs": 7.234,
-        "evaluatorMaxRssKb": 65392,
+        "firstElapsedMs": 8.17,
+        "secondElapsedMs": 7.49,
+        "evaluatorMaxRssKb": 65760,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
@@ -383,9 +383,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 136.597,
-        "secondElapsedMs": 138.429,
-        "evaluatorMaxRssKb": 88976,
+        "firstElapsedMs": 141.502,
+        "secondElapsedMs": 140.972,
+        "evaluatorMaxRssKb": 89360,
         "graphResponseBytes": 1526827,
         "workspaceFingerprintUnchanged": true
       },
@@ -534,9 +534,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1072.949,
-        "secondElapsedMs": 1041.383,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 1085.722,
+        "secondElapsedMs": 1075.759,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
@@ -676,9 +676,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 28.618,
-        "secondElapsedMs": 27.037,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 30.707,
+        "secondElapsedMs": 28.386,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
@@ -818,9 +818,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.308,
-        "secondElapsedMs": 32.44,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 33.919,
+        "secondElapsedMs": 35.606,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
@@ -960,9 +960,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 35.077,
-        "secondElapsedMs": 34.677,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 36.275,
+        "secondElapsedMs": 34.532,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
@@ -1102,9 +1102,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 181.314,
-        "secondElapsedMs": 181.388,
-        "evaluatorMaxRssKb": 178128,
+        "firstElapsedMs": 186.105,
+        "secondElapsedMs": 189.195,
+        "evaluatorMaxRssKb": 174064,
         "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
@@ -1220,12 +1220,12 @@
       "batch": "B",
       "language": "python",
       "sourceClass": "fixture",
-      "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
+      "sourceRef": "fixture://sha256:fa53fbfa008dd69235e34438208448cf5973aade4f30deee64fc92a3b144f8bb",
       "truthPath": "evals/code-intelligence/truth/fixtures/python.json",
       "graph": {
-        "fingerprint": "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0",
-        "nodeCount": 17,
-        "edgeCount": 18,
+        "fingerprint": "sha256:13044ef9253a800767df31e83b456497473bed521004421e435aef75578ca4ad",
+        "nodeCount": 18,
+        "edgeCount": 19,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -1243,14 +1243,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1350.528,
-        "secondElapsedMs": 13.548,
-        "evaluatorMaxRssKb": 60272,
-        "graphResponseBytes": 16882,
+        "firstElapsedMs": 30.862,
+        "secondElapsedMs": 10.214,
+        "evaluatorMaxRssKb": 60544,
+        "graphResponseBytes": 17791,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:eeb772e1b47e43d7a3b7b4d1f3e3040c178336cbd201bf8701fb81bb1cd7571b",
+        "reportFingerprint": "sha256:6cd8db4561448296e8815ca0df416b3f6964d54183575e36d9c1192877d0dce1",
         "metrics": {
           "declarationRecall": {
             "numerator": 7,
@@ -1384,9 +1384,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.202,
-        "secondElapsedMs": 10.325,
-        "evaluatorMaxRssKb": 65856,
+        "firstElapsedMs": 10.363,
+        "secondElapsedMs": 9.155,
+        "evaluatorMaxRssKb": 66464,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -1525,9 +1525,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.255,
-        "secondElapsedMs": 9.581,
-        "evaluatorMaxRssKb": 66160,
+        "firstElapsedMs": 9.46,
+        "secondElapsedMs": 9.083,
+        "evaluatorMaxRssKb": 69216,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -1644,6 +1644,7 @@
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
+      "repositoryId": "cirepo_python_fastapi_fastapi",
       "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json",
       "graph": {
@@ -1667,9 +1668,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 224.142,
-        "secondElapsedMs": 224.13,
-        "evaluatorMaxRssKb": 118960,
+        "firstElapsedMs": 225.265,
+        "secondElapsedMs": 233.142,
+        "evaluatorMaxRssKb": 124400,
         "graphResponseBytes": 2232748,
         "workspaceFingerprintUnchanged": true
       },
@@ -1786,6 +1787,7 @@
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
+      "repositoryId": "cirepo_python_pallets_flask",
       "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
       "graph": {
@@ -1809,9 +1811,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 133.057,
-        "secondElapsedMs": 130.994,
-        "evaluatorMaxRssKb": 127664,
+        "firstElapsedMs": 135.808,
+        "secondElapsedMs": 131.085,
+        "evaluatorMaxRssKb": 137456,
         "graphResponseBytes": 1403619,
         "workspaceFingerprintUnchanged": true
       },
@@ -1928,6 +1930,7 @@
       "language": "python",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
+      "repositoryId": "cirepo_python_psf_requests",
       "commit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json",
       "graph": {
@@ -1951,9 +1954,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 101.013,
-        "secondElapsedMs": 98.835,
-        "evaluatorMaxRssKb": 128368,
+        "firstElapsedMs": 101.093,
+        "secondElapsedMs": 103.056,
+        "evaluatorMaxRssKb": 144304,
         "graphResponseBytes": 1043140,
         "workspaceFingerprintUnchanged": true
       },
@@ -2070,6 +2073,7 @@
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
+      "repositoryId": "cirepo_go_gin_gonic_gin",
       "commit": "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd",
       "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
       "graph": {
@@ -2098,9 +2102,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 906.972,
-        "secondElapsedMs": 892.301,
-        "evaluatorMaxRssKb": 177248,
+        "firstElapsedMs": 896.154,
+        "secondElapsedMs": 912.979,
+        "evaluatorMaxRssKb": 170816,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -2217,6 +2221,7 @@
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#.",
+      "repositoryId": "cirepo_go_go_chi_chi",
       "commit": "8b258c7bb28f97a5f2a856ff7ef962578fec9215",
       "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
       "graph": {
@@ -2240,9 +2245,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 279.058,
-        "secondElapsedMs": 275.299,
-        "evaluatorMaxRssKb": 195408,
+        "firstElapsedMs": 277.946,
+        "secondElapsedMs": 279.436,
+        "evaluatorMaxRssKb": 178688,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -2359,6 +2364,7 @@
       "language": "go",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+      "repositoryId": "cirepo_go_hashicorp_go_multierror",
       "commit": "6d4d48630db25c3c83fa83ecd41dd8438b82963c",
       "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
       "graph": {
@@ -2382,9 +2388,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 26.91,
-        "secondElapsedMs": 26.403,
-        "evaluatorMaxRssKb": 196656,
+        "firstElapsedMs": 29.13,
+        "secondElapsedMs": 27.624,
+        "evaluatorMaxRssKb": 179248,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -2501,6 +2507,7 @@
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
+      "repositoryId": "cirepo_rust_dtolnay_itoa",
       "commit": "1577ed901354d0d7448ac162328f9dbf5183124c",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
       "graph": {
@@ -2524,9 +2531,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.453,
-        "secondElapsedMs": 12.178,
-        "evaluatorMaxRssKb": 196656,
+        "firstElapsedMs": 14.282,
+        "secondElapsedMs": 14.486,
+        "evaluatorMaxRssKb": 179248,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -2643,6 +2650,7 @@
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
+      "repositoryId": "cirepo_rust_serde_rs_json",
       "commit": "827a315bf2198558f0325b07bcc1e2cd973aba2f",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
       "graph": {
@@ -2666,9 +2674,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 305.606,
-        "secondElapsedMs": 307.006,
-        "evaluatorMaxRssKb": 218000,
+        "firstElapsedMs": 317.559,
+        "secondElapsedMs": 315.883,
+        "evaluatorMaxRssKb": 202096,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -2785,12 +2793,13 @@
       "language": "rust",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
+      "repositoryId": "cirepo_rust_tokio_rs_axum",
       "commit": "98aea470f9190fad1915897166ac0f149522011a",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
       "graph": {
-        "fingerprint": "sha256:a3c959e7c036414b85b485165d25268c87fc800f08a0c89f5919a4961ea6ba76",
+        "fingerprint": "sha256:eb04fe9d96d800745fc591a14b358ffcfadda63826a8f1adfa5bdcf5498af823",
         "nodeCount": 2773,
-        "edgeCount": 6026,
+        "edgeCount": 6033,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -2808,14 +2817,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 520.654,
-        "secondElapsedMs": 466.826,
-        "evaluatorMaxRssKb": 218000,
-        "graphResponseBytes": 4237455,
+        "firstElapsedMs": 477.261,
+        "secondElapsedMs": 477.808,
+        "evaluatorMaxRssKb": 232768,
+        "graphResponseBytes": 4241187,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:976bbc70b81e0918195abc98d669d6e1215bde81c4519b187755e960ff3fd27f",
+        "reportFingerprint": "sha256:ac5665727ec1553e7f939f42929f1a8877a9132410f4352b775f1700d66b25e4",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -2922,6 +2931,435 @@
       }
     },
     {
+      "id": "cicase_python_fastapi_app_testing",
+      "batch": "B",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#docs_src/app_testing/app_b_py310",
+      "repositoryId": "cirepo_python_fastapi_fastapi",
+      "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_fastapi_app_testing.json",
+      "graph": {
+        "fingerprint": "sha256:c8792ad821a7a68b0ea8c9fa441182b1b4a0fddc60eed9ce99b0596ac20b9614",
+        "nodeCount": 28,
+        "edgeCount": 39,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 11.399,
+        "secondElapsedMs": 10.653,
+        "evaluatorMaxRssKb": 232880,
+        "graphResponseBytes": 31262,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "reportFingerprint": "sha256:2fe43b6ed744c4356c0650e4b84d82fab49f99a214729a1ceae14b7d5ad82afa",
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass"
+      }
+    },
+    {
+      "id": "cicase_python_flask_tutorial",
+      "batch": "B",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#examples/tutorial/flaskr",
+      "repositoryId": "cirepo_python_pallets_flask",
+      "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_flask_tutorial.json",
+      "graph": {
+        "fingerprint": "sha256:2cf0eb18e3748125a72a6309888192b92c34ed2ec42b3307e6e2c37030be6882",
+        "nodeCount": 83,
+        "edgeCount": 139,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 4,
+            "indexedFileCount": 4,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 16.656,
+        "secondElapsedMs": 16.424,
+        "evaluatorMaxRssKb": 232976,
+        "graphResponseBytes": 101541,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "reportFingerprint": "sha256:591c13e2d6bf6cda2f95b226e22e835210d4eb697b2751b9d1783e1787644003",
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass"
+      }
+    },
+    {
+      "id": "cicase_python_djangoproject_accounts",
+      "batch": "B",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_django_djangoproject_com@7a19ab3bce8f62fed03bb3eef2c19f2d0af15470#accounts",
+      "repositoryId": "cirepo_python_django_djangoproject_com",
+      "commit": "7a19ab3bce8f62fed03bb3eef2c19f2d0af15470",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cicase_python_djangoproject_accounts.json",
+      "graph": {
+        "fingerprint": "sha256:87c5c59cbaf95573dbae7cc5884f3efd6f100cc5c1b626f7f17acac471ad9c1d",
+        "nodeCount": 128,
+        "edgeCount": 226,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 9,
+            "indexedFileCount": 9,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 21.909,
+        "secondElapsedMs": 21.378,
+        "evaluatorMaxRssKb": 232976,
+        "graphResponseBytes": 164735,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "reportFingerprint": "sha256:f7b8b3c36c7acadcfddae7dbfb64617d528ec174b3d0767df74c5465e34c3a04",
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 1,
+          "matchedTruthItemCount": 1
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass"
+      }
+    },
+    {
       "id": "fixture_java_batch_c",
       "batch": "C",
       "language": "java",
@@ -2929,7 +3367,7 @@
       "sourceRef": "fixture://sha256:ad39462c53135511473eb41f8b657da328927345db347861b0a7ff10bdfc769c",
       "truthPath": "evals/code-intelligence/truth/fixtures/java.json",
       "graph": {
-        "fingerprint": "sha256:e2e470d9858a62cc600350ae3eebea4cbccdb515e0f8110eb86a7f3a056f44ea",
+        "fingerprint": "sha256:0a5e271e8d750e84b671045ae5e69c705ac5889046886859be3af4b0d2daafc1",
         "nodeCount": 24,
         "edgeCount": 31,
         "diagnosticCount": 0,
@@ -2949,14 +3387,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.163,
-        "secondElapsedMs": 10.782,
-        "evaluatorMaxRssKb": 60352,
+        "firstElapsedMs": 33.092,
+        "secondElapsedMs": 11.541,
+        "evaluatorMaxRssKb": 59696,
         "graphResponseBytes": 28741,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:b94436bd76101f3ab7219c58133433eb1df42b906e614772abb5e3a9293b6568",
+        "reportFingerprint": "sha256:2e18092ddde2cdf54665ff6b44ad7b30fa3a016d70343fadda1b6a6ea3e5fbe8",
         "metrics": {
           "declarationRecall": {
             "numerator": 10,
@@ -3070,7 +3508,7 @@
       "sourceRef": "fixture://sha256:cfff5566f8341ab07fb7b53d900368fbf47cb2535fcec14ad2c8a1b2a7cccac5",
       "truthPath": "evals/code-intelligence/truth/fixtures/kotlin.json",
       "graph": {
-        "fingerprint": "sha256:453dc817994846559f1787fbf3dc9e8e6b245a7c427636f35d7a0dc9a285d3d9",
+        "fingerprint": "sha256:0dcaa622ae6c6659aa661c1bf9a1b41b99ed845d9de7d41be98bf0115068cf35",
         "nodeCount": 22,
         "edgeCount": 30,
         "diagnosticCount": 0,
@@ -3090,14 +3528,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.683,
-        "secondElapsedMs": 10.151,
-        "evaluatorMaxRssKb": 64992,
+        "firstElapsedMs": 13.231,
+        "secondElapsedMs": 12.376,
+        "evaluatorMaxRssKb": 64496,
         "graphResponseBytes": 27219,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:3b8533b6c785ab0358e9b368c6b5a71a39ee9a9cbb82cf62f7b630eb12768860",
+        "reportFingerprint": "sha256:814acaa2fd5d1672a5aaa9eaa22231e8d612cfe94c33a54b2c35287212afa435",
         "metrics": {
           "declarationRecall": {
             "numerator": 11,
@@ -3231,9 +3669,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.081,
-        "secondElapsedMs": 9.423,
-        "evaluatorMaxRssKb": 65440,
+        "firstElapsedMs": 12.552,
+        "secondElapsedMs": 10.783,
+        "evaluatorMaxRssKb": 64864,
         "graphResponseBytes": 32743,
         "workspaceFingerprintUnchanged": true
       },
@@ -3350,10 +3788,11 @@
       "language": "java",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_java_google_gson@c9f3fd55854a743b66f857ace3c7b268ea3e2ef7#gson/src/main/java/com/google/gson/reflect",
+      "repositoryId": "cirepo_java_google_gson",
       "commit": "c9f3fd55854a743b66f857ace3c7b268ea3e2ef7",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
       "graph": {
-        "fingerprint": "sha256:1a766bd80f23f6207c986d00c916718fafa0116b88183a6e7dda9261d1ba715a",
+        "fingerprint": "sha256:0ce87bc78ea38c68d3bda442dc0911d145d59f45a9c1cefd5f4817477fc337bd",
         "nodeCount": 66,
         "edgeCount": 149,
         "diagnosticCount": 0,
@@ -3373,14 +3812,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 16.89,
-        "secondElapsedMs": 16.305,
-        "evaluatorMaxRssKb": 70304,
+        "firstElapsedMs": 18.682,
+        "secondElapsedMs": 17.793,
+        "evaluatorMaxRssKb": 67776,
         "graphResponseBytes": 104361,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:3e8238ffa991fb3ca12cce6bd161881c2443077afc802672090e18853ec7d49f",
+        "reportFingerprint": "sha256:77cf7b28dfae4212d1aede91820060179cffc5a9f03d691b9522d1a827b595c9",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -3492,10 +3931,11 @@
       "language": "java",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_java_google_guava@5143dbe06b8a1632b50c8fe19b2870fe135e46e2#guava/src/com/google/common/base/internal",
+      "repositoryId": "cirepo_java_google_guava",
       "commit": "5143dbe06b8a1632b50c8fe19b2870fe135e46e2",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json",
       "graph": {
-        "fingerprint": "sha256:e957df67ba47513c943647338c6f3cba79c6340b8b695352463eac2c3a26377c",
+        "fingerprint": "sha256:069739b36722a54bec78a2e9270c9414837d7065cbe3e9b19ebfda8bd51a81ab",
         "nodeCount": 37,
         "edgeCount": 53,
         "diagnosticCount": 0,
@@ -3515,14 +3955,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.986,
-        "secondElapsedMs": 9.998,
-        "evaluatorMaxRssKb": 70464,
+        "firstElapsedMs": 12.081,
+        "secondElapsedMs": 11.235,
+        "evaluatorMaxRssKb": 68128,
         "graphResponseBytes": 42684,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:b559aa1be7470c9b6ebd91971e41446058d0e1559208cd864f88d9a010442726",
+        "reportFingerprint": "sha256:936d4e55f3b30393f42739170a98849c337a33e3736795d59d9c35dfd896d122",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -3634,10 +4074,11 @@
       "language": "java",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_java_spring_projects_spring_petclinic@51045d1648dad955df586150c1a1a6e22ef400c2#src/main/java/org/springframework/samples/petclinic/owner",
+      "repositoryId": "cirepo_java_spring_projects_spring_petclinic",
       "commit": "51045d1648dad955df586150c1a1a6e22ef400c2",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json",
       "graph": {
-        "fingerprint": "sha256:92544781e6451d4eb02b1ee195b6fd7d818e715ffc3e6e73d6db82855a90ba75",
+        "fingerprint": "sha256:24b746bba13ceb6bd36050fcf6aa0075ff5b06160df48c20ac74badbd914abe0",
         "nodeCount": 213,
         "edgeCount": 391,
         "diagnosticCount": 0,
@@ -3657,14 +4098,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 30.572,
-        "secondElapsedMs": 30.797,
-        "evaluatorMaxRssKb": 73008,
+        "firstElapsedMs": 32.072,
+        "secondElapsedMs": 32.97,
+        "evaluatorMaxRssKb": 75200,
         "graphResponseBytes": 291682,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:21a0d77b950300a26afb4fb0fb04113d6d04e851f437444311612d23e695c2e1",
+        "reportFingerprint": "sha256:a2280d6c4c92a6d42bf1de23c75420ac4b6aadd105dc1b958e188221b78d2b38",
         "metrics": {
           "declarationRecall": {
             "numerator": 5,
@@ -3776,6 +4217,7 @@
       "language": "kotlin",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_kotlin_android_nowinandroid@7d45eae4f8720a0c77f507712ba2437ff974b6ed#core/model/src/main/kotlin",
+      "repositoryId": "cirepo_kotlin_android_nowinandroid",
       "commit": "7d45eae4f8720a0c77f507712ba2437ff974b6ed",
       "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json",
       "graph": {
@@ -3799,9 +4241,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.894,
-        "secondElapsedMs": 10.447,
-        "evaluatorMaxRssKb": 73024,
+        "firstElapsedMs": 13.894,
+        "secondElapsedMs": 13.42,
+        "evaluatorMaxRssKb": 75328,
         "graphResponseBytes": 43265,
         "workspaceFingerprintUnchanged": true
       },
@@ -3918,10 +4360,11 @@
       "language": "kotlin",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_kotlin_kotlin_kotlinx_coroutines@165c6cb5859b5365dec193abc75dee9f49ce1389#kotlinx-coroutines-core/common/src/internal",
+      "repositoryId": "cirepo_kotlin_kotlin_kotlinx_coroutines",
       "commit": "165c6cb5859b5365dec193abc75dee9f49ce1389",
       "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json",
       "graph": {
-        "fingerprint": "sha256:f9a194b7618de5c5ab114cc6083ea8626df1e514edadbcf0560ca532032f170f",
+        "fingerprint": "sha256:b6f0e41f9691205306f242bd1f1863446beb4bdd0038fd94556575ddc960f57b",
         "nodeCount": 394,
         "edgeCount": 573,
         "diagnosticCount": 0,
@@ -3941,14 +4384,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 50.495,
-        "secondElapsedMs": 49.903,
-        "evaluatorMaxRssKb": 82224,
+        "firstElapsedMs": 54.19,
+        "secondElapsedMs": 54.207,
+        "evaluatorMaxRssKb": 84848,
         "graphResponseBytes": 468229,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:cd9d838478413359177a19d57e95ad2a3723278ade9432a40fc6cdb74834e5f1",
+        "reportFingerprint": "sha256:40361f046bf638fca36a7ab2daa62f73ed88267fe702766f3fae0abbbd858ee4",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4060,10 +4503,11 @@
       "language": "kotlin",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_kotlin_ktorio_ktor@fc6595632e7412abb98b941f926d0ea13c7647d1#ktor-server/ktor-server-core/common/src/io/ktor/server/routing",
+      "repositoryId": "cirepo_kotlin_ktorio_ktor",
       "commit": "fc6595632e7412abb98b941f926d0ea13c7647d1",
       "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json",
       "graph": {
-        "fingerprint": "sha256:183138a6d35dfee93394e154381e9f5c3668bb11951680e42d468b7123dbd9dd",
+        "fingerprint": "sha256:2bfe90598bc474764754d58d15757114418ead382903c1b878817dac07a5c2df",
         "nodeCount": 484,
         "edgeCount": 846,
         "diagnosticCount": 0,
@@ -4083,14 +4527,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 67.437,
-        "secondElapsedMs": 66.872,
-        "evaluatorMaxRssKb": 86128,
+        "firstElapsedMs": 71.188,
+        "secondElapsedMs": 71.626,
+        "evaluatorMaxRssKb": 86736,
         "graphResponseBytes": 642279,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:8ea8bd5d5f68a962dd0c3b6bbc79b5b812054608e4eef9502e56a05f4db814ef",
+        "reportFingerprint": "sha256:972713586c366c440b87390544d290bcd40d6a030ac18720cec6fdc937b95deb",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4202,10 +4646,11 @@
       "language": "csharp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_csharp_dotnet_aspnetcore@d89ecc425733c5439096864cb9f7f97cab5416a0#src/Http/Routing/src/Patterns",
+      "repositoryId": "cirepo_csharp_dotnet_aspnetcore",
       "commit": "d89ecc425733c5439096864cb9f7f97cab5416a0",
       "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json",
       "graph": {
-        "fingerprint": "sha256:073d70c119eb276113a3728f033471b6a2324fc6c4c8ba4c64c4676f8c15755c",
+        "fingerprint": "sha256:4db9ac0026c8201c3f3b0898192d55246ca965812e9fd58eab542219cdb4dfa5",
         "nodeCount": 291,
         "edgeCount": 644,
         "diagnosticCount": 11,
@@ -4230,14 +4675,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 67.29,
-        "secondElapsedMs": 67.853,
-        "evaluatorMaxRssKb": 99488,
+        "firstElapsedMs": 71.864,
+        "secondElapsedMs": 70.382,
+        "evaluatorMaxRssKb": 96992,
         "graphResponseBytes": 476144,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:fec2f3dcc4e92d78eea6516c9821d5fb82cb03e3edf75fe88eefe122aaefdcd5",
+        "reportFingerprint": "sha256:036504dbe02957c4305b0f49082c485d2300cc3b64c4b4e260cfe039f387c05d",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4349,10 +4794,11 @@
       "language": "csharp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_csharp_dotnet_runtime@e487c08fc5e689918da3e7fbb2747ca8b02c260d#src/libraries/System.Text.Json/src/System/Text/Json/Nodes",
+      "repositoryId": "cirepo_csharp_dotnet_runtime",
       "commit": "e487c08fc5e689918da3e7fbb2747ca8b02c260d",
       "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json",
       "graph": {
-        "fingerprint": "sha256:d4844efbccfc423d6475b086d165cf0984708fc515def3987d99eb587ff9001c",
+        "fingerprint": "sha256:81d02e70746d3f512769e2af2f3c407f09b8c9ffbae70da7f1d9f8ea03389ce5",
         "nodeCount": 461,
         "edgeCount": 746,
         "diagnosticCount": 4,
@@ -4377,14 +4823,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 78.046,
-        "secondElapsedMs": 77.653,
-        "evaluatorMaxRssKb": 104096,
+        "firstElapsedMs": 82.831,
+        "secondElapsedMs": 83.312,
+        "evaluatorMaxRssKb": 104064,
         "graphResponseBytes": 583466,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:cb1ed56d1453d8ef782979155a84c9c0d8b5dd40fc622c416e2b02cd9b4e2780",
+        "reportFingerprint": "sha256:1d20bdeb918422d857bb6f1777f035dbaeec887639bdda7b39805c2fd193f63d",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4496,10 +4942,11 @@
       "language": "csharp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_csharp_jamesnk_newtonsoft_json@4f73e74372445108d2c1bda37b36e6f5e43402e0#Src/Newtonsoft.Json/Linq/JsonPath",
+      "repositoryId": "cirepo_csharp_jamesnk_newtonsoft_json",
       "commit": "4f73e74372445108d2c1bda37b36e6f5e43402e0",
       "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json",
       "graph": {
-        "fingerprint": "sha256:3c0cf5fb7a3378e37d01a52d202fb51e5bd95ca17b6bdb68dca471e1f775f30e",
+        "fingerprint": "sha256:6b1e1096d446a208bff6ef5fd93a3589fc7ac226948f67784087af5be0980042",
         "nodeCount": 172,
         "edgeCount": 387,
         "diagnosticCount": 2,
@@ -4524,14 +4971,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 38.113,
-        "secondElapsedMs": 40.904,
-        "evaluatorMaxRssKb": 104720,
+        "firstElapsedMs": 41.605,
+        "secondElapsedMs": 40.967,
+        "evaluatorMaxRssKb": 104688,
         "graphResponseBytes": 273419,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:e3682ee36bdbdab99be8c9e457160efaacb749c4b8a75a32548e92f1ef80aa62",
+        "reportFingerprint": "sha256:e142ef8a442ece13adeaec42151c18400050fa282f8d60b06e2f7e73730e53bd",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4645,7 +5092,7 @@
       "sourceRef": "fixture://sha256:de5378c339ebaf83d8a1967b20b16b0edbf9152c3309235a78b3bb5cf4a629f5",
       "truthPath": "evals/code-intelligence/truth/fixtures/c.json",
       "graph": {
-        "fingerprint": "sha256:c6e77d45e7a26c773df6534db6aed1d8a1020274673b4d542a668f3fce798d30",
+        "fingerprint": "sha256:863bbc75a97c2133ee983ce2895f5f4b986f8051c79168b36e3119f19831961b",
         "nodeCount": 10,
         "edgeCount": 12,
         "diagnosticCount": 0,
@@ -4665,14 +5112,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.494,
-        "secondElapsedMs": 7.779,
-        "evaluatorMaxRssKb": 58192,
+        "firstElapsedMs": 31.947,
+        "secondElapsedMs": 10.001,
+        "evaluatorMaxRssKb": 58464,
         "graphResponseBytes": 10617,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:80a4b09d7d5adfcac5c0024f57be9d7244e88a379e62e57a2a932a99fdaa062b",
+        "reportFingerprint": "sha256:dce9c8eeb2a80c1e066bf4af65283172de0ef5c605c8c8283094b3b34effa4ac",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -4786,7 +5233,7 @@
       "sourceRef": "fixture://sha256:25afc33ca4302dc84a0105f2f31543541d13bbb4b4b9100b03ff2855fd9476cf",
       "truthPath": "evals/code-intelligence/truth/fixtures/cpp.json",
       "graph": {
-        "fingerprint": "sha256:235a12c8aa507b54fbe0f8fea2f956ef64ccd329406a071feacf7f11d33b29c1",
+        "fingerprint": "sha256:a0ff5653e0755eb147fd684f0b7cc28bbbb5ff0ed1f5775f1d402f16f3b70877",
         "nodeCount": 27,
         "edgeCount": 30,
         "diagnosticCount": 0,
@@ -4806,14 +5253,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.34,
-        "secondElapsedMs": 9.66,
-        "evaluatorMaxRssKb": 65088,
+        "firstElapsedMs": 12.833,
+        "secondElapsedMs": 11.509,
+        "evaluatorMaxRssKb": 64656,
         "graphResponseBytes": 26990,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:0c600567f18436556b96299a94b2262bffbca88c492e8be7e280733e7cab1d36",
+        "reportFingerprint": "sha256:2bcb4b198a60f10ae5829b23c7e2c618189236609261033d571ba213e2e09b77",
         "metrics": {
           "declarationRecall": {
             "numerator": 6,
@@ -4927,7 +5374,7 @@
       "sourceRef": "fixture://sha256:5cbe7153b65842626587a3c05dcad05ed6ff63129adc1fe4d579dd82460642bf",
       "truthPath": "evals/code-intelligence/truth/fixtures/swift.json",
       "graph": {
-        "fingerprint": "sha256:2390f8b67830c7ed5fe8c8c93849a8e56fc23d46f631773a63960fca53170cf8",
+        "fingerprint": "sha256:e54e5f14988d7aaf1be0b5ee43b9d4d9091759579a4b8cc7bb56481f3e9297b4",
         "nodeCount": 19,
         "edgeCount": 19,
         "diagnosticCount": 0,
@@ -4947,14 +5394,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.076,
-        "secondElapsedMs": 9.093,
-        "evaluatorMaxRssKb": 65488,
+        "firstElapsedMs": 12.081,
+        "secondElapsedMs": 11.033,
+        "evaluatorMaxRssKb": 66512,
         "graphResponseBytes": 18525,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:de01009fdd8390d4977c0c3316840a4ed6e24fbdc7f2b76191cdce9173a84f4c",
+        "reportFingerprint": "sha256:6de22c1f104f51f0ca83de569e444e4bc7f7b4e8b0c8284068931292fc27323d",
         "metrics": {
           "declarationRecall": {
             "numerator": 5,
@@ -5068,7 +5515,7 @@
       "sourceRef": "fixture://sha256:75ad927a4e8ded1ac3b1c1b7fef6fa3a8d909dd00204d3cc7538731bbcec43da",
       "truthPath": "evals/code-intelligence/truth/fixtures/dart.json",
       "graph": {
-        "fingerprint": "sha256:c97f26957f181069d89275554a38b1f9ff509b55062f99901662c291276f8474",
+        "fingerprint": "sha256:bd4bb61fc130772f4d61a77543c3be31b81e7604d4927232dcaddce5b69e1ce6",
         "nodeCount": 26,
         "edgeCount": 34,
         "diagnosticCount": 0,
@@ -5088,14 +5535,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.652,
-        "secondElapsedMs": 9.291,
-        "evaluatorMaxRssKb": 65744,
+        "firstElapsedMs": 12.166,
+        "secondElapsedMs": 10.924,
+        "evaluatorMaxRssKb": 66736,
         "graphResponseBytes": 28352,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:654a7ea344833b616515c01015f6edffa5febeb18ead2c6e2d6659748202e3f8",
+        "reportFingerprint": "sha256:b5fc73db91431a095bef63cd37587c4a2260efb67fa73c9bb6d0ae7dda427081",
         "metrics": {
           "declarationRecall": {
             "numerator": 8,
@@ -5207,6 +5654,7 @@
       "language": "c",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_c_antirez_kilo@323d93b29bd89a2cb446de90c4ed4fea1764176e#.",
+      "repositoryId": "cirepo_c_antirez_kilo",
       "commit": "323d93b29bd89a2cb446de90c4ed4fea1764176e",
       "truthPath": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json",
       "graph": {
@@ -5230,9 +5678,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 21.464,
-        "secondElapsedMs": 20.401,
-        "evaluatorMaxRssKb": 71008,
+        "firstElapsedMs": 23.16,
+        "secondElapsedMs": 23.801,
+        "evaluatorMaxRssKb": 69984,
         "graphResponseBytes": 143223,
         "workspaceFingerprintUnchanged": true
       },
@@ -5349,21 +5797,22 @@
       "language": "c",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_c_curl_curl@4176aba5e4871a2f1c7c120dd76568f80f5d5ddc#lib",
+      "repositoryId": "cirepo_c_curl_curl",
       "commit": "4176aba5e4871a2f1c7c120dd76568f80f5d5ddc",
       "truthPath": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json",
       "graph": {
-        "fingerprint": "sha256:0eb909644f744fe111f08f69ee09265223bd6f3b123bb875cdc9d1184413d5e0",
+        "fingerprint": "sha256:18d152d4f0168e337271dd2013c9d4498bc8289540b2043b410cd10ce4c31d9b",
         "nodeCount": 5000,
         "edgeCount": 10000,
         "diagnosticCount": 115,
         "diagnostics": [
           {
             "code": "edge_budget_reached",
-            "count": 8727
+            "count": 9233
           },
           {
             "code": "node_budget_reached",
-            "count": 5237
+            "count": 5244
           },
           {
             "code": "parse_recovered",
@@ -5385,14 +5834,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 5381.192,
-        "secondElapsedMs": 5414.431,
-        "evaluatorMaxRssKb": 174592,
-        "graphResponseBytes": 7020930,
+        "firstElapsedMs": 12372.704,
+        "secondElapsedMs": 12029.857,
+        "evaluatorMaxRssKb": 164784,
+        "graphResponseBytes": 7020962,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:0b390409fa5ea81b5a5048d57add695b79ecfd38bdee810ccd901158ff7bf2c1",
+        "reportFingerprint": "sha256:bfec41ed37e640539caf526ce1219ef11e0b0b6e01168aa863180dcfa06e2375",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -5504,11 +5953,12 @@
       "language": "c",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_c_libuv_libuv@2cadaa40167050baf7c6905ac897e6fb57afb2c6#src",
+      "repositoryId": "cirepo_c_libuv_libuv",
       "commit": "2cadaa40167050baf7c6905ac897e6fb57afb2c6",
       "truthPath": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json",
       "graph": {
-        "fingerprint": "sha256:b506f7ea959e8d94546ecc8ddae1ceead6b5fd27f4db5444b27f8cc87e8c8712",
-        "nodeCount": 3833,
+        "fingerprint": "sha256:0d2e6f2c8b5d2183ce8c86213f8affa6b236c291fddbb89caf3683fd719bee99",
+        "nodeCount": 3828,
         "edgeCount": 10000,
         "diagnosticCount": 45,
         "diagnostics": [
@@ -5536,14 +5986,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 720.451,
-        "secondElapsedMs": 735.857,
-        "evaluatorMaxRssKb": 176224,
-        "graphResponseBytes": 6585947,
+        "firstElapsedMs": 962.841,
+        "secondElapsedMs": 984.617,
+        "evaluatorMaxRssKb": 184816,
+        "graphResponseBytes": 6583952,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:70aae2bbb3e88a5c9b3795c8c0f9ae9fe358d9e3acbea5c96728abf14bfed2fd",
+        "reportFingerprint": "sha256:ce63835c9d90d4e803e1f9676f3bee13e2fcc30c30f19ef3d7b3b03bfbec72d5",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -5655,17 +6105,18 @@
       "language": "cpp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_cpp_catchorg_catch2@ae5d271da2c88b859d6365281ac075112115d4b1#src/Catch2",
+      "repositoryId": "cirepo_cpp_catchorg_catch2",
       "commit": "ae5d271da2c88b859d6365281ac075112115d4b1",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json",
       "graph": {
-        "fingerprint": "sha256:3d27903757a02fc240d0444f3e504c0f3a6ca3ecb3e2303fbf9f46afcd64ed78",
+        "fingerprint": "sha256:be47c2199f19cdb3f69cd8f53e00c04325b274dee8d5d06959afbd56c039bbaf",
         "nodeCount": 5000,
-        "edgeCount": 7822,
+        "edgeCount": 7857,
         "diagnosticCount": 44,
         "diagnostics": [
           {
             "code": "node_budget_reached",
-            "count": 254
+            "count": 225
           },
           {
             "code": "parse_recovered",
@@ -5687,14 +6138,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 934.377,
-        "secondElapsedMs": 944.162,
-        "evaluatorMaxRssKb": 176224,
-        "graphResponseBytes": 6365250,
+        "firstElapsedMs": 863.928,
+        "secondElapsedMs": 849.315,
+        "evaluatorMaxRssKb": 184816,
+        "graphResponseBytes": 6384455,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:8001eaf0c8f3d62f7e9b938f406269917d3e856d3de9702fed8b0628f5eaa109",
+        "reportFingerprint": "sha256:cbb88aa19069bb4db85d1d5990c3e4fed2688e2b33dd90b551345d76e71c514d",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -5806,10 +6257,11 @@
       "language": "cpp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_cpp_fmtlib_fmt@a79df4504cd4e42ed004b1113fb82171e62ed822#src",
+      "repositoryId": "cirepo_cpp_fmtlib_fmt",
       "commit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json",
       "graph": {
-        "fingerprint": "sha256:49fdb51ca01115305c31147f63738daec938b8880937ca1862e4a589102221f5",
+        "fingerprint": "sha256:63d2173abe65d679a8654b3124b3d8800fbe60d47c5145b2f66a8285ff49e4df",
         "nodeCount": 109,
         "edgeCount": 231,
         "diagnosticCount": 4,
@@ -5834,14 +6286,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 22.062,
-        "secondElapsedMs": 21.274,
-        "evaluatorMaxRssKb": 176224,
-        "graphResponseBytes": 158535,
+        "firstElapsedMs": 22.849,
+        "secondElapsedMs": 21.98,
+        "evaluatorMaxRssKb": 184816,
+        "graphResponseBytes": 158533,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:4ba7afae87428b7abd3ff31a680c290797ef8001de152132e98e891f6a124c20",
+        "reportFingerprint": "sha256:11be088b1b58fc8170258fa016c583d3fd65e674b0c77771e68eaf5723450bbe",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -5953,11 +6405,12 @@
       "language": "cpp",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_cpp_nlohmann_json@722c03495f9978eb727f480b6ea0742f652e06a9#include/nlohmann/detail",
+      "repositoryId": "cirepo_cpp_nlohmann_json",
       "commit": "722c03495f9978eb727f480b6ea0742f652e06a9",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json",
       "graph": {
-        "fingerprint": "sha256:0c6a7589e445f2035f6a0dba8ae5fb732c44dc594d739153eb4755ebede9dc9c",
-        "nodeCount": 1220,
+        "fingerprint": "sha256:fcb5372f428eaddecd22573196638b811fbebfeb9a24b9fadc64aff36907b72e",
+        "nodeCount": 1215,
         "edgeCount": 4661,
         "diagnosticCount": 39,
         "diagnostics": [
@@ -5981,14 +6434,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 378.9,
-        "secondElapsedMs": 384.888,
-        "evaluatorMaxRssKb": 176224,
-        "graphResponseBytes": 2952182,
+        "firstElapsedMs": 374.752,
+        "secondElapsedMs": 382.349,
+        "evaluatorMaxRssKb": 184816,
+        "graphResponseBytes": 2950227,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:d353290dbfa0b64ff7b5cd4956ea1ce75693eca258ce16fa2b93f372a989c61f",
+        "reportFingerprint": "sha256:ad6e81c8ca6066d0dd441086bf32fd3beb4f765c297118d0cfc8fca82fe909df",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -6100,10 +6553,11 @@
       "language": "swift",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_swift_alamofire_alamofire@903c53c710d1cbbac0b4b9c2527aefb791e1fee3#Source/Core",
+      "repositoryId": "cirepo_swift_alamofire_alamofire",
       "commit": "903c53c710d1cbbac0b4b9c2527aefb791e1fee3",
       "truthPath": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json",
       "graph": {
-        "fingerprint": "sha256:81d8d617598478b3609611e9bc9b69d8d69d3f7588bd05698f0050f958ac791c",
+        "fingerprint": "sha256:27f9924b84bc3b50ecb9c5bb698c0cabfd5e270410634864959a6de538fdd36e",
         "nodeCount": 837,
         "edgeCount": 1754,
         "diagnosticCount": 4,
@@ -6128,14 +6582,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 177.983,
-        "secondElapsedMs": 176.984,
-        "evaluatorMaxRssKb": 176224,
+        "firstElapsedMs": 182.964,
+        "secondElapsedMs": 182.415,
+        "evaluatorMaxRssKb": 184816,
         "graphResponseBytes": 1264956,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:96d95b547f5638ce21f5825bdb35b579d7755e77a799bc4a34f9021720e57b8e",
+        "reportFingerprint": "sha256:adf83a280dbb7519d5e30a2be17bf9eee74a69645e061d3a4ca163dbaef849a6",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -6247,10 +6701,11 @@
       "language": "swift",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_swift_apple_swift_nio@0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b#Sources/NIOCore",
+      "repositoryId": "cirepo_swift_apple_swift_nio",
       "commit": "0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b",
       "truthPath": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json",
       "graph": {
-        "fingerprint": "sha256:cd9e7f12e81a1c3cfef03c3c116b8b34c83277d3146f806f3af5f170fba8917c",
+        "fingerprint": "sha256:b5f73e9697f47d40ba9cedc3abec98c63da2ceb6b216b3955b317b310f50051e",
         "nodeCount": 2611,
         "edgeCount": 6654,
         "diagnosticCount": 24,
@@ -6275,14 +6730,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 720.619,
-        "secondElapsedMs": 750.133,
-        "evaluatorMaxRssKb": 176768,
-        "graphResponseBytes": 4654548,
+        "firstElapsedMs": 684.949,
+        "secondElapsedMs": 683.5,
+        "evaluatorMaxRssKb": 184816,
+        "graphResponseBytes": 4654546,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:f8dc8f05540a7125dac3c14b962026af0208037171d5cbbce20407b0c94ea86d",
+        "reportFingerprint": "sha256:1d867c68caaaea81143af5b8cd7edb645edce78d745c350085319238171b68d9",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -6394,10 +6849,11 @@
       "language": "swift",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_swift_vapor_vapor@059b578bde8a037a42543914b8e14041fbec01e7#Sources/Vapor/Routing",
+      "repositoryId": "cirepo_swift_vapor_vapor",
       "commit": "059b578bde8a037a42543914b8e14041fbec01e7",
       "truthPath": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json",
       "graph": {
-        "fingerprint": "sha256:41acbc42c1210dc5f34bfcc5760a178aa7c947713eb2430d9dde9f0629f25396",
+        "fingerprint": "sha256:df69bcf6aaf8094795f0841b48019b736b847b502bb48e875c15ef295e3f57c9",
         "nodeCount": 125,
         "edgeCount": 200,
         "diagnosticCount": 0,
@@ -6417,14 +6873,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.666,
-        "secondElapsedMs": 22.116,
-        "evaluatorMaxRssKb": 181600,
+        "firstElapsedMs": 24.683,
+        "secondElapsedMs": 23.646,
+        "evaluatorMaxRssKb": 184816,
         "graphResponseBytes": 157592,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:c6ccda9cf8f57122ef69ca18f153a8f083f61a8e5fe4ed1af557c94cf9ddcb8a",
+        "reportFingerprint": "sha256:58bb0d4a0457c02c5303cf9bf58a81d5c2c453c41bb4b519f07ac3f77e9d6ed0",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -6536,10 +6992,11 @@
       "language": "dart",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib/src",
+      "repositoryId": "cirepo_dart_dart_lang_http",
       "commit": "fe4aaa900d50f0423200dd333314729d2c0650b9",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json",
       "graph": {
-        "fingerprint": "sha256:b6f5558cb7e074a8b8b7fd975a947dc1e3467abc3ee326fd4e668037616e4ae1",
+        "fingerprint": "sha256:e955a8b3ae3dc932e34003f1325f6eea10d059d856d8aaeea078eef058323065",
         "nodeCount": 291,
         "edgeCount": 528,
         "diagnosticCount": 0,
@@ -6559,14 +7016,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 47.221,
-        "secondElapsedMs": 47.493,
-        "evaluatorMaxRssKb": 181600,
+        "firstElapsedMs": 51.552,
+        "secondElapsedMs": 50.638,
+        "evaluatorMaxRssKb": 184816,
         "graphResponseBytes": 388253,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:40e9c2a172ac88b1af91a40ff9be77ff1600dfa32834e4766f7061dfb1390da8",
+        "reportFingerprint": "sha256:ad1a8a536728cc3b53c1dc0a8559b8790c8d1f7a2b0efda155d019830d3dd7fb",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -6678,10 +7135,11 @@
       "language": "dart",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_dart_dart_lang_shelf@833433edf813df24e9a48e01fc38647d53b979f8#pkgs/shelf_router/lib",
+      "repositoryId": "cirepo_dart_dart_lang_shelf",
       "commit": "833433edf813df24e9a48e01fc38647d53b979f8",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json",
       "graph": {
-        "fingerprint": "sha256:5500c4f48d039790836cbe8b52287ad24b52a2e1d4361b0d5993145aa5b6c959",
+        "fingerprint": "sha256:af5142212cb7f133643fb69035c454c724125ca5d81f4079b511e21b93d80fef",
         "nodeCount": 88,
         "edgeCount": 133,
         "diagnosticCount": 0,
@@ -6701,14 +7159,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 18.3,
-        "secondElapsedMs": 17.274,
-        "evaluatorMaxRssKb": 181600,
+        "firstElapsedMs": 19.612,
+        "secondElapsedMs": 18.112,
+        "evaluatorMaxRssKb": 184816,
         "graphResponseBytes": 103869,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:b1a6e0b928eb8a98dc9599abcd7151fbd573f208f752eca5badcb2d5472b7448",
+        "reportFingerprint": "sha256:03ed787225e681b5626424715437417c86125c1966e1800461f716125f2d2406",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -6820,10 +7278,11 @@
       "language": "dart",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_dart_flutter_samples@09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1#navigation_and_routing/lib",
+      "repositoryId": "cirepo_dart_flutter_samples",
       "commit": "09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json",
       "graph": {
-        "fingerprint": "sha256:ea922d925efe91f64dd1e0eece11e60f8e474f8076ac3373f09528aeb330c0f2",
+        "fingerprint": "sha256:ed804b14d898c974c513041446a5ac226b49650b6a8520c5eb614e5aab8fbb2b",
         "nodeCount": 180,
         "edgeCount": 354,
         "diagnosticCount": 0,
@@ -6843,14 +7302,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.061,
-        "secondElapsedMs": 32.291,
-        "evaluatorMaxRssKb": 181600,
+        "firstElapsedMs": 35.268,
+        "secondElapsedMs": 37.378,
+        "evaluatorMaxRssKb": 184816,
         "graphResponseBytes": 258717,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:1e0e30983eda6a7f2eec95c65eb7d9f6dc6440d44fb5e92cd02da2cd8da998e5",
+        "reportFingerprint": "sha256:9cda947af20d6c3220959537bc245ac59e2b922b997b212477018425eb6a871d",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -6964,7 +7423,7 @@
       "sourceRef": "fixture://sha256:f140770e8d32cf6ce01974a9440753f70d3a86c83ab387fcad2ee00c886f8b7d",
       "truthPath": "evals/code-intelligence/truth/fixtures/php.json",
       "graph": {
-        "fingerprint": "sha256:d0492b8eb1e990e48b8f1a1ed03b053f6ac63723e66c6bb854decd3b44555ac7",
+        "fingerprint": "sha256:b69c3b4601243fec57a7128eca7481f3b2b1791fe55ff14291435d46ad4e4d00",
         "nodeCount": 42,
         "edgeCount": 42,
         "diagnosticCount": 0,
@@ -6984,14 +7443,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.688,
-        "secondElapsedMs": 10.867,
-        "evaluatorMaxRssKb": 60752,
+        "firstElapsedMs": 36.391,
+        "secondElapsedMs": 13.47,
+        "evaluatorMaxRssKb": 61456,
         "graphResponseBytes": 39731,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:2e80feaf67cbacb98c9587a3b94358a1f6b39bb1d3f4927aceb357892c1c12f9",
+        "reportFingerprint": "sha256:f1a38c9d78f21d950245b2db4d1770216deeb3871f64e0617bcb3e22ba77fbc3",
         "metrics": {
           "declarationRecall": {
             "numerator": 6,
@@ -7105,7 +7564,7 @@
       "sourceRef": "fixture://sha256:9d2476002e24bfb25100929232e11de66c5f3d46ad92761250d150506713f434",
       "truthPath": "evals/code-intelligence/truth/fixtures/ruby.json",
       "graph": {
-        "fingerprint": "sha256:fe3e5a09f824483651eb5aa3b54cfb3003caf89f72392b0b167cc73bd07acb71",
+        "fingerprint": "sha256:444e7a875e5bec73476b1885b37622af867647e02e5781b45bed55f2aca59502",
         "nodeCount": 28,
         "edgeCount": 30,
         "diagnosticCount": 0,
@@ -7125,14 +7584,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.096,
-        "secondElapsedMs": 9.536,
-        "evaluatorMaxRssKb": 64688,
+        "firstElapsedMs": 12.575,
+        "secondElapsedMs": 11.63,
+        "evaluatorMaxRssKb": 65824,
         "graphResponseBytes": 27582,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:a6ec9de059180bde5afe68e935a12ffd4dfbec82623dabe899c5900ee358ed54",
+        "reportFingerprint": "sha256:7ac5a50a568ab80a546f8378a6eaf11fd1d919295f6e106699a99a092bfe8fe0",
         "metrics": {
           "declarationRecall": {
             "numerator": 5,
@@ -7244,11 +7703,12 @@
       "language": "php",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_php_laravel_framework@ee0296f03a02b8f890c6323f18bdf4669468c0c2#src/Illuminate/Routing",
+      "repositoryId": "cirepo_php_laravel_framework",
       "commit": "ee0296f03a02b8f890c6323f18bdf4669468c0c2",
       "truthPath": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json",
       "graph": {
-        "fingerprint": "sha256:066bfde6802f2a96f6ec9a2cb2e66859cb044c73b104b39c70b1a138d298e997",
-        "nodeCount": 1659,
+        "fingerprint": "sha256:f9434e896f944a31f7db2da659e33cac5d5791160d7f6761d42ce9a96069ed2a",
+        "nodeCount": 1647,
         "edgeCount": 2811,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7267,14 +7727,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 219.098,
-        "secondElapsedMs": 222.75,
-        "evaluatorMaxRssKb": 97456,
-        "graphResponseBytes": 2153316,
+        "firstElapsedMs": 237.741,
+        "secondElapsedMs": 234.676,
+        "evaluatorMaxRssKb": 116880,
+        "graphResponseBytes": 2148541,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:b10fb0d79fe102544ab856f5483664626ba030a7fdb9ce5f06e91098a29d965b",
+        "reportFingerprint": "sha256:d6f1be487c190a5a9554bb3af77fc130fefb5dd012c9e27c0b1ff651fc2c045a",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7386,11 +7846,12 @@
       "language": "php",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_php_slimphp_slim@80900fb39cafce3ae53b18a2c4f642a122f03095#Slim",
+      "repositoryId": "cirepo_php_slimphp_slim",
       "commit": "80900fb39cafce3ae53b18a2c4f642a122f03095",
       "truthPath": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json",
       "graph": {
-        "fingerprint": "sha256:dfd7e13d50aae68936ec1675a5d63d45fabeca557b7554f7f3a46a8cab2a53dc",
-        "nodeCount": 954,
+        "fingerprint": "sha256:4bf8a662cac0aaa24a602e8c6c16f2b55a7a98a879979c17543a0cc1b308852a",
+        "nodeCount": 945,
         "edgeCount": 1498,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7409,14 +7870,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 116.385,
-        "secondElapsedMs": 117.011,
-        "evaluatorMaxRssKb": 119152,
-        "graphResponseBytes": 1209103,
+        "firstElapsedMs": 124.52,
+        "secondElapsedMs": 123.77,
+        "evaluatorMaxRssKb": 122816,
+        "graphResponseBytes": 1205376,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:f2d3af09e0c560e5038c7449b2458f42312025b93e007fc5c431c2f4988a02c1",
+        "reportFingerprint": "sha256:b7c4af9bc581accced424cc5bb8dcf039dac9da54f36b36e6bf54bb3b1f24fc7",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7528,11 +7989,12 @@
       "language": "php",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_php_symfony_symfony@7dbebd843d25b2f72e2f7dfbe044c632941ea924#src/Symfony/Component/Routing",
+      "repositoryId": "cirepo_php_symfony_symfony",
       "commit": "7dbebd843d25b2f72e2f7dfbe044c632941ea924",
       "truthPath": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json",
       "graph": {
-        "fingerprint": "sha256:20378fa118f52715f5996518304d3fbc3eaed050c5428ef737d2405094a5f9c5",
-        "nodeCount": 2961,
+        "fingerprint": "sha256:0dfe90c4fbb5aece0a7eab610ae880a241d95f870721ba25c61187df232a5234",
+        "nodeCount": 2943,
         "edgeCount": 8888,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7551,14 +8013,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 853.325,
-        "secondElapsedMs": 853.263,
-        "evaluatorMaxRssKb": 168592,
-        "graphResponseBytes": 6195118,
+        "firstElapsedMs": 941.187,
+        "secondElapsedMs": 946.227,
+        "evaluatorMaxRssKb": 158160,
+        "graphResponseBytes": 6187816,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:0bf81254eaa5048ff5775023d9df52d6c9da89f9b4ba36bf45dd48525f664a0f",
+        "reportFingerprint": "sha256:729a41130c9d464119b9b0b3146f2081ec2284004c2e7044e767e302acb62ad2",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7670,11 +8132,12 @@
       "language": "ruby",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_ruby_rails_rails@f011d1218bdd77857f30ce3964eef186f0f14de5#actionpack/lib/action_dispatch/routing",
+      "repositoryId": "cirepo_ruby_rails_rails",
       "commit": "f011d1218bdd77857f30ce3964eef186f0f14de5",
       "truthPath": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json",
       "graph": {
-        "fingerprint": "sha256:55d5f7f009118d4480f89c69c6b0bbc549576a4f41a4d0ba4bcf75046ca737bf",
-        "nodeCount": 791,
+        "fingerprint": "sha256:8ccbbd840576dfb33d09a9bb008637bf8e3b08ef167ce6c6476f6ccb6304907d",
+        "nodeCount": 765,
         "edgeCount": 1798,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7693,14 +8156,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 116.619,
-        "secondElapsedMs": 117.958,
-        "evaluatorMaxRssKb": 168592,
-        "graphResponseBytes": 1250384,
+        "firstElapsedMs": 128.7,
+        "secondElapsedMs": 130.166,
+        "evaluatorMaxRssKb": 158160,
+        "graphResponseBytes": 1240602,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:cca654bdce84fa91c0b8d6e563ac4f50ba801bb40844ce6607d60fac2b13e26d",
+        "reportFingerprint": "sha256:c7a11cba67a14452d52dbe387a992468a6e0ddb8ca74f92084d13265a81dfd6a",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7812,11 +8275,12 @@
       "language": "ruby",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_ruby_ruby_rake@162f9f80cad8121c6427d3031a2a85e62e2d570d#lib/rake",
+      "repositoryId": "cirepo_ruby_ruby_rake",
       "commit": "162f9f80cad8121c6427d3031a2a85e62e2d570d",
       "truthPath": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json",
       "graph": {
-        "fingerprint": "sha256:19c657c9ece1bcb4fa634481fb9fd2f893630787b1e56ac161ea5ea0bfa3f32e",
-        "nodeCount": 894,
+        "fingerprint": "sha256:db177bb4f88cc27c88cf51bac37793615b91bf3aa61c6f81859269c65ca888bd",
+        "nodeCount": 887,
         "edgeCount": 1558,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7835,14 +8299,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 111.047,
-        "secondElapsedMs": 109.962,
-        "evaluatorMaxRssKb": 168592,
-        "graphResponseBytes": 1142095,
+        "firstElapsedMs": 115.951,
+        "secondElapsedMs": 116.063,
+        "evaluatorMaxRssKb": 158160,
+        "graphResponseBytes": 1139521,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:f92b4ee7d22976e9bb8ac2cca02f425120bb5961e2d7555326f21547c3fd099f",
+        "reportFingerprint": "sha256:8e300b24e84f446a971d5137dc1b7b12c5de10b139d7efaa998f3ca5452ff4ff",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7954,11 +8418,12 @@
       "language": "ruby",
       "sourceClass": "real-repo",
       "sourceRef": "corpus://cirepo_ruby_sinatra_sinatra@0c88089be7668326ec5ed52671732f8565a16353#lib/sinatra",
+      "repositoryId": "cirepo_ruby_sinatra_sinatra",
       "commit": "0c88089be7668326ec5ed52671732f8565a16353",
       "truthPath": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json",
       "graph": {
-        "fingerprint": "sha256:d98904b4f3166a74d31c8f30770d0ea03b2952c0cfe670aac4df1d22bc39d3cb",
-        "nodeCount": 477,
+        "fingerprint": "sha256:deecccc66f68dead58fdbab08211b2d238e6fb3c06d695442a8cecf06c80b01f",
+        "nodeCount": 475,
         "edgeCount": 1172,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -7977,14 +8442,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 75.872,
-        "secondElapsedMs": 72.178,
-        "evaluatorMaxRssKb": 168592,
-        "graphResponseBytes": 779558,
+        "firstElapsedMs": 80.896,
+        "secondElapsedMs": 82.928,
+        "evaluatorMaxRssKb": 158160,
+        "graphResponseBytes": 778786,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:864f810c9086fa6adc5911113ebed69ecab2735a306672b3e38b6edc67883c74",
+        "reportFingerprint": "sha256:fa236f4903a2e11e543e3349ad2261168910cf0fe2879d5859f2e11b5e5cec19",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -8137,7 +8602,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8158,7 +8623,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8179,7 +8644,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8200,7 +8665,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8242,7 +8707,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8263,7 +8728,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8397,7 +8862,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8418,7 +8883,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8439,7 +8904,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8460,7 +8925,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8502,7 +8967,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8523,7 +8988,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8615,9 +9080,9 @@
     {
       "language": "python",
       "fixtureCount": 1,
-      "repositoryCount": 3,
-      "caseCount": 4,
-      "benchmarkStatus": "unmeasured",
+      "repositoryCount": 4,
+      "caseCount": 7,
+      "benchmarkStatus": "meets-floor",
       "accuracy": {
         "declarationRecall": {
           "numerator": 20,
@@ -8625,8 +9090,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 19,
-          "denominator": 19,
+          "numerator": 22,
+          "denominator": 22,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -8644,7 +9109,7 @@
           "applicable": true,
           "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 3,
+          "repositoryEvidenceCount": 4,
           "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
@@ -8657,7 +9122,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8678,7 +9143,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8699,7 +9164,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8741,7 +9206,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8762,7 +9227,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8783,7 +9248,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8804,20 +9269,20 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
           "id": "frameworks",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 0,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 2,
-              "denominator": 2,
+              "numerator": 5,
+              "denominator": 5,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -8825,7 +9290,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8917,7 +9382,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8938,7 +9403,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -8959,7 +9424,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9001,7 +9466,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9022,7 +9487,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9043,7 +9508,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9085,7 +9550,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9177,7 +9642,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9198,7 +9663,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9219,7 +9684,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9261,7 +9726,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9282,7 +9747,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9303,7 +9768,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9345,7 +9810,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9437,7 +9902,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9458,7 +9923,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9479,7 +9944,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9521,7 +9986,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9542,7 +10007,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9563,7 +10028,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9605,7 +10070,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9697,7 +10162,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9718,7 +10183,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9739,7 +10204,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9802,7 +10267,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9823,7 +10288,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9844,7 +10309,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9865,7 +10330,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -9957,7 +10422,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9978,7 +10443,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -9999,7 +10464,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10041,7 +10506,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10062,7 +10527,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10083,7 +10548,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10104,7 +10569,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10125,7 +10590,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10217,7 +10682,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10238,7 +10703,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10259,7 +10724,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10301,7 +10766,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10322,7 +10787,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10343,7 +10808,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10385,7 +10850,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10477,7 +10942,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10498,7 +10963,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10519,7 +10984,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10561,7 +11026,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10582,7 +11047,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10603,7 +11068,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10645,7 +11110,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10737,7 +11202,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10758,7 +11223,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10779,7 +11244,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10821,7 +11286,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10842,7 +11307,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10863,7 +11328,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10905,7 +11370,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -10997,7 +11462,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11018,7 +11483,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11039,7 +11504,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11102,7 +11567,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11123,7 +11588,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11144,7 +11609,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11257,7 +11722,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11278,7 +11743,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11299,7 +11764,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11341,7 +11806,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11362,7 +11827,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11383,7 +11848,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11404,7 +11869,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11517,7 +11982,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11538,7 +12003,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11559,7 +12024,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11580,7 +12045,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11601,7 +12066,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11622,7 +12087,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11643,7 +12108,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11664,7 +12129,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11685,7 +12150,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
           ]
         },
         {
@@ -11755,5 +12220,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:d6245b8a7e17356f7fd5d2a6984519324a82fe617fb7dc95640aa33cb805de36"
+  "reportFingerprint": "sha256:d3625a208d878aa5658b0aeb45fc6d6edbee3f913e9eb8bb7a4a4621a0b31a6d"
 }

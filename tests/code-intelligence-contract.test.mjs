@@ -96,7 +96,7 @@ test('capability matrix covers every Tier 1 language and capability honestly', a
   assert.deepEqual(await auditCodeIntelligenceCapabilityMatrix(matrix, { root: new URL('..', import.meta.url) }), []);
   assert.deepEqual(
     matrix.languages.filter((item) => item.benchmarkStatus === 'meets-floor').map((item) => item.id),
-    ['typescript', 'javascript']
+    ['typescript', 'javascript', 'python']
   );
 });
 
@@ -108,13 +108,14 @@ test('matrix audit rejects unsupported full claims without fixture and real-repo
   assert.equal(findings.some((item) => item.code === 'full_claim_missing_real_repo_evidence'), true);
 });
 
-test('benchmark corpus has three pinned real repositories per Tier 1 language', async () => {
+test('benchmark corpus has at least three pinned real repositories per Tier 1 language', async () => {
   const corpus = await readJson('evals/code-intelligence/corpus.v1.json');
+  assert.equal(corpus.repositories.length, 43);
   for (const language of CODE_INTELLIGENCE_TIER_1_LANGUAGES) {
     const repos = corpus.repositories.filter((item) => item.primaryLanguage === language);
-    assert.equal(repos.length, 3, language);
+    assert.equal(repos.length >= 3, true, language);
     assert.equal(repos.every((item) => /^[a-f0-9]{40}$/.test(item.commit)), true, language);
-    assert.equal(new Set(repos.map((item) => item.url)).size, 3, language);
+    assert.equal(new Set(repos.map((item) => item.url)).size, repos.length, language);
   }
 });
 

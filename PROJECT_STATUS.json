@@ -1119,7 +1119,7 @@
       "limitations": [
         "Graph reads and direct MCP now default to freshness-gated auto selection: verified packaged Rust is used only with a healthy current explicit index, otherwise the result identifies the bounded JavaScript and TypeScript fallback.",
         "The current registry release does not ship a Rust binary. This source checkout has exact-version optional package templates, a verified resolver, and a five-native-runner unsigned packaging gate; the macOS arm64 root-plus-platform packed install passes without Cargo or rustc, but the four hosted target runs, signing, publication, MCP first-run indexing, web migration, and published-default promotion remain unproven.",
-        "Phase 2 covers 14 fixtures and all 42 pinned Tier 1 repositories; 55 capability rows meet the sampled floor, while 99 rows remain unmeasured or not applicable. TypeScript imports have exact internal-module evidence and type inference has resolved construction or typed-receiver evidence in its fixture and all three pinned repositories. Python exact imports, reviewed sampled heritage, exact reviewed construction edges, and package-keyed configuration resources with exact dependency evidence meet the floor across its fixture and all three pinned repositories, while frameworks remain unmeasured. Python framework-route evidence is fixture-only: the pinned FastAPI and Flask scopes contain framework implementation code rather than executable application routes, and Requests is an HTTP client. Documentation examples are not counted as routes. TypeScript and JavaScript are the first two languages whose Phase 2 applicable sampled rows all meet the floor; the other twelve remain overall unmeasured. TypeScript heritage, configuration, frameworks, impact, and processes remain unevaluated in this phase.",
+        "Phase 2 covers 14 fixtures and all 43 pinned Tier 1 repositories; 56 capability rows meet the sampled floor, while 98 rows remain unmeasured or not applicable. TypeScript imports have exact internal-module evidence and type inference has resolved construction or typed-receiver evidence in its fixture and at least three distinct pinned repositories. Python exact imports, reviewed sampled heritage, exact reviewed construction edges, package-keyed configuration resources, and framework routes meet the floor across its fixture and qualifying pinned repositories. Framework evidence comes from narrow FastAPI, Flask, and Django application scopes; implementation packages, the Requests client, documentation examples, and arbitrary HTTP-named decorators are not counted as routes. TypeScript, JavaScript, and Python have all applicable Phase 2 rows at the sampled floor; the other eleven remain overall unmeasured. TypeScript heritage, configuration, frameworks, impact, and processes remain unevaluated in this phase.",
         "Five bounded repository scopes report explicit node or edge omissions; their available evidence is partial and no scale claim is made.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
         "Phase 3 adds the isolated SQLite lifecycle, bounded invalidation refresh, watcher coordination, doctor/repair, CLI, provider, explicit read-only MCP preview, and a clean four-case performance receipt over 781 files; it does not promote the runtime default, bundle a native binary, move web, prove multi-repository or million-node scale, or make a parity or leadership claim.",
@@ -1132,7 +1132,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-17",
+    "asOf": "2026-07-18",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -1171,7 +1171,7 @@
       "cargo test --locked --manifest-path rust/Cargo.toml -p oaf-index --test repository_registry",
       "node --test tests/native-code-intelligence-provider.test.mjs tests/native-code-intelligence-repository-provider.test.mjs"
     ],
-    "testsExpected": 799,
+    "testsExpected": 800,
     "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

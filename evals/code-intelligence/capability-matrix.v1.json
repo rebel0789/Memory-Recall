@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-17T19:41:43.348Z",
+  "generatedAt": "2026-07-17T20:14:33.401Z",
   "languages": [
     {
       "id": "typescript",
@@ -39,7 +39,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -72,7 +72,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -105,7 +105,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
@@ -138,7 +138,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "heritage": {
@@ -184,7 +184,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -217,7 +217,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -313,7 +313,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -346,7 +346,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -379,7 +379,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
@@ -412,7 +412,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "heritage": {
@@ -458,7 +458,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -491,7 +491,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -555,7 +555,7 @@
       "id": "python",
       "displayName": "Python",
       "tier": 1,
-      "benchmarkStatus": "unmeasured",
+      "benchmarkStatus": "meets-floor",
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
@@ -584,10 +584,22 @@
             {
               "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_fastapi_app_testing.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_flask_tutorial.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_djangoproject_accounts.json"
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -620,7 +632,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -653,7 +665,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
@@ -699,7 +711,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
@@ -732,7 +744,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -765,7 +777,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -798,12 +810,12 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "frameworks": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -816,10 +828,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_fastapi_app_testing.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_flask_tutorial.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cicase_python_djangoproject_accounts.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "impact": {
@@ -850,7 +874,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 7 capability floors; 1 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 8 capability floors; 0 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -889,7 +913,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -922,7 +946,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -943,7 +967,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -977,7 +1001,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -998,7 +1022,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -1031,7 +1055,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -1069,7 +1093,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1139,7 +1163,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -1172,7 +1196,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1193,7 +1217,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1227,7 +1251,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -1252,7 +1276,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -1281,7 +1305,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "config": {
@@ -1315,7 +1339,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1385,7 +1409,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -1418,7 +1442,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1439,7 +1463,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1473,7 +1497,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -1490,7 +1514,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -1523,7 +1547,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -1557,7 +1581,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1627,7 +1651,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -1660,7 +1684,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1681,7 +1705,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1728,7 +1752,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -1761,7 +1785,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -1778,7 +1802,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -1803,7 +1827,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1873,7 +1897,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -1906,7 +1930,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1927,7 +1951,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1965,7 +1989,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -1998,7 +2022,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -2031,7 +2055,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -2048,7 +2072,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -2069,7 +2093,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -2139,7 +2163,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -2172,7 +2196,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -2189,7 +2213,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -2235,7 +2259,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
@@ -2256,7 +2280,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -2289,7 +2313,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -2323,7 +2347,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -2393,7 +2417,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -2426,7 +2450,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -2447,7 +2471,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -2485,7 +2509,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -2510,7 +2534,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -2543,7 +2567,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -2577,7 +2601,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -2647,7 +2671,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -2680,7 +2704,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -2709,7 +2733,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -2755,7 +2779,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
@@ -2788,7 +2812,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -2809,7 +2833,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "config": {
@@ -2843,7 +2867,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -2913,7 +2937,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -2946,7 +2970,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -2967,7 +2991,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -3014,7 +3038,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -3047,7 +3071,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -3068,7 +3092,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -3151,7 +3175,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -3184,7 +3208,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -3209,7 +3233,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -3243,7 +3267,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -3272,7 +3296,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -3305,7 +3329,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -3326,7 +3350,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -3409,7 +3433,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
@@ -3442,7 +3466,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -3475,7 +3499,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
@@ -3496,7 +3520,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "heritage": {
@@ -3521,7 +3545,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -3554,7 +3578,7 @@
             }
           ],
           "limitations": [
-            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -3583,7 +3607,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "config": {
@@ -3604,7 +3628,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -3629,7 +3653,7 @@
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
           ]
         },
         "impact": {

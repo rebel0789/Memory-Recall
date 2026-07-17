@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-5",
   "phase": 4,
-  "generatedAt": "2026-07-17T19:43:27.204Z",
+  "generatedAt": "2026-07-17T20:14:48.032Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,7 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:af154c4a9074ac46477b7415d9e0ac1cde6c9c857d354b955161c0365244af8f",
-    "implementationFingerprint": "sha256:67508713b66b249eca255924accea7735de329a45ec95b4480f848deec11fb1c",
+    "implementationFingerprint": "sha256:5886a771816d8acf5bcb1089571d31d23434471e1dfde495e59180610677bb3f",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000,
@@ -42,40 +42,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 7.942,
-      "p50": 8.529,
-      "p95": 8.901,
-      "maximum": 8.901
+      "minimum": 9.308,
+      "p50": 9.664,
+      "p95": 9.741,
+      "maximum": 9.741
     },
     "processQueryWallMs": {
-      "minimum": 7.508,
-      "p50": 7.769,
-      "p95": 8.319,
-      "maximum": 8.319
+      "minimum": 8.445,
+      "p50": 8.811,
+      "p95": 9.057,
+      "maximum": 9.057
     },
     "routeQueryWallMs": {
-      "minimum": 6.762,
-      "p50": 7.129,
-      "p95": 7.521,
-      "maximum": 7.521
+      "minimum": 7.802,
+      "p50": 7.89,
+      "p95": 7.971,
+      "maximum": 7.971
     },
     "impactQueryWallMs": {
-      "minimum": 6.943,
-      "p50": 7.266,
-      "p95": 7.984,
-      "maximum": 7.984
+      "minimum": 7.9,
+      "p50": 8.104,
+      "p95": 8.284,
+      "maximum": 8.284
     },
     "searchQueryWallMs": {
-      "minimum": 6.554,
-      "p50": 7.081,
-      "p95": 7.871,
-      "maximum": 7.871
+      "minimum": 7.789,
+      "p50": 8.503,
+      "p95": 8.841,
+      "maximum": 8.841
     },
     "constrainedQueryWallMs": {
-      "minimum": 7.547,
-      "p50": 7.753,
-      "p95": 8.371,
-      "maximum": 8.371
+      "minimum": 6.748,
+      "p50": 7.915,
+      "p95": 8.179,
+      "maximum": 8.179
     },
     "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
@@ -236,5 +236,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:51086bbde6789e1c3caa318072a46c9a3d54d17f1f3e955e4ff9a0780d7f7d26"
+  "reportFingerprint": "sha256:cccbfff365205f85c241b25e2ed7234fd4e565c0db649675eaac44b85d30badb"
 }

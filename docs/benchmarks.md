@@ -84,32 +84,30 @@ building the local release Rust binary:
 node scripts/code-intelligence-phase2-tier1.mjs --check
 ```
 
-The aggregate binds five batch receipts covering 14 fixtures and all 42 pinned
+The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 49,668 nodes, 111,410 edges, 78,313,027 serialized
-graph bytes, 15,840.061 ms summed first-run wall time, 14,455.849 ms summed
-second-run wall time, and 218,000 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 49,824 nodes, 111,857 edges, 78,601,557 serialized
+graph bytes, 21,954.091 ms summed first-run wall time, 21,512.991 ms summed
+second-run wall time, and 232,976 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
-All 56 cases are deterministic and pass their reviewed truth: 0 duplicate
+All 59 cases are deterministic and pass their reviewed truth: 0 duplicate
 canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 0 canonical-memory writes, and 0 workspace writes. Five repository scopes hit a
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 55 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 99 remain unmeasured or not applicable. A row
-requires reviewed evidence from its fixture and all three repositories before
-it can say `meets-floor`. TypeScript and JavaScript are the first two languages
-to meet every row marked applicable in this Phase 2 sample; the other twelve
-remain overall `unmeasured`. Python exact imports, reviewed sampled heritage,
-exact reviewed construction edges, and package-keyed configuration evidence now
-meet the floor, while its frameworks remain unmeasured. The pinned FastAPI and Flask scopes contain
-framework implementation code rather than executable application routes, and
-the Requests scope is an HTTP client. Documentation examples do not qualify as
-route evidence.
+Across 154 Tier 1 capability cells, 56 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 98 remain unmeasured or not applicable. A row
+requires reviewed evidence from its fixture and at least three distinct pinned
+repositories before it can say `meets-floor`. TypeScript, JavaScript, and Python
+meet every row marked applicable in this Phase 2 sample; the other eleven remain
+overall `unmeasured`. Python now adds exact framework-route evidence from narrow
+FastAPI, Flask, and Django application scopes. The broader FastAPI and Flask
+implementation scopes and the Requests client remain in the corpus for their
+other reviewed capabilities. Documentation examples do not qualify as routes.
 TypeScript heritage, configuration, frameworks, impact, and processes remain
 unevaluated here. The native engine stays an
 unbundled preview; the npm, MCP, and
