@@ -432,6 +432,17 @@ test('Control API Recall Map presents a prebuilt TypeScript and Python native in
     path.join(sourceGraphRoot, 'worker.py'),
     'def compute_worker_score():\n    return 1\n'
   );
+  await mkdir(path.join(sourceGraphRoot, 'app', 'api', 'users'), { recursive: true });
+  await writeFile(
+    path.join(sourceGraphRoot, 'app', 'api', 'users', 'route.ts'),
+    [
+      "import http from 'node:http';",
+      'export function GET() { return handleUser(); }',
+      'function handleUser() { return persistUser(); }',
+      'function persistUser() { return { ok: true }; }',
+      'http.createServer(persistUser);'
+    ].join('\n')
+  );
 
   const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
     binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
@@ -491,6 +502,17 @@ test('Control API Recall Map presents a prebuilt TypeScript and Python native in
   assert(python.body.architecture.search.results.some((item) => (
     item.label === 'compute_worker_score' && item.locator.includes('workspace://worker.py')
   )), JSON.stringify(python.body.architecture.search.results, null, 2));
+  assert.deepEqual(python.body.architecture.groups, typescript.body.architecture.groups);
+  assert.deepEqual(python.body.architecture.processes, typescript.body.architecture.processes);
+  const routeProcess = typescript.body.architecture.processes.find((item) => (
+    item.entryPoint.label === 'GET' && item.sinkKind === 'listens'
+  ));
+  assert(routeProcess, JSON.stringify(typescript.body.architecture.processes, null, 2));
+  assert.equal(routeProcess.algorithmVersion, 'entry-path-v1');
+  assert.equal(routeProcess.truncated, false);
+  assert.equal(routeProcess.nodeIds[0], routeProcess.entryPoint.nodeId);
+  assert.equal(routeProcess.nodeIds.at(-1), routeProcess.sink.nodeId);
+  assert.equal(routeProcess.relationshipIds.length, routeProcess.nodeIds.length);
   assert.equal(legacyScannerInvocations, 0);
 });
 
