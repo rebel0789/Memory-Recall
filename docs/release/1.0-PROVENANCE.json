@@ -23,11 +23,11 @@
   "sourceHashes": {
     "package.json": "sha256:585ef6da53c6e676bd498fc260e9187332cdcb5ae76e4eae97c27b6bc7c51ff4",
     "package-lock.json": "sha256:0bf6240c49921d2c4ccfe40378118874aae6c3e030022016d9d1179de779b06b",
-    "PROJECT_STATUS.json": "sha256:618e815228c33a47c2df7c6528547c1be0103826e252c3b38aa08d3fec7b03de",
+    "PROJECT_STATUS.json": "sha256:2c12576acb63ccd516dfc2cb425e5debb060c2c2074b211ed1bf062fd8c12204",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "docs/usage/support-matrix.md": "sha256:423c282674d1a6b5e367aff6ccd863d95f02f3ac842f01ceb019b90d51696f92",
-    "docs/benchmarks.md": "sha256:f069903488b9dad5b587a522be7c76e67454d9bc4a2ee03261bbca962ad8a499",
+    "docs/benchmarks.md": "sha256:cf181ae653c15d9d98ad94fcafdef7404020009ad2233eb77ba77eb1b59ef467",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:af8c910a7f2092f3adc8a9be30f79618d040101c6eda0fda705fdd8f9327b472",
     "GOVERNANCE.md": "sha256:479e1fe15e56b58bd33b41cab67244de87b6f62b491bea0761337a5b87cd7e52"
@@ -39,7 +39,7 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "sha256": "sha256:f069903488b9dad5b587a522be7c76e67454d9bc4a2ee03261bbca962ad8a499"
+      "sha256": "sha256:cf181ae653c15d9d98ad94fcafdef7404020009ad2233eb77ba77eb1b59ef467"
     }
   ],
   "generatedFiles": [
