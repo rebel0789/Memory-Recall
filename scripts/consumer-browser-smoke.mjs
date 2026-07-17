@@ -1,15 +1,20 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
+import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 const root = process.cwd();
+if (process.argv.slice(2).includes('--installed-native-only')) {
+  await runInstalledNativeWorkbenchSmoke();
+  process.exit(0);
+}
 const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-browser-'));
 const workspace = path.join(temp, 'workspace');
 const home = path.join(temp, 'home');
@@ -366,4 +371,231 @@ async function waitForHealth(port) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error('control API did not become healthy');
+}
+
+async function runInstalledNativeWorkbenchSmoke() {
+  const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-installed-browser-'));
+  const workspace = path.join(temp, 'workspace');
+  const home = path.join(temp, 'home');
+  const data = path.join(temp, 'data');
+  const packDirectory = path.join(temp, 'pack');
+  const prefix = path.join(temp, 'prefix');
+  const runtimeBin = path.join(temp, 'runtime-bin');
+  const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
+  const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+  const localPassword = 'correct horse battery staple';
+  let server = null;
+  let browser = null;
+  let serverStderr = '';
+  try {
+    const [{ nativeTarget }, { packageNativePlatform, spawnNpmSync }] = await Promise.all([
+      import('../providers/native/code-intelligence-rust/src/binary-resolver.mjs'),
+      import('./package-native-platform.mjs')
+    ]);
+    const target = nativeTarget();
+    await Promise.all([
+      mkdir(home, { recursive: true }),
+      mkdir(packDirectory, { recursive: true }),
+      mkdir(runtimeBin, { recursive: true }),
+      mkdir(path.join(workspace, 'src'), { recursive: true })
+    ]);
+    await Promise.all([
+      writeFile(path.join(workspace, 'package.json'), `${JSON.stringify({ name: 'installed-native-browser-smoke' }, null, 2)}\n`),
+      writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchBrowserSmoke(){ return true; }\n'),
+      writeFile(path.join(workspace, 'src', 'worker.py'), 'def pythonControlProof():\n    return "native workbench"\n')
+    ]);
+    const nativePackage = await packageNativePlatform({
+      target,
+      binaryPath: nativeBinary,
+      outDirectory: packDirectory,
+      root
+    });
+    const packed = spawnNpmSync(['pack', '--pack-destination', packDirectory, '--json'], {
+      cwd: root,
+      encoding: 'utf8'
+    });
+    must(packed.status === 0, `root package failed to pack: ${packed.stderr || packed.stdout}`);
+    const [rootPackage] = JSON.parse(packed.stdout);
+    const rootTarball = path.join(packDirectory, rootPackage.filename);
+    const cleanEnvironment = withoutNativeOverrides(process.env);
+    const installEnvironment = { ...cleanEnvironment, HOME: home, NPM_CONFIG_CACHE: path.join(temp, 'npm-cache') };
+    const installed = spawnNpmSync([
+      'install', '-g', '--prefix', prefix, rootTarball, nativePackage.tarball,
+      '--ignore-scripts', '--offline', '--no-audit', '--no-fund'
+    ], { cwd: temp, encoding: 'utf8', env: installEnvironment });
+    must(installed.status === 0, `packed install failed: ${installed.stderr || installed.stdout}`);
+    const npmRoot = spawnNpmSync(['root', '--global', '--prefix', prefix], {
+      cwd: temp,
+      encoding: 'utf8',
+      env: installEnvironment
+    });
+    must(npmRoot.status === 0, `installed package root lookup failed: ${npmRoot.stderr || npmRoot.stdout}`);
+    const packageRoot = path.join(npmRoot.stdout.trim(), 'memory-recall');
+    const installedCli = path.join(packageRoot, 'apps', 'cli', 'oaf.mjs');
+    const providerUrl = pathToFileURL(path.join(packageRoot, 'providers', 'native', 'code-intelligence-rust', 'src', 'index.mjs'));
+    const isolatedEnvironment = {
+      ...cleanEnvironment,
+      HOME: home,
+      PATH: runtimeBin,
+      OAF_FIXED_NOW: '2026-07-17T06:00:00.000Z'
+    };
+    assertCommandUnavailable('cargo', isolatedEnvironment);
+    assertCommandUnavailable('rustc', isolatedEnvironment);
+    assertCommandUnavailable('cc', isolatedEnvironment);
+    const { RustCodeIntelligenceProvider } = await import(providerUrl.href);
+    const health = await withProcessEnvironment(
+      isolatedEnvironment,
+      () => new RustCodeIntelligenceProvider({ timeoutMs: 60_000 }).health()
+    );
+    must(health.status === 'healthy', 'installed native provider is healthy');
+    must(health.details?.source === 'platform-package' && health.details?.verified === true, 'installed native provider verifies its optional platform package');
+    const build = runInstalled(process.execPath, [
+      installedCli, 'graph', 'index', '--write', '--engine', 'native-preview',
+      '--languages', 'javascript,python', '--root', workspace, '--format', 'json'
+    ], { cwd: workspace, env: isolatedEnvironment });
+    const buildReport = JSON.parse(build.stdout);
+    must(buildReport.status === 'ready' && buildReport.safeguards?.localFilesWritten === 1, 'installed CLI explicitly builds the native index once');
+    const indexBeforeBrowser = await fileBundleSnapshot(indexPath);
+    must(indexBeforeBrowser[0] !== null, 'explicit installed writer creates SQLite before server start');
+    const legacyGraphPath = path.join(packageRoot, 'providers', 'native', 'context-candidate-ast-code', 'src', 'index.mjs');
+    const legacyGraphSource = await readFile(legacyGraphPath, 'utf8');
+    const legacyGraphImplementation = `export async function buildJsTsSourceGraph(options = {}) {
+  const index = await buildJsTsSourceIndex(options);
+  return buildSourceGraphFromIndex(index, {
+    builtAt: safeTimestamp(options.clock),
+    maxNodes: options.maxNodes,
+    maxEdges: options.maxEdges
+  });
+}`;
+    must(legacyGraphSource.includes(legacyGraphImplementation), 'installed legacy JS graph implementation is recognizable');
+    await writeFile(
+      legacyGraphPath,
+      legacyGraphSource.replace(
+        legacyGraphImplementation,
+        'export async function buildJsTsSourceGraph(){ throw new Error("legacy_js_graph_builder_invoked"); }'
+      )
+    );
+
+    const port = await freePort();
+    server = spawn(process.execPath, [installedCli, 'serve'], {
+      cwd: workspace,
+      env: {
+        ...isolatedEnvironment,
+        OAF_PORT: String(port),
+        OAF_DATA_DIR: data,
+        OAF_WORKSPACE_ROOT: workspace
+      },
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    server.stderr.on('data', (chunk) => { serverStderr += chunk; });
+    try {
+      await waitForHealth(port);
+    } catch (error) {
+      throw new Error(`${error.message}; server stderr=${serverStderr}`);
+    }
+    browser = await launchBrowser();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const browserErrors = [];
+    page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
+    page.on('pageerror', (error) => browserErrors.push(error.message));
+    const base = `http://127.0.0.1:${port}`;
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await waitForText(page, 'Set up this workspace');
+    await page.fill('input[name="username"]', 'owner');
+    await page.fill('input[name="displayName"]', 'Owner');
+    await page.fill('input[name="password"]', localPassword);
+    await page.getByRole('button', { name: 'Create local owner' }).click();
+    await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+    await page.goto(`${base}/map`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Map', exact: true }).waitFor();
+    await page.fill('#source-graph-form input[name="query"]', 'pythonControlProof');
+    const graphResponsePromise = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'pythonControlProof');
+    await page.getByRole('button', { name: 'Search code' }).click();
+    const graphResponse = await graphResponsePromise;
+    const graphText = await graphResponse.text();
+    must(graphResponse.ok(), `installed native graph request failed: ${graphResponse.status()} ${graphText}; server stderr=${serverStderr}`);
+    const graph = JSON.parse(graphText);
+    await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
+    await waitForText(page, 'pythonControlProof');
+    must(/^memory-recall-native-/u.test(graph.graph?.parserVersion ?? ''), `Control API did not use the installed native index: ${graph.graph?.parserVersion}`);
+    must(
+      graph.search?.results?.some((item) => item.label === 'pythonControlProof' && item.locator?.startsWith('workspace://src/worker.py')),
+      `browser Map finds the Python-only native symbol and locator: ${JSON.stringify(graph.search?.results ?? [])}`
+    );
+    must(graph.safeguards?.localFilesWritten === 0, 'browser graph request reports no local index write');
+    must(sameFileBundleSnapshot(indexBeforeBrowser, await fileBundleSnapshot(indexPath)), 'browser and Control API preserve SQLite bytes and mtime and create no WAL or SHM');
+    must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
+    console.log(`PASS installed verified native workbench ${target}`);
+    console.log('PASS compiler-free loopback Control API and browser Map read the prebuilt index without writing it');
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+    if (server) {
+      server.kill('SIGTERM');
+      await Promise.race([once(server, 'exit'), new Promise((resolve) => setTimeout(resolve, 2000))]);
+    }
+    await rm(temp, { recursive: true, force: true });
+  }
+}
+
+function runInstalled(command, args, options = {}) {
+  const result = spawnSync(command, args, { encoding: 'utf8', ...options });
+  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout || result.error?.message}`);
+  return result;
+}
+
+function assertCommandUnavailable(command, env) {
+  const result = spawnSync(command, ['--version'], { encoding: 'utf8', env });
+  must(result.error?.code === 'ENOENT', `${command} must be unavailable during installed runtime verification`);
+}
+
+function withoutNativeOverrides(environment) {
+  const {
+    MEMORY_RECALL_NATIVE_BINARY: _binary,
+    MEMORY_RECALL_NATIVE_SHA256: _sha,
+    MEMORY_RECALL_NATIVE_PACKAGE_TARBALL: _tarball,
+    ...clean
+  } = environment;
+  return clean;
+}
+
+async function withProcessEnvironment(environment, operation) {
+  const previous = new Map();
+  for (const [key, value] of Object.entries(environment)) {
+    previous.set(key, process.env[key]);
+    process.env[key] = value;
+  }
+  for (const key of ['MEMORY_RECALL_NATIVE_BINARY', 'MEMORY_RECALL_NATIVE_SHA256', 'MEMORY_RECALL_NATIVE_PACKAGE_TARBALL']) {
+    if (!Object.hasOwn(environment, key)) {
+      previous.set(key, process.env[key]);
+      delete process.env[key];
+    }
+  }
+  try {
+    return await operation();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+async function fileBundleSnapshot(databasePath) {
+  return Promise.all([databasePath, `${databasePath}-wal`, `${databasePath}-shm`].map(async (filePath) => {
+    try {
+      const [metadata, bytes] = await Promise.all([stat(filePath), readFile(filePath)]);
+      return { mtimeMs: metadata.mtimeMs, size: metadata.size, bytes };
+    } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+  }));
+}
+
+function sameFileBundleSnapshot(left, right) {
+  return left.length === right.length && left.every((before, index) => {
+    const after = right[index];
+    if (before === null || after === null) return before === after;
+    return before.mtimeMs === after.mtimeMs && before.size === after.size && before.bytes.equals(after.bytes);
+  });
 }
