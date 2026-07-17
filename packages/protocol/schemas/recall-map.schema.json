@@ -131,6 +131,23 @@
         }
       }
     },
+    "orientationProcess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "entryPoint", "sink", "sinkKind", "nodeIds", "relationshipIds", "confidence", "algorithmVersion", "truncated"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgprocess_[a-f0-9]{24}$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "entryPoint": { "$ref": "#/$defs/orientationEntryPoint" },
+        "sink": { "$ref": "#/$defs/orientationEntryPoint" },
+        "sinkKind": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.-]{0,127}$" },
+        "nodeIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" } },
+        "relationshipIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "pattern": "^sgedge_[a-f0-9]{32}$" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "algorithmVersion": { "const": "entry-path-v1" },
+        "truncated": { "type": "boolean" }
+      }
+    },
     "symbolKind": {
       "enum": ["class", "function", "method", "interface", "type"]
     },
@@ -210,6 +227,7 @@
         "hotspots": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/hotspot" } },
         "groups": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationGroup" } },
         "groupRelations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/orientationRelation" } },
+        "processes": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationProcess" } },
         "search": { "$ref": "#/$defs/search" },
         "impact": { "$ref": "#/$defs/impact" },
         "diagnostics": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/diagnostic" } }

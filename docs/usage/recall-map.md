@@ -80,6 +80,11 @@ request can set `refresh: true` to reload the map, but it never builds or
 refreshes the Rust index. Index writes remain explicit CLI operations. GET is
 cache-aware and read-only.
 
+When the native index contains enough evidence, Map also lists deterministic
+communities and bounded entry-to-sink processes with source locators,
+confidence, and truncation state. The JS/TS fallback leaves processes empty
+instead of inventing them.
+
 When `.local/memory.sqlite` is absent, the report remains read-only and reports
 the memory store as missing. It never creates a database just to produce a map.
 ACTIVE facts, PENDING proposals, and stale-fact counts remain separate.

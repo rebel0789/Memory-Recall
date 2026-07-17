@@ -340,6 +340,7 @@ function orientationProjection({ architecture, ids, changedLocators }) {
   }
   return {
     groups: [...groupByCommunity.values()].slice(0, 12),
+    processes: processProjection(architecture, ids),
     relations: [...relations.values()].sort((a, b) => b.count - a.count || `${a.from}:${a.to}`.localeCompare(`${b.from}:${b.to}`)).slice(0, 20).map((relation) => {
       const source = groupByCommunity.get(relation.from);
       const target = groupByCommunity.get(relation.to);
@@ -354,6 +355,34 @@ function orientationProjection({ architecture, ids, changedLocators }) {
       };
     })
   };
+}
+
+function processProjection(architecture, ids) {
+  const nodeById = new Map(architecture.nodes.map((node) => [node.id, node]));
+  return architecture.processes.slice(0, 12).map((process) => {
+    const entry = nodeById.get(process.entryNodeId);
+    const sink = nodeById.get(process.sinkNodeId);
+    const nodeIds = process.nodeIds.map((id) => ids.node.get(id)).filter(Boolean);
+    const relationshipIds = process.relationshipIds.map((id) => ids.edge.get(id)).filter(Boolean);
+    if (
+      !entry?.locator
+      || !sink?.locator
+      || nodeIds.length !== process.nodeIds.length
+      || relationshipIds.length !== process.relationshipIds.length
+    ) return null;
+    return {
+      id: mappedId('sgprocess', process.id, 24),
+      label: safeLabel(process.label),
+      entryPoint: nodeReference(entry, ids, ['entry_point']),
+      sink: nodeReference(sink, ids, ['process_sink']),
+      sinkKind: process.sinkKind,
+      nodeIds,
+      relationshipIds,
+      confidence: process.confidence,
+      algorithmVersion: process.algorithmVersion,
+      truncated: process.truncated
+    };
+  }).filter(Boolean);
 }
 
 function processCommunities(architecture, ids, changedLocators) {

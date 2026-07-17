@@ -387,6 +387,14 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 .map-relations li span,.map-relations li small{color:var(--color-muted)}
 .map-focus-summary{display:flex;flex-wrap:wrap;gap:var(--space-xs);padding-bottom:var(--space-xs);color:var(--color-muted)}
 .map-focus-summary strong{color:var(--color-ink)}
+.map-processes{margin-top:var(--space-md)}
+.map-processes .section-heading{margin-bottom:0}
+.map-processes ol{margin:0;padding:0;list-style:none}
+.map-processes li{display:grid;grid-template-columns:minmax(220px,1.2fr) minmax(180px,.8fr) minmax(0,1fr) minmax(0,1fr);gap:var(--space-xs);align-items:center;min-height:56px;padding:var(--space-xs) 0;border-bottom:1px solid var(--color-rule)}
+.map-process-route{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:var(--space-2xs);align-items:center}
+.map-process-route strong,.map-processes code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.map-processes p{margin:0;color:var(--color-muted)}
+.map-processes code{color:var(--color-muted)}
 .map-graph-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs);padding-bottom:var(--space-xs)}
 .map-graph-toolbar>div:last-child{display:flex;gap:var(--space-2xs)}
 .map-graph-error{margin:0 0 var(--space-xs);padding:var(--space-xs);border:1px solid var(--color-danger);border-radius:var(--radius-control);color:var(--color-danger)}
@@ -552,6 +560,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .map-advanced-fields .field:nth-child(3){grid-column:1/-1}
   .source-map-layout{grid-template-columns:1fr}
   .source-map-inspector{padding:var(--space-md) 0 0;border-left:0;border-top:1px solid var(--color-rule)}
+  .map-processes li{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .flow-step:not(:last-child):after{display:none}
 }
 
@@ -640,6 +649,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .map-coverage-warning{grid-template-columns:1fr}
   .source-map-layout{grid-template-columns:1fr}
   .source-map-inspector{padding:var(--space-sm) 0 0;border-left:0;border-top:1px solid var(--color-rule)}
+  .map-processes li{grid-template-columns:1fr;gap:var(--space-3xs)}
   .map-relations li{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
   .map-relations li small{grid-column:1/-1}
   .memory-review-grid{grid-template-columns:1fr}

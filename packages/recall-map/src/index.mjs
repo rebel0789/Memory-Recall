@@ -35,6 +35,9 @@ const SAFE_GROUP_PREFIX = /^[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+(?:\/[A-Za-z0-9._~!
 const GROUP_ID = /^sggroup_[a-f0-9]{24}$/u;
 const RELATION_ID = /^sgrelation_[a-f0-9]{24}$/u;
 const NODE_ID = /^sgnode_[a-f0-9]{32}$/u;
+const EDGE_ID = /^sgedge_[a-f0-9]{32}$/u;
+const PROCESS_ID = /^sgprocess_[a-f0-9]{24}$/u;
+const PROCESS_SINK_KIND = /^[a-z][a-z0-9_.-]{0,127}$/u;
 
 function safeRepositoryName(root) {
   const candidate = path.basename(root).slice(0, 120);
@@ -331,6 +334,7 @@ function summarizeArchitecture(preview, { limit = DEFAULT_MAP_LIMIT } = {}) {
     hotspots: (summary.hotspots ?? []).slice(0, safeLimit).map(summarizeHotspot),
     groups: (preview.orientation?.groups ?? []).slice(0, 12).map(summarizeOrientationGroup).filter(Boolean),
     groupRelations: (preview.orientation?.relations ?? []).slice(0, 20).map(summarizeOrientationRelation).filter(Boolean),
+    processes: (preview.orientation?.processes ?? []).slice(0, 12).map(summarizeOrientationProcess).filter(Boolean),
     search: {
       status: unavailable ? 'unavailable' : 'available',
       queryFingerprint: safeFingerprint(preview.search?.queryFingerprint),
@@ -389,6 +393,44 @@ function summarizeOrientationRelation(relation) {
     targetPrefix: relation.targetPrefix,
     count: boundedInteger(relation.count),
     edgeKindCounts
+  };
+}
+
+function summarizeOrientationProcess(process) {
+  const nodeIds = [...new Set(process?.nodeIds ?? [])].filter((id) => NODE_ID.test(String(id))).slice(0, 5);
+  const relationshipIds = [...new Set(process?.relationshipIds ?? [])].filter((id) => EDGE_ID.test(String(id))).slice(0, 5);
+  const entryPoint = summarizeProcessNode(process?.entryPoint);
+  const sink = summarizeProcessNode(process?.sink);
+  if (
+    !PROCESS_ID.test(String(process?.id ?? ''))
+    || !entryPoint
+    || !sink
+    || nodeIds.length < 2
+    || relationshipIds.length !== nodeIds.length
+    || nodeIds[0] !== entryPoint.nodeId
+    || nodeIds.at(-1) !== sink.nodeId
+    || !PROCESS_SINK_KIND.test(String(process?.sinkKind ?? ''))
+    || process?.algorithmVersion !== 'entry-path-v1'
+  ) return null;
+  return {
+    id: process.id,
+    label: safeLabel(process.label),
+    entryPoint,
+    sink,
+    sinkKind: process.sinkKind,
+    nodeIds,
+    relationshipIds,
+    confidence: boundedScore(process.confidence),
+    algorithmVersion: process.algorithmVersion,
+    truncated: process.truncated === true
+  };
+}
+
+function summarizeProcessNode(node) {
+  if (!NODE_ID.test(String(node?.nodeId ?? ''))) return null;
+  return {
+    nodeId: node.nodeId,
+    ...summarizeNodeReference(node)
   };
 }
 

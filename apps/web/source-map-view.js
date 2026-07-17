@@ -148,6 +148,7 @@ function renderMapResult(report, state) {
   const focusNodes = arrayValue(report.focus?.nodes);
   const focusEdges = arrayValue(report.focus?.edges);
   const groups = arrayValue(report.orientation?.groups);
+  const processes = arrayValue(report.orientation?.processes);
   const outlineNodes = hasFocus ? focusNodes : groups;
   const groupRelations = arrayValue(report.orientation?.relations ?? report.orientation?.groupRelations);
   const content = hasFocus
@@ -161,6 +162,7 @@ function renderMapResult(report, state) {
       <section class="source-map-stage" aria-label="${hasFocus ? 'Focused source relationships' : 'Repository group relationships'}">${content}</section>
       <aside class="source-map-inspector"><h2>Selection</h2><div id="source-map-selection">${renderSelection(outlineNodes[0])}</div><hr><h2>Source map outline</h2>${renderMapOutline(outlineNodes, hasFocus)}<hr>${renderSourceTruth(report, coverage)}</aside>
     </div>
+    ${renderProcesses(processes)}
   </section>`;
 }
 
@@ -172,6 +174,14 @@ function renderArchitecture(groups, relations) {
 function renderFocus(nodes, edges, focus = {}) {
   if (!nodes.length) return statePanel('empty', 'No focused records', 'The submitted scope produced no bounded nodes. Broaden the query or remove a group filter.');
   return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
+}
+
+function renderProcesses(processes) {
+  if (!processes.length) return '';
+  return `<section class="map-processes" aria-labelledby="map-processes-title"><div class="section-heading"><h2 id="map-processes-title">Entry-to-sink processes</h2><span>${number(processes.length)} bounded paths</span></div><ol>${processes.map((process) => {
+    const steps = Math.max(1, arrayValue(process.nodeIds).length - 1);
+    return `<li><div class="map-process-route"><strong>${escapeHtml(process.entryPoint?.label)}</strong><span aria-hidden="true">→</span><strong>${escapeHtml(process.sink?.label)}</strong></div><p>${escapeHtml(process.sinkKind)} · ${number(steps)} ${steps === 1 ? 'step' : 'steps'} · ${percent(process.confidence)}% confidence${process.truncated ? ' · bounded result' : ''}</p><code>${escapeHtml(process.entryPoint?.locator)}</code><code>${escapeHtml(process.sink?.locator)}</code></li>`;
+  }).join('')}</ol></section>`;
 }
 
 function renderMapOutline(items, focused) {
@@ -285,6 +295,11 @@ function arrayValue(value) {
 function number(value) {
   const candidate = Number(value);
   return Number.isFinite(candidate) && candidate >= 0 ? Math.floor(candidate) : 0;
+}
+
+function percent(value) {
+  const candidate = Number(value);
+  return Math.round((Number.isFinite(candidate) ? Math.max(0, Math.min(1, candidate)) : 0) * 100);
 }
 
 function formatNumber(value) {
