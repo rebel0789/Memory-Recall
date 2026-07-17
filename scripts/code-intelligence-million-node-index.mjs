@@ -22,7 +22,7 @@ const QUERY_REPETITIONS = 20;
 const MAX_STDOUT_BYTES = 8 * 1024 * 1024;
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_NODES = 1_000_000;
-const MAX_EDGES = 5_000_000;
+const MAX_EDGES = 1_000_000;
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997 } = {}) {
@@ -49,7 +49,7 @@ export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997
     maxFileBytes: MAX_FILE_BYTES,
     maxNodes: MAX_NODES,
     maxEdges: MAX_EDGES,
-    seedQuery: 'm0'
+    seedQuery: 'C_m0'
   });
 }
 

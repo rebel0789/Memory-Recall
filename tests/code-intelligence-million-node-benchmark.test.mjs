@@ -19,8 +19,8 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
     expectedEdgeCount: 999_990,
     maxFileBytes: 1_048_576,
     maxNodes: 1_000_000,
-    maxEdges: 5_000_000,
-    seedQuery: 'm0'
+    maxEdges: 1_000_000,
+    seedQuery: 'C_m0'
   });
   assert.throws(
     () => createDenseFixturePlan({ fileCount: 10, methodsPerFile: 99_998 }),
@@ -36,7 +36,7 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
   const planReceipt = JSON.parse(planned.stdout);
   assert.equal(planReceipt.requiresExplicitRun, true);
   assert.equal(planReceipt.fixture.expectedNodeCount, 1_000_000);
-  assert.equal(planReceipt.fixture.seedQuery, 'm0');
+  assert.equal(planReceipt.fixture.seedQuery, 'C_m0');
 
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-million-node-test-'));
   try {
