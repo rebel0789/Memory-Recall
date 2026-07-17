@@ -123,6 +123,59 @@ test('Python configuration claims require a resource and an exact causal edge', 
   assert.deepEqual(auditCodeIntelligenceLanguageTruth(valid), []);
 });
 
+test('Python framework claims require a present exact syntax-backed route edge', async () => {
+  const source = await readJson('examples/protocol/code-intelligence-language-truth.json');
+  const finalize = (truth) => ({ ...truth, truthFingerprint: truthFingerprint(truth) });
+  const measured = {
+    ...source,
+    language: 'python',
+    capabilityClaims: { ...source.capabilityClaims, frameworks: 'partial' }
+  };
+  const routeEdge = {
+    id: 'cititem_python_framework_route',
+    semanticKey: 'edge:handles-route:read-item:GET-items',
+    capability: 'frameworks',
+    expectation: 'present',
+    recordKind: 'edge',
+    kind: 'handles_route',
+    from: {
+      kind: 'function',
+      name: 'read_item',
+      qualifiedName: 'api.py::read_item',
+      locator: 'workspace://api.py#L2-L4'
+    },
+    to: {
+      kind: 'route',
+      name: 'GET_items',
+      qualifiedName: 'api.py::GET_items',
+      locator: 'workspace://api.py#L1-L4'
+    },
+    locator: 'workspace://api.py#L1-L4',
+    resolution: 'exact'
+  };
+
+  const relabeled = finalize({
+    ...measured,
+    items: measured.items.map((item, index) => index === 0 ? { ...item, capability: 'frameworks' } : item)
+  });
+  assert(auditCodeIntelligenceLanguageTruth(relabeled).some((item) => item.code === 'python_framework_truth_item_kind_invalid'));
+
+  const negativeOnly = finalize({
+    ...measured,
+    items: [...measured.items, { ...routeEdge, expectation: 'absent' }]
+  });
+  assert(auditCodeIntelligenceLanguageTruth(negativeOnly).some((item) => item.code === 'python_framework_claim_missing_exact_route_edge'));
+
+  const inferred = finalize({
+    ...measured,
+    items: [...measured.items, { ...routeEdge, resolution: 'inferred' }]
+  });
+  assert(auditCodeIntelligenceLanguageTruth(inferred).some((item) => item.code === 'python_framework_truth_edge_not_exact'));
+
+  const valid = finalize({ ...measured, items: [...measured.items, routeEdge] });
+  assert.deepEqual(auditCodeIntelligenceLanguageTruth(valid), []);
+});
+
 test('language evaluation records exact counts, determinism, and zero-sized samples', async () => {
   const truth = await readJson('examples/protocol/code-intelligence-language-truth.json');
   const graph = await readJson('examples/protocol/code-intelligence-graph.json');

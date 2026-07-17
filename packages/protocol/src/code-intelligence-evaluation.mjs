@@ -76,6 +76,31 @@ export function auditCodeIntelligenceLanguageTruth(truth) {
       findings.push({ code: 'python_config_claim_missing_exact_causal_edge', capability: 'config' });
     }
   }
+  if (truth.language === 'python' && truth.capabilityClaims.frameworks !== 'unmeasured') {
+    const frameworkItems = truth.items.filter((item) => item.capability === 'frameworks');
+    const isRouteEdge = (item) => (
+      item.recordKind === 'edge'
+      && item.kind === 'handles_route'
+      && ['function', 'method'].includes(item.from.kind)
+      && item.to.kind === 'route'
+    );
+    const exactPresentRouteEdges = frameworkItems.filter((item) => (
+      isRouteEdge(item)
+      && item.expectation === 'present'
+      && item.resolution === 'exact'
+    ));
+
+    for (const item of frameworkItems) {
+      if (!isRouteEdge(item)) {
+        findings.push({ code: 'python_framework_truth_item_kind_invalid', itemId: item.id });
+      } else if (item.expectation === 'present' && item.resolution !== 'exact') {
+        findings.push({ code: 'python_framework_truth_edge_not_exact', itemId: item.id });
+      }
+    }
+    if (exactPresentRouteEdges.length === 0) {
+      findings.push({ code: 'python_framework_claim_missing_exact_route_edge', capability: 'frameworks' });
+    }
+  }
   if (truth.truthFingerprint !== truthFingerprint(truth)) findings.push({ code: 'truth_fingerprint_mismatch' });
   return findings;
 }
