@@ -5939,6 +5939,7 @@ fn clean_import_raw(value: &str) -> Option<String> {
 }
 
 fn module_from_import(value: &str) -> Option<String> {
+    let relative = value.trim().starts_with('.');
     let trimmed = value
         .trim()
         .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')'])
@@ -5946,6 +5947,11 @@ fn module_from_import(value: &str) -> Option<String> {
         .trim_start_matches("super::")
         .trim_start_matches("./")
         .trim_start_matches("../");
+    let trimmed = if relative {
+        trimmed.rsplit(['/', '\\']).next().unwrap_or(trimmed)
+    } else {
+        trimmed
+    };
     let first = trimmed
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;

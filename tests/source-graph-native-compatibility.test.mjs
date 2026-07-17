@@ -79,6 +79,37 @@ test('compatibility comparison is deterministic and never claims parity', async 
   assert.deepEqual(comparison, compareSourceGraphCompatibility(structuredClone(baseline), structuredClone(translated)));
 });
 
+test('compatibility matches a TypeScript import that resolves outside the selected scope', async (t) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-external-import-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const scope = path.join(workspace, 'transformers');
+  await mkdir(path.join(workspace, '_namespaces'), { recursive: true });
+  await mkdir(scope, { recursive: true });
+  await writeFile(path.join(workspace, '_namespaces', 'ts.ts'), "export { chainBundle } from '../transformers/utilities.js';\n");
+  await writeFile(path.join(scope, 'utilities.ts'), 'export function chainBundle(){ return 1; }\n');
+  await writeFile(path.join(scope, 'es2016.ts'), [
+    "import { chainBundle } from '../_namespaces/ts.js';",
+    'export function transformES2016(){ return chainBundle(); }'
+  ].join('\n'));
+
+  const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
+  const [baseline, native] = await Promise.all([
+    buildJsTsSourceGraph({ root: scope, workspaceId: 'ws_local', clock: () => fixedNow }),
+    provider.buildGraph({ root: scope, workspaceId: 'ws_local', languages: ['typescript'] })
+  ]);
+  const comparison = compareSourceGraphCompatibility(baseline, translateCodeIntelligenceGraph(native));
+  const imports = comparison.dimensions.find((item) => item.name === 'imports');
+
+  assert.deepEqual(imports, {
+    name: 'imports',
+    baselineCount: 1,
+    nativeCount: 1,
+    matchedCount: 1,
+    recall: 1
+  });
+  assert.equal(comparison.dimensions.find((item) => item.name === 'calls')?.matchedCount, 1);
+});
+
 test('source graph intelligence keeps JS default and makes native selection strict', async (t) => {
   const root = await compatibilityWorkspace(t);
   const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
