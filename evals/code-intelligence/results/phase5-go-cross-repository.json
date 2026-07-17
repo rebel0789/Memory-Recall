@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "receiptVersion": "memory-recall-phase5-go-cross-repository-1",
   "phase": 5,
-  "generatedAt": "2026-07-17T16:36:12.547Z",
+  "generatedAt": "2026-07-17T18:03:48.109Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -22,13 +22,13 @@
       "scripts/native-code-intelligence-consumer-smoke.mjs"
     ],
     "fingerprint": "sha256:770334e1fd713e417433e70eacdb264f3403433ffde411a6dfa1fdb6b2283951",
-    "releaseBinarySha256": "sha256:21835279ad41d39fa937bf6d60a956e7a38de37f39f7651bc113959d971066c0"
+    "releaseBinarySha256": "sha256:5dd97d1bb6510ebc5237e83d7670e1eda342a075136753c7c17ac7ac8d1b424a"
   },
   "packageEvidence": {
     "rootPackage": "memory-recall@1.1.1",
-    "rootTarballSha256": "sha256:9805a66deaa4638f23f5ecf3d667927d369f9d020ed8ce9ddd1667a932b0a003",
+    "rootTarballSha256": "sha256:49aa8b1fdb0bac22f7697e9fc248b7fd0456f0148c28aa3e9692dd4a9db3cd4c",
     "nativePackage": "@memory-recall/native-darwin-arm64@1.1.1",
-    "nativeTarballSha256": "sha256:621624e05a5de5f1bc6551a0915c5e315d9ad6f8fe2c0bda1d65b42c9bc767ae",
+    "nativeTarballSha256": "sha256:4f41dd66440225b2c6bd04a0b637c957eac63bf0a9e18543b3485aa9f980051b",
     "installed": true,
     "providerSource": "platform-package",
     "providerVerified": true,
@@ -61,7 +61,7 @@
     "sqliteBundlesPreserved": true,
     "relationshipEvidence": [
       {
-        "id": "mrrel_106e69e3b75438b805e12c69b6e7015a",
+        "id": "mrrel_cdc7f0d569d3203d6107ea0d133fb344",
         "kind": "imports",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L7-L7",
@@ -70,7 +70,7 @@
         ]
       },
       {
-        "id": "mrrel_0cbea15120ed868d1d7514ca80915511",
+        "id": "mrrel_d94e4884af31918623f9fdde6cc31349",
         "kind": "constructs",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L18-L18",
@@ -81,8 +81,8 @@
       }
     ],
     "traceRelationshipIds": [
-      "mrrel_106e69e3b75438b805e12c69b6e7015a",
-      "mrrel_0cbea15120ed868d1d7514ca80915511"
+      "mrrel_cdc7f0d569d3203d6107ea0d133fb344",
+      "mrrel_d94e4884af31918623f9fdde6cc31349"
     ],
     "impactNativeNodeIds": [
       "cinode_f01e41d6ce66dade402cd8760c3b235e"
@@ -103,5 +103,5 @@
     "competitorParity": false,
     "productionPublishReady": false
   },
-  "receiptFingerprint": "sha256:fadc8f39f5b4265228855e5021ee9932f4d794849746651bcfa7bb2275c868cc"
+  "receiptFingerprint": "sha256:d3a82f2ff1af433120017df4c98bac4a2006603b541ffe7353b159c4d1fee329"
 }

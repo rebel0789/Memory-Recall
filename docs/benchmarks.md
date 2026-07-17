@@ -124,14 +124,14 @@ node scripts/code-intelligence-phase3-index.mjs --check
 
 Run the script without `--check` to fetch the same exact commits into temporary
 directories and remeasure them. The stored clean run used Memory Recall commit
-`919d10e1f6e7b7038f9510e5057fc0b3b82155cf` on macOS 25.5 arm64, Apple M2 Max,
+`25775b43786f3608e756c1b3636b63e842cc75d5` on macOS 25.5 arm64, Apple M2 Max,
 Node 22.22.3. It covers a 600-file TypeScript dependency fixture, the pinned
 HashiCorp go-multierror repository, the pinned Express repository, and the
 pinned TypeScript compiler-transformers scope.
 
-Across 781 files, 6,808 nodes, and 15,115 edges, the four cold builds had a
-machine-specific p50 of 156.646 ms and maximum of 910.639 ms. Warm status p50
-was 13.362 ms; no-change refresh p50 was 23.411 ms. The 600-file fixture parsed
+Across 781 files, 6,646 nodes, and 15,540 edges, the four cold builds had a
+machine-specific p50 of 190.189 ms and maximum of 899.82 ms. Warm status p50
+was 20.707 ms; no-change refresh p50 was 19.613 ms. The 600-file fixture parsed
 zero files on an exact no-op refresh, 11 files after the sampled isolated file
 change, and 5 files after the sampled dependency-impact change. All no-op and
 reader checks preserved the exact SQLite bytes and modification time.
