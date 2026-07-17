@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T18:25:09.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "unmeasured",
     "heritage": "partial",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -100,6 +100,28 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_flask_construct_blueprint_setup_state",
+      "semanticKey": "edge:constructs:sansio/blueprints.py:Blueprint.make_setup_state:BlueprintSetupState",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "method",
+        "name": "make_setup_state",
+        "qualifiedName": "sansio/blueprints.py::Blueprint::make_setup_state",
+        "locator": "workspace://sansio/blueprints.py#L246-L253"
+      },
+      "to": {
+        "kind": "class",
+        "name": "BlueprintSetupState",
+        "qualifiedName": "sansio/blueprints.py::BlueprintSetupState",
+        "locator": "workspace://sansio/blueprints.py#L34-L116"
+      },
+      "locator": "workspace://sansio/blueprints.py#L253-L253",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_flask_call_ensure_sync",
       "semanticKey": "edge:calls:views.py:MethodView.dispatch_request:ensure_sync",
       "capability": "calls",
@@ -112,5 +134,5 @@
       "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:82684e334e71f2e0b7810f3ea6123c999208d71664ce55932a89710e4bbceb37"
+  "truthFingerprint": "sha256:48af714c281e9efc30182a355f549b29180b1392ddb0462b205b067c875a0478"
 }

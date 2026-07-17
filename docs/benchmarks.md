@@ -88,8 +88,8 @@ The aggregate binds five batch receipts covering 14 fixtures and all 42 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
 The stored audit records 49,661 nodes, 111,408 edges, 78,309,501 serialized
-graph bytes, 14,429.105 ms summed first-run wall time, 14,413.667 ms summed
-second-run wall time, and 182,160 KiB peak evaluator RSS on the recorded macOS
+graph bytes, 14,440.065 ms summed first-run wall time, 14,444.668 ms summed
+second-run wall time, and 205,344 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -99,14 +99,14 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 53 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 101 remain unmeasured or not applicable. A row
+Across 154 Tier 1 capability cells, 54 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 100 remain unmeasured or not applicable. A row
 requires reviewed evidence from its fixture and all three repositories before
 it can say `meets-floor`. TypeScript and JavaScript are the first two languages
 to meet every row marked applicable in this Phase 2 sample; the other twelve
-remain overall `unmeasured`. Python exact imports and reviewed sampled heritage
-edges now meet the floor, while its types, configuration, and frameworks remain
-unmeasured.
+remain overall `unmeasured`. Python exact imports, reviewed sampled heritage,
+and exact reviewed construction edges now meet the floor, while its configuration
+and frameworks remain unmeasured.
 TypeScript heritage, configuration, frameworks, impact, and processes remain
 unevaluated here. The native engine stays an
 unbundled preview; the npm, MCP, and

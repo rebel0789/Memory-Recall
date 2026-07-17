@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T18:14:34.000Z"
+    "reviewedAt": "2026-07-17T18:25:09.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "unmeasured",
     "heritage": "partial",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -100,6 +100,28 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_fastapi_construct_default_placeholder",
+      "semanticKey": "edge:constructs:datastructures.py:Default:DefaultPlaceholder",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "function",
+        "name": "Default",
+        "qualifiedName": "datastructures.py::Default",
+        "locator": "workspace://datastructures.py#L174-L181"
+      },
+      "to": {
+        "kind": "class",
+        "name": "DefaultPlaceholder",
+        "qualifiedName": "datastructures.py::DefaultPlaceholder",
+        "locator": "workspace://datastructures.py#L153-L168"
+      },
+      "locator": "workspace://datastructures.py#L181-L181",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_fastapi_call_setup",
       "semanticKey": "edge:calls:applications.py:FastAPI.__init__:FastAPI.setup",
       "capability": "calls",
@@ -112,5 +134,5 @@
       "resolution": "typed"
     }
   ],
-  "truthFingerprint": "sha256:0e188468f0c6ace74bf09939318223d86d4187e1059a53769426445e8324bb5f"
+  "truthFingerprint": "sha256:fb1de92b7721c3965e6eab41d53b5da512811c7e3b201f1a02a21fb6651683a6"
 }
