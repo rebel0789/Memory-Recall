@@ -107,9 +107,8 @@ pub(crate) struct IndexGenerationBuild {
     pub omitted_edge_count: usize,
 }
 
-type NodeLookup = BTreeMap<(String, String), String>;
-type SubjectLookup = BTreeMap<String, Vec<(String, String)>>;
-type NodeBuildOutput = (Vec<Value>, NodeLookup, SubjectLookup, usize);
+type NodeLookup = BTreeMap<String, Vec<(String, String)>>;
+type NodeBuildOutput = (Vec<Value>, NodeLookup, usize);
 
 pub fn serve_stdio(engine_version: &str) -> Result<()> {
     let stdin = io::stdin();
@@ -386,7 +385,7 @@ fn build_graph_at_root_with_sources(
     }));
     let generation_id = format!("cigen_{}", &generation_fingerprint[7..39]);
 
-    let (nodes, node_lookup, subject_lookup, candidate_node_count) = build_nodes(
+    let (nodes, node_lookup, candidate_node_count) = build_nodes(
         &report.code_facts,
         &hash_by_source,
         &request.workspace_id,
@@ -397,7 +396,6 @@ fn build_graph_at_root_with_sources(
     let (edges, candidate_edge_count) = build_edges(
         &report.code_facts,
         &node_lookup,
-        &subject_lookup,
         &generation_id,
         &request.languages,
         request.max_edges,
@@ -838,13 +836,11 @@ fn build_nodes(
     let candidate_count = candidates.len();
     candidates.truncate(max_nodes);
     disambiguate_qualified_names(&mut candidates);
-    let mut node_lookup = BTreeMap::new();
-    let mut subject_lookup: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut node_lookup: NodeLookup = BTreeMap::new();
     let nodes = candidates
         .into_iter()
         .map(|node| {
-            node_lookup.insert((node.subject.clone(), node.source.clone()), node.id.clone());
-            subject_lookup
+            node_lookup
                 .entry(node.subject.clone())
                 .or_default()
                 .push((node.source.clone(), node.id.clone()));
@@ -866,7 +862,7 @@ fn build_nodes(
             value
         })
         .collect();
-    (nodes, node_lookup, subject_lookup, candidate_count)
+    (nodes, node_lookup, candidate_count)
 }
 
 fn disambiguate_qualified_names(nodes: &mut [NativeNode]) {
@@ -1008,7 +1004,6 @@ fn qualified_symbol_name(
 fn build_edges(
     facts: &[CodeFactRecord],
     node_lookup: &NodeLookup,
-    subject_lookup: &SubjectLookup,
     generation_id: &str,
     requested_languages: &BTreeSet<String>,
     max_edges: usize,
@@ -1029,7 +1024,6 @@ fn build_edges(
             language,
             requested_languages,
             node_lookup,
-            subject_lookup,
         ) else {
             continue;
         };
@@ -1039,7 +1033,6 @@ fn build_edges(
             language,
             requested_languages,
             node_lookup,
-            subject_lookup,
         ) else {
             continue;
         };
@@ -1255,26 +1248,23 @@ fn resolve_node(
     source: &str,
     preferred_language: &str,
     requested_languages: &BTreeSet<String>,
-    node_lookup: &BTreeMap<(String, String), String>,
-    subject_lookup: &BTreeMap<String, Vec<(String, String)>>,
+    node_lookup: &NodeLookup,
 ) -> Option<String> {
     node_lookup
-        .get(&(subject.to_string(), source.to_string()))
-        .cloned()
-        .or_else(|| {
-            subject_lookup
-                .get(subject)
-                .and_then(|values| {
-                    values
-                        .iter()
-                        .find(|(candidate_source, _)| {
-                            source_language_for_request(candidate_source, requested_languages)
-                                == Some(preferred_language)
-                        })
-                        .or_else(|| values.first())
+        .get(subject)
+        .and_then(|values| {
+            values
+                .iter()
+                .find(|(candidate_source, _)| candidate_source == source)
+                .or_else(|| {
+                    values.iter().find(|(candidate_source, _)| {
+                        source_language_for_request(candidate_source, requested_languages)
+                            == Some(preferred_language)
+                    })
                 })
-                .map(|(_, id)| id.clone())
+                .or_else(|| values.first())
         })
+        .map(|(_, id)| id.clone())
 }
 
 fn build_coverage(
