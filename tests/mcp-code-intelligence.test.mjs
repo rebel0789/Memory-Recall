@@ -435,7 +435,7 @@ test('explicit auto MCP rechecks freshness between structural calls', async (t) 
   child.stdin.end();
 });
 
-test('default MCP falls back safely and explicit native failure is actionable', () => {
+test('default MCP falls back safely and strict native failures give the matching recovery action', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-native-off-'));
   writeFileSync(path.join(root, 'index.ts'), 'export function mcpDefault(){ return true; }\n');
   const missingBinary = path.join(root, 'missing-native');
@@ -465,4 +465,20 @@ test('default MCP falls back safely and explicit native failure is actionable', 
   const strictResponse = strict.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find(({ id }) => id === 2);
   assert.match(strictResponse.error.message, /native_engine_unavailable/u);
   assert.match(strictResponse.error.message, /@memory-recall\/native-/u);
+
+  const absent = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
+  ], {
+    encoding: 'utf8',
+    input,
+    env: {
+      ...process.env,
+      MEMORY_RECALL_NATIVE_BINARY: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf')
+    }
+  });
+  assert.equal(absent.status, 0, absent.stderr);
+  const absentResponse = absent.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find(({ id }) => id === 2);
+  assert.match(absentResponse.error.message, /source_index_(?:build_required|query_unavailable)/u);
+  assert.match(absentResponse.error.message, /oaf graph index --write --engine native-preview --root \. --format summary/u);
+  assert.doesNotMatch(absentResponse.error.message, /@memory-recall\/native-/u);
 });

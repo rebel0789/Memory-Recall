@@ -6875,10 +6875,45 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       .then(({ RustCodeIntelligenceProvider }) => new RustCodeIntelligenceProvider());
     return nativeProviderPromise;
   };
+  const strictNativeReadMessage = (error) => {
+    const code = String(error?.code ?? error?.message ?? 'native_engine_unavailable');
+    if (code === 'source_index_build_required' || code === 'source_index_query_unavailable') {
+      return `${code}: run oaf graph index --write --engine native-preview --root . --format summary`;
+    }
+    if (code === 'source_index_refresh_required') {
+      return `${code}: run oaf graph index --refresh --engine native-preview --root . --format summary`;
+    }
+    if ([
+      'source_index_corrupt',
+      'source_index_integrity_failed',
+      'source_index_migration_checksum_invalid',
+      'source_index_migration_required',
+      'source_index_repair_required',
+      'source_index_wrong_repository'
+    ].includes(code)) {
+      return `${code}: run oaf graph index --doctor --engine native-preview --root . --format summary, then use the exact repair command it reports`;
+    }
+    if (code === 'source_index_schema_newer') {
+      return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;
+    }
+    if (code === 'native_platform_unsupported') {
+      return `${code}: use --engine auto or --engine js on this platform`;
+    }
+    if ([
+      'native_engine_checksum_mismatch',
+      'native_engine_manifest_invalid',
+      'native_engine_path_invalid',
+      'native_engine_unavailable',
+      'native_engine_version_mismatch',
+      'native_platform_package_missing'
+    ].includes(code)) {
+      return `${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`;
+    }
+    return code;
+  };
   const actionableNativeReadError = (error) => {
     if (sourceIndexEngine !== 'native-preview') throw error;
-    const code = error?.code ?? error.message ?? 'native_engine_unavailable';
-    throw new Error(`${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`);
+    throw new Error(strictNativeReadMessage(error));
   };
   const nativeStatus = async () => {
     try {
