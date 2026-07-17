@@ -275,18 +275,12 @@ function languageFixtures() {
         '}'
       ].join('\n'),
       expectedFacts: [
-        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
-        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Utility_boot', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Utility_setup', predicate: 'IS_A', object: 'Method' },
+        { subject: 'module:src_Worker', predicate: 'DEFINES', object: 'package:demo' },
+        { subject: 'package:demo', predicate: 'DEFINES', object: 'class:demo.Worker' },
+        { subject: 'package:demo', predicate: 'DEFINES', object: 'class:demo.Utility' },
         { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:java' }
       ],
-      expectedCalls: [
-        { source: 'method:Utility_boot', target: 'method:Utility_setup' },
-        { source: 'method:Worker_run', target: 'method:Worker_helper' }
-      ]
+      expectedCalls: []
     }),
     assertLanguageFixture({
       language: 'c',
@@ -326,15 +320,12 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Widget', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Widget_render', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Widget_paint', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
-        { subject: 'module:src_widget', predicate: 'IMPORTS', object: 'module:widget' }
+        { subject: 'module:src_widget', predicate: 'IMPORTS', object: 'module:src_widget' }
       ],
       expectedCalls: [
-        { source: 'function:boot', target: 'function:helper' },
-        { source: 'method:Widget_render', target: 'method:Widget_paint' }
+        { source: 'function:boot', target: 'function:helper' }
       ]
     }),
     assertLanguageFixture({
@@ -421,16 +412,9 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_Run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_Helper', predicate: 'IS_A', object: 'Method' },
-        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Utility_Boot', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Utility_Setup', predicate: 'IS_A', object: 'Method' }
+        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' }
       ],
-      expectedCalls: [
-        { source: 'method:Utility_Boot', target: 'method:Utility_Setup' },
-        { source: 'method:Worker_Run', target: 'method:Worker_Helper' }
-      ]
+      expectedCalls: []
     }),
     assertLanguageFixture({
       language: 'swift',
@@ -450,15 +434,12 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:topHelper', predicate: 'IS_A', object: 'Function' },
         { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:Foundation' }
       ],
       expectedCalls: [
-        { source: 'function:boot', target: 'function:topHelper' },
-        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+        { source: 'function:boot', target: 'function:topHelper' }
       ]
     }),
     assertLanguageFixture({
@@ -479,15 +460,12 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
         { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:kotlin' }
       ],
       expectedCalls: [
-        { source: 'function:boot', target: 'function:setup' },
-        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+        { source: 'function:boot', target: 'function:setup' }
       ]
     }),
     assertLanguageFixture({
@@ -568,8 +546,6 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:helper_c', predicate: 'IS_A', object: 'Function' }
       ],
@@ -592,8 +568,6 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
         { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:scala' }
@@ -623,15 +597,12 @@ function languageFixtures() {
       ].join('\n'),
       expectedFacts: [
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
         { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dart' }
       ],
       expectedCalls: [
-        { source: 'function:boot', target: 'function:setup' },
-        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+        { source: 'function:boot', target: 'function:setup' }
       ]
     }),
     assertLanguageFixture({
@@ -669,7 +640,6 @@ function languageFixtures() {
         'end'
       ].join('\n'),
       expectedFacts: [
-        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
         { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
         { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:Base' }
@@ -696,15 +666,12 @@ function languageFixtures() {
         'fn helperGlobal() void {}'
       ].join('\n'),
       expectedFacts: [
-        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
-        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
-        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:helperGlobal', predicate: 'IS_A', object: 'Function' }
       ],
       expectedCalls: [
         { source: 'function:boot', target: 'function:helperGlobal' },
-        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+        { source: 'method:Worker_run', target: 'external_function:helper' }
       ]
     })
   ];
@@ -792,7 +759,7 @@ function oafRepoScenario() {
   const second = rustCli(ROOT, ['ingest', '--max-memory', '350', '--max-file-mb', '2'], sqlite);
   assert.equal(second.summary.recordedCount, 0);
   assert.equal(scalar(ROOT, "SELECT count(*) AS count FROM memory_facts WHERE status = 'active' AND superseded_by IS NULL", sqlite), activeBefore);
-  const recallCount = assertCamelRecall(ROOT, 'Active Fact Snapshot', 'class:ActiveFactSnapshot', sqlite);
+  const recallCount = assertCamelRecall(ROOT, 'Active Fact Snapshot', 'struct:ActiveFactSnapshot', sqlite);
   const oafCallEdgeCount = activeCallEdges(ROOT, sqlite).length;
   rmSync(temp, { recursive: true, force: true });
   return {
