@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
   MILLION_NODE_PLAN,
   createDenseFixturePlan,
+  parsePeakRssMb,
+  runKillSafeProcess,
   writeDenseFixture
 } from '../scripts/code-intelligence-million-node-index.mjs';
 
@@ -20,7 +21,7 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
     maxFileBytes: 1_048_576,
     maxNodes: 1_000_000,
     maxEdges: 1_000_000,
-    seedQuery: 'C_m0'
+    seedQuery: 'm0'
   });
   assert.throws(
     () => createDenseFixturePlan({ fileCount: 10, methodsPerFile: 99_998 }),
@@ -28,15 +29,28 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
   );
 
   const script = path.resolve('scripts/code-intelligence-million-node-index.mjs');
-  const missingMode = spawnSync(process.execPath, [script], { encoding: 'utf8' });
-  assert.equal(missingMode.status, 2);
-  assert.match(missingMode.stderr, /--plan\|--run/u);
-  const planned = spawnSync(process.execPath, [script, '--plan'], { encoding: 'utf8' });
-  assert.equal(planned.status, 0, planned.stderr);
-  const planReceipt = JSON.parse(planned.stdout);
+  const missingMode = await runKillSafeProcess({
+    command: process.execPath,
+    args: [script],
+    cwd: process.cwd(),
+    timeoutMs: 2_000
+  });
+  assert.equal(missingMode.exitCode, 2);
+  assert.match(missingMode.stderr.toString('utf8'), /--plan\|--run/u);
+  const planned = await runKillSafeProcess({
+    command: process.execPath,
+    args: [script, '--plan'],
+    cwd: process.cwd(),
+    timeoutMs: 2_000
+  });
+  assert.equal(planned.exitCode, 0, planned.stderr.toString('utf8'));
+  const planReceipt = JSON.parse(planned.stdout.toString('utf8'));
   assert.equal(planReceipt.requiresExplicitRun, true);
   assert.equal(planReceipt.fixture.expectedNodeCount, 1_000_000);
-  assert.equal(planReceipt.fixture.seedQuery, 'C_m0');
+  assert.equal(planReceipt.fixture.seedQuery, 'm0');
+  assert.equal(parsePeakRssMb('104857600 maximum resident set size', 'usr-bin-time-l'), 100);
+  assert.equal(parsePeakRssMb('Maximum resident set size (kbytes): 204800', 'usr-bin-time-v'), 200);
+  assert.equal(parsePeakRssMb('', 'usr-bin-time-l'), null);
 
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-million-node-test-'));
   try {
@@ -50,6 +64,27 @@ test('million-node benchmark plan and dense fixture are exact, bounded, and dete
     assert.equal(first.totalSourceBytes, metadata.size * 2);
     assert(metadata.size <= plan.maxFileBytes);
     assert.equal(source, 'class C{\nm0(){}\nm1(){}\nm2(){}\n}\n');
+
+    const marker = path.join(root, 'orphan-survived');
+    const grandchild = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'bad'), 250); setInterval(() => {}, 1000);`;
+    const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'ignore' }); setInterval(() => {}, 1000);`;
+    const timedOut = await runKillSafeProcess({
+      command: process.execPath,
+      args: ['-e', parent],
+      cwd: root,
+      timeoutMs: 50,
+      maxStdoutBytes: 1024,
+      maxStderrBytes: 1024
+    });
+    assert.equal(timedOut.timedOut, true);
+    assert.equal(timedOut.exitCode, null);
+    assert.match(timedOut.signal ?? '', /SIGKILL/u);
+    assert.match(timedOut.stdoutSha256, /^sha256:[a-f0-9]{64}$/u);
+    assert.match(timedOut.stderrSha256, /^sha256:[a-f0-9]{64}$/u);
+    if (process.platform !== 'win32') {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      await assert.rejects(access(marker));
+    }
 
     const secondRoot = `${root}-copy`;
     try {

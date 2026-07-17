@@ -132,6 +132,7 @@
     "rust/oaf/src/",
     "scripts/",
     "!scripts/code-intelligence-phase8-gitnexus.mjs",
+    "!scripts/code-intelligence-million-node-index.mjs",
     "!scripts/code-intelligence-phase0-baseline.mjs",
     "!scripts/code-intelligence-phase1-compatibility.mjs",
     "!scripts/code-intelligence-batch-a.mjs",

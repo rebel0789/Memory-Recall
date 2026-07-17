@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
-import { appendFile, mkdir, mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { spawn, execFile } from 'node:child_process';
+import { constants, createReadStream } from 'node:fs';
+import { access, appendFile, mkdir, mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
+import { promisify } from 'node:util';
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import requestSchema from '../packages/protocol/schemas/code-intelligence-index-request.schema.json' with { type: 'json' };
 import responseSchema from '../packages/protocol/schemas/code-intelligence-index-response.schema.json' with { type: 'json' };
 import { resolveNativeBinary } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
-import { peakRssMb, timedSpawn } from './timing.mjs';
 
 const OUTPUT = 'evals/code-intelligence/results/million-node-rust-index.json';
 const INDEX_RELATIVE = '.local/source-index/index.v1.sqlite';
@@ -20,10 +22,12 @@ const BUILD_DEADLINE_MS = 300_000;
 const READER_DEADLINE_MS = 2_000;
 const QUERY_REPETITIONS = 20;
 const MAX_STDOUT_BYTES = 8 * 1024 * 1024;
+const MAX_STDERR_BYTES = 1024 * 1024;
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_NODES = 1_000_000;
 const MAX_EDGES = 1_000_000;
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const execFileAsync = promisify(execFile);
 
 export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997 } = {}) {
   if (!Number.isInteger(fileCount) || fileCount < 1 || fileCount > 1_000_000) {
@@ -49,7 +53,7 @@ export function createDenseFixturePlan({ fileCount = 10, methodsPerFile = 99_997
     maxFileBytes: MAX_FILE_BYTES,
     maxNodes: MAX_NODES,
     maxEdges: MAX_EDGES,
-    seedQuery: 'C_m0'
+    seedQuery: 'm0'
   });
 }
 
@@ -101,6 +105,11 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
       process.platform === 'win32' ? 'oaf.exe' : 'oaf'
     );
     const selected = await resolveNativeBinary({ binaryPath: checkoutBinary });
+    const [binarySha256, checkout, timer] = await Promise.all([
+      fileSha256(selected.path),
+      checkoutEvidence(),
+      resolveTimer()
+    ]);
     const writerArguments = {
       write: true,
       maxFiles: MILLION_NODE_PLAN.fileCount,
@@ -116,22 +125,23 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
       operation,
       argumentsValue,
       deadlineMs,
-      ordinal: ordinal += 1
+      ordinal: ordinal += 1,
+      timer
     });
 
-    const coldBuild = run('index.build', writerArguments, BUILD_DEADLINE_MS);
+    const coldBuild = await run('index.build', writerArguments, BUILD_DEADLINE_MS);
     const warmOpen = coldBuild.ok
-      ? run('index.status', {}, READER_DEADLINE_MS)
+      ? await run('index.status', {}, READER_DEADLINE_MS)
       : skippedOperation('cold_build_failed');
     const noChangeRefresh = coldBuild.ok
-      ? run('index.refresh', writerArguments, BUILD_DEADLINE_MS)
+      ? await run('index.refresh', writerArguments, BUILD_DEADLINE_MS)
       : skippedOperation('cold_build_failed');
     const indexPath = path.join(workspace, INDEX_RELATIVE);
     const querySnapshotBefore = coldBuild.ok ? await fileSnapshot(indexPath) : null;
     const queries = [];
     if (coldBuild.ok) {
       for (let index = 0; index < QUERY_REPETITIONS; index += 1) {
-        queries.push(run('index.query', {
+        queries.push(await run('index.query', {
           kind: 'exact',
           query: MILLION_NODE_PLAN.seedQuery,
           limit: 25
@@ -142,15 +152,20 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
     let oneFileRefresh = skippedOperation('cold_build_failed');
     if (coldBuild.ok) {
       await appendFile(path.join(workspace, 'src', 'dense-0000.js'), '// one-file-refresh\n');
-      oneFileRefresh = run('index.refresh', writerArguments, BUILD_DEADLINE_MS);
+      oneFileRefresh = await run('index.refresh', writerArguments, BUILD_DEADLINE_MS);
     }
     const finalStatus = coldBuild.ok
-      ? run('index.status', {}, READER_DEADLINE_MS)
+      ? await run('index.status', {}, READER_DEADLINE_MS)
       : skippedOperation('cold_build_failed');
     const summary = finalStatus.ok ? finalStatus.result.summary : coldBuild.result?.summary ?? emptySummary();
-    const queryReceipt = summarizeQueries(queries);
+    const queryReceipt = {
+      ...summarizeQueries(queries),
+      sqliteBefore: querySnapshotBefore,
+      sqliteAfter: querySnapshotAfter
+    };
     const failures = collectFailures({
       fixture,
+      checkout,
       coldBuild,
       warmOpen,
       noChangeRefresh,
@@ -171,10 +186,16 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
         nodeVersion: process.version,
         nativeVersion: selected.version,
         nativeTarget: selected.target,
-        nativeSource: selected.source,
-        rssMeasurement: process.platform === 'darwin'
-          ? 'usr-bin-time-l'
-          : process.platform === 'linux' ? 'usr-bin-time-v' : 'unavailable'
+        nativeSource: 'checkout',
+        rssMeasurement: coldBuild.rssMeasurement ?? 'unavailable'
+      },
+      execution: {
+        binarySha256,
+        checkoutCommit: checkout.commit,
+        checkoutDirtyBeforeRun: checkout.dirty,
+        argvTemplate: timer
+          ? ['<timer>', ...timer.args, '<checkout-rust-binary>', 'code-intelligence', 'index', '--stdio']
+          : ['<checkout-rust-binary>', 'code-intelligence', 'index', '--stdio']
       },
       fixture,
       bounds: {
@@ -244,19 +265,22 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
   return report;
 }
 
-function runIndexOperation({ binary, workspace, operation, argumentsValue, deadlineMs, ordinal }) {
+async function runIndexOperation({ binary, workspace, operation, argumentsValue, deadlineMs, ordinal, timer }) {
   const request = requestFrame(operation, argumentsValue, deadlineMs, ordinal);
   if (!validateJsonSchema(requestSchema, request).valid) {
     return failedOperation('benchmark_request_invalid');
   }
   const started = performance.now();
-  const spawned = timedSpawn(binary, ['code-intelligence', 'index', '--stdio'], {
+  const executed = await runKillSafeProcess({
+    command: timer?.command ?? binary,
+    args: timer
+      ? [...timer.args, binary, 'code-intelligence', 'index', '--stdio']
+      : ['code-intelligence', 'index', '--stdio'],
     cwd: workspace,
     input: `${JSON.stringify(request)}\n`,
-    encoding: 'utf8',
-    maxBuffer: MAX_STDOUT_BYTES,
-    timeout: deadlineMs + 5_000,
-    killSignal: 'SIGKILL',
+    timeoutMs: deadlineMs + 5_000,
+    maxStdoutBytes: MAX_STDOUT_BYTES,
+    maxStderrBytes: MAX_STDERR_BYTES,
     env: Object.freeze({
       PATH: process.env.PATH ?? '',
       LANG: 'C',
@@ -265,38 +289,187 @@ function runIndexOperation({ binary, workspace, operation, argumentsValue, deadl
     })
   });
   const wallMs = round(performance.now() - started);
-  const measuredPeakRssMb = peakRssMb(spawned.stderr);
-  const peakNativeRssMb = measuredPeakRssMb > 0 ? measuredPeakRssMb : null;
-  if (spawned.error?.code === 'ETIMEDOUT') {
-    return failedOperation('benchmark_operation_timeout', { wallMs, peakNativeRssMb });
+  const peakNativeRssMb = timer ? parsePeakRssMb(executed.stderr, timer.measurement) : null;
+  const processEvidence = processReceipt(executed, timer, peakNativeRssMb);
+  if (executed.timedOut) {
+    return failedOperation('benchmark_operation_timeout', { wallMs, ...processEvidence });
   }
-  if (spawned.error || spawned.signal || spawned.status !== 0) {
-    return failedOperation(spawned.signal ? 'benchmark_native_process_signalled' : 'benchmark_native_process_failed', {
+  if (executed.outputLimitExceeded) {
+    return failedOperation('benchmark_native_output_limit', { wallMs, ...processEvidence });
+  }
+  if (executed.errorCode || executed.signal || executed.exitCode !== 0) {
+    return failedOperation(executed.signal ? 'benchmark_native_process_signalled' : 'benchmark_native_process_failed', {
       wallMs,
-      peakNativeRssMb
+      ...processEvidence
     });
   }
   let frame;
   try {
-    const lines = String(spawned.stdout).trim().split(/\r?\n/u).filter(Boolean);
+    const lines = executed.stdout.toString('utf8').trim().split(/\r?\n/u).filter(Boolean);
     if (lines.length !== 1) throw new Error('line-count');
     frame = JSON.parse(lines[0]);
   } catch {
-    return failedOperation('benchmark_native_response_invalid', { wallMs, peakNativeRssMb });
+    return failedOperation('benchmark_native_response_invalid', { wallMs, ...processEvidence });
   }
   if (!validateJsonSchema(responseSchema, frame).valid || frame.requestId !== request.requestId) {
-    return failedOperation('benchmark_native_response_invalid', { wallMs, peakNativeRssMb });
+    return failedOperation('benchmark_native_response_invalid', { wallMs, ...processEvidence });
   }
   if (!frame.ok) {
-    return failedOperation(frame.error.code, { wallMs, peakNativeRssMb });
+    return failedOperation(frame.error.code, { wallMs, ...processEvidence });
   }
   return Object.freeze({
     ok: true,
     wallMs,
-    peakNativeRssMb,
-    responseBytes: Buffer.byteLength(spawned.stdout),
+    ...processEvidence,
     result: frame.result
   });
+}
+
+export function runKillSafeProcess({
+  command,
+  args,
+  cwd,
+  input = '',
+  timeoutMs,
+  maxStdoutBytes = MAX_STDOUT_BYTES,
+  maxStderrBytes = MAX_STDERR_BYTES,
+  env = process.env
+}) {
+  return new Promise((resolve) => {
+    const grouped = process.platform !== 'win32';
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      detached: grouped,
+      shell: false,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    const stdout = [];
+    const stderr = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let timedOut = false;
+    let outputLimitExceeded = false;
+    let errorCode = null;
+    let killStarted = false;
+    const killTree = () => {
+      if (killStarted) return;
+      killStarted = true;
+      try {
+        if (grouped && child.pid) process.kill(-child.pid, 'SIGKILL');
+        else child.kill('SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
+      }
+    };
+    const timerId = setTimeout(() => {
+      timedOut = true;
+      killTree();
+    }, timeoutMs);
+    child.on('error', (error) => {
+      errorCode = safeCode(error?.code?.toLowerCase());
+      killTree();
+    });
+    child.stdout.on('data', (chunk) => {
+      stdoutBytes += chunk.length;
+      if (stdoutBytes > maxStdoutBytes) {
+        outputLimitExceeded = true;
+        killTree();
+        return;
+      }
+      stdout.push(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      stderrBytes += chunk.length;
+      if (stderrBytes > maxStderrBytes) {
+        outputLimitExceeded = true;
+        killTree();
+        return;
+      }
+      stderr.push(chunk);
+    });
+    child.on('close', (exitCode, signal) => {
+      clearTimeout(timerId);
+      const stdoutBuffer = Buffer.concat(stdout);
+      const stderrBuffer = Buffer.concat(stderr);
+      resolve(Object.freeze({
+        exitCode,
+        signal,
+        timedOut,
+        outputLimitExceeded,
+        errorCode,
+        stdout: stdoutBuffer,
+        stderr: stderrBuffer,
+        stdoutBytes,
+        stderrBytes,
+        stdoutSha256: bufferSha256(stdoutBuffer),
+        stderrSha256: bufferSha256(stderrBuffer)
+      }));
+    });
+    child.stdin.on('error', () => killTree());
+    child.stdin.end(input);
+  });
+}
+
+function processReceipt(executed, timer, peakNativeRssMb) {
+  return {
+    peakNativeRssMb,
+    rssMeasurement: peakNativeRssMb === null ? 'unavailable' : timer.measurement,
+    exitCode: executed.exitCode,
+    signal: executed.signal,
+    timedOut: executed.timedOut,
+    outputLimitExceeded: executed.outputLimitExceeded,
+    errorCode: executed.errorCode,
+    stdoutBytes: executed.stdoutBytes,
+    stderrBytes: executed.stderrBytes,
+    stdoutSha256: executed.stdoutSha256,
+    stderrSha256: executed.stderrSha256
+  };
+}
+
+async function resolveTimer() {
+  if (!['darwin', 'linux'].includes(process.platform)) return null;
+  try {
+    await access('/usr/bin/time', constants.X_OK);
+    return process.platform === 'darwin'
+      ? Object.freeze({ command: '/usr/bin/time', args: ['-l'], measurement: 'usr-bin-time-l' })
+      : Object.freeze({ command: '/usr/bin/time', args: ['-v'], measurement: 'usr-bin-time-v' });
+  } catch {
+    return null;
+  }
+}
+
+export function parsePeakRssMb(stderr, measurement) {
+  const text = Buffer.isBuffer(stderr) ? stderr.toString('utf8') : String(stderr ?? '');
+  if (measurement === 'usr-bin-time-l') {
+    const bytes = Number(text.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
+    return bytes > 0 ? Number((bytes / 1024 / 1024).toFixed(1)) : null;
+  }
+  if (measurement === 'usr-bin-time-v') {
+    const kilobytes = Number(text.match(/Maximum resident set size \(kbytes\):\s*(\d+)/u)?.[1] ?? 0);
+    return kilobytes > 0 ? Number((kilobytes / 1024).toFixed(1)) : null;
+  }
+  return null;
+}
+
+async function checkoutEvidence() {
+  const options = { cwd: REPOSITORY_ROOT, encoding: 'utf8', maxBuffer: 1024 * 1024 };
+  const [commit, status] = await Promise.all([
+    execFileAsync('git', ['rev-parse', 'HEAD'], options),
+    execFileAsync('git', ['status', '--porcelain'], options)
+  ]);
+  return Object.freeze({ commit: commit.stdout.trim(), dirty: status.stdout.trim().length > 0 });
+}
+
+async function fileSha256(file) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(file)) hash.update(chunk);
+  return `sha256:${hash.digest('hex')}`;
+}
+
+function bufferSha256(value) {
+  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 function requestFrame(operation, argumentsValue, deadlineMs, ordinal) {
@@ -316,13 +489,12 @@ function requestFrame(operation, argumentsValue, deadlineMs, ordinal) {
 }
 
 function operationReceipt(operation) {
-  if (!operation.ok) return { status: 'failed', code: operation.code, wallMs: operation.wallMs, peakNativeRssMb: operation.peakNativeRssMb };
+  if (!operation.ok) return { status: 'failed', code: operation.code, wallMs: operation.wallMs, ...executionReceipt(operation) };
   return {
     status: 'complete',
     wallMs: operation.wallMs,
     engineDurationMs: operation.result.measurements.durationMs,
-    peakNativeRssMb: operation.peakNativeRssMb,
-    responseBytes: operation.responseBytes,
+    ...executionReceipt(operation),
     parsedFileCount: operation.result.measurements.parsedFileCount,
     reusedFileCount: operation.result.measurements.reusedFileCount,
     changedFileCount: operation.result.measurements.changedFileCount,
@@ -334,14 +506,48 @@ function operationReceipt(operation) {
   };
 }
 
+function executionReceipt(operation) {
+  return {
+    peakNativeRssMb: operation.peakNativeRssMb,
+    rssMeasurement: operation.rssMeasurement,
+    exitCode: operation.exitCode,
+    signal: operation.signal,
+    timedOut: operation.timedOut,
+    outputLimitExceeded: operation.outputLimitExceeded,
+    errorCode: operation.errorCode,
+    stdoutBytes: operation.stdoutBytes,
+    stderrBytes: operation.stderrBytes,
+    stdoutSha256: operation.stdoutSha256,
+    stderrSha256: operation.stderrSha256
+  };
+}
+
 function summarizeQueries(operations) {
   if (operations.length === 0) return { status: 'skipped', reason: 'cold_build_failed', repetitions: 0 };
   const failed = operations.find((operation) => !operation.ok);
-  if (failed) return { status: 'failed', code: failed.code, repetitions: operations.length };
+  if (failed) return {
+    status: 'failed',
+    code: failed.code,
+    repetitions: operations.length,
+    failedOperation: operationReceipt(failed)
+  };
+  const fingerprints = operations.map((operation) => fingerprint(projectQueryResults(operation.result.results)));
+  const expectedMethodLocators = Array.from(
+    { length: MILLION_NODE_PLAN.fileCount },
+    (_, index) => `workspace://src/dense-${String(index).padStart(4, '0')}.js#L2-L2`
+  );
   return {
     status: 'complete',
     repetitions: operations.length,
     resultCount: operations[0].result.results.length,
+    expectedMethodLocators,
+    methodLocators: operations[0].result.results.map((item) => item.locator).sort(),
+    expectedMethodsPresent: operations.every((operation) => (
+      operation.result.results.length === expectedMethodLocators.length &&
+      operation.result.results.every((item) => item.kind === 'method' && item.label === 'm0') &&
+      JSON.stringify(operation.result.results.map((item) => item.locator).sort()) === JSON.stringify(expectedMethodLocators)
+    )),
+    stableResultFingerprint: new Set(fingerprints).size === 1 ? fingerprints[0] : null,
     committedNodeCount: operations.every((operation) => operation.result.summary.nodeCount === MAX_NODES)
       ? MAX_NODES
       : null,
@@ -352,13 +558,20 @@ function summarizeQueries(operations) {
     peakNativeRssMb: operations.every((operation) => operation.peakNativeRssMb !== null)
       ? Math.max(...operations.map((operation) => operation.peakNativeRssMb))
       : null,
-    responseBytes: percentiles(operations.map((operation) => operation.responseBytes)),
+    stdoutBytes: percentiles(operations.map((operation) => operation.stdoutBytes)),
+    stderrBytes: percentiles(operations.map((operation) => operation.stderrBytes)),
+    stdoutSha256: [...new Set(operations.map((operation) => operation.stdoutSha256))].sort(),
+    stderrSha256: [...new Set(operations.map((operation) => operation.stderrSha256))].sort(),
+    exitCodes: [...new Set(operations.map((operation) => operation.exitCode))],
+    signals: [...new Set(operations.map((operation) => operation.signal))],
+    timedOut: operations.some((operation) => operation.timedOut),
     localFilesWritten: Math.max(...operations.map((operation) => operation.result.measurements.localFilesWritten))
   };
 }
 
 function collectFailures({
   fixture,
+  checkout,
   coldBuild,
   warmOpen,
   noChangeRefresh,
@@ -372,6 +585,8 @@ function collectFailures({
   const failures = [];
   const fail = (condition, code) => { if (condition) failures.push(code); };
   fail(fixture.expectedNodeCount !== MAX_NODES, 'fixture_node_count_not_million');
+  fail(!/^[a-f0-9]{40}$/u.test(checkout.commit), 'benchmark_checkout_commit_invalid');
+  fail(checkout.dirty, 'benchmark_checkout_dirty');
   for (const [name, operation] of [
     ['cold_build', coldBuild],
     ['warm_open', warmOpen],
@@ -401,6 +616,8 @@ function collectFailures({
   fail(oneFileRefresh.ok && oneFileRefresh.result.measurements.parsedFileCount !== 1, 'one_file_parse_count_invalid');
   fail(queryReceipt.status !== 'complete', `exact_query_${queryReceipt.code ?? 'incomplete'}`);
   fail(queryReceipt.status === 'complete' && queryReceipt.resultCount < 1, 'exact_query_empty');
+  fail(queryReceipt.status === 'complete' && !queryReceipt.expectedMethodsPresent, 'exact_query_expected_methods_missing');
+  fail(queryReceipt.status === 'complete' && queryReceipt.stableResultFingerprint === null, 'exact_query_results_not_stable');
   fail(queryReceipt.status === 'complete' && queryReceipt.localFilesWritten !== 0, 'exact_query_wrote_files');
   fail(queryReceipt.status === 'complete' && queryReceipt.omittedCount !== 0, 'exact_query_items_omitted');
   fail(queryReceipt.status === 'complete' && queryReceipt.readOnly !== true, 'exact_query_not_read_only');
@@ -409,7 +626,8 @@ function collectFailures({
   fail(
     querySnapshotBefore && querySnapshotAfter && (
       querySnapshotBefore.bytes !== querySnapshotAfter.bytes ||
-      querySnapshotBefore.mtimeNs !== querySnapshotAfter.mtimeNs
+      querySnapshotBefore.mtimeNs !== querySnapshotAfter.mtimeNs ||
+      querySnapshotBefore.sha256 !== querySnapshotAfter.sha256
     ),
     'exact_query_mutated_index'
   );
@@ -420,12 +638,32 @@ function queriesDoNotProveCommittedMillion(queryReceipt) {
   return queryReceipt.status === 'complete' && queryReceipt.committedNodeCount !== MAX_NODES;
 }
 
-function failedOperation(code, { wallMs = 0, peakNativeRssMb = null } = {}) {
-  return Object.freeze({ ok: false, code: safeCode(code), wallMs, peakNativeRssMb });
+function projectQueryResults(results) {
+  return results.map((item) => ({ kind: item.kind, label: item.label, locator: item.locator }));
+}
+
+function failedOperation(code, evidence = {}) {
+  const emptyHash = bufferSha256(Buffer.alloc(0));
+  return Object.freeze({
+    ok: false,
+    code: safeCode(code),
+    wallMs: evidence.wallMs ?? 0,
+    peakNativeRssMb: evidence.peakNativeRssMb ?? null,
+    rssMeasurement: evidence.rssMeasurement ?? 'unavailable',
+    exitCode: evidence.exitCode ?? null,
+    signal: evidence.signal ?? null,
+    timedOut: evidence.timedOut ?? false,
+    outputLimitExceeded: evidence.outputLimitExceeded ?? false,
+    errorCode: evidence.errorCode ?? null,
+    stdoutBytes: evidence.stdoutBytes ?? 0,
+    stderrBytes: evidence.stderrBytes ?? 0,
+    stdoutSha256: evidence.stdoutSha256 ?? emptyHash,
+    stderrSha256: evidence.stderrSha256 ?? emptyHash
+  });
 }
 
 function skippedOperation(reason) {
-  return Object.freeze({ ok: false, code: safeCode(reason), wallMs: 0, peakNativeRssMb: null });
+  return failedOperation(reason);
 }
 
 function safeCode(value) {
@@ -438,7 +676,7 @@ function emptySummary() {
 
 async function fileSnapshot(file) {
   const metadata = await stat(file, { bigint: true });
-  return { bytes: Number(metadata.size), mtimeNs: metadata.mtimeNs.toString() };
+  return { bytes: Number(metadata.size), mtimeNs: metadata.mtimeNs.toString(), sha256: await fileSha256(file) };
 }
 
 function percentiles(values) {
