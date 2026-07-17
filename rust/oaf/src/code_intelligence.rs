@@ -1109,12 +1109,13 @@ fn edge_priority(kind: &str, resolution: &str) -> u8 {
         "defines" | "contains" | "member_of" => 0,
         "imports" | "exports" | "re_exports" => 1,
         "inherits" | "implements" | "extends" | "mixes_in" | "extends_type" => 2,
-        "depends_on" | "part_of" | "entry_point" | "handles_route" | "process_step" => 3,
-        "constructs" | "references" | "reads" | "writes" | "emits" | "listens" => 4,
-        "calls" if resolution == "typed" => 5,
-        "calls" if resolution == "inferred" || resolution == "lexical" => 6,
-        "calls" => 7,
-        _ => 4,
+        "part_of" | "entry_point" | "handles_route" | "process_step" => 3,
+        "calls" if resolution == "typed" => 4,
+        "calls" if resolution == "inferred" || resolution == "lexical" => 5,
+        "constructs" | "references" | "reads" | "writes" | "emits" | "listens" => 6,
+        "depends_on" => 7,
+        "calls" => 8,
+        _ => 6,
     }
 }
 

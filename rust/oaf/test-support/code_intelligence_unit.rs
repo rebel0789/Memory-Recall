@@ -1041,6 +1041,77 @@ mod tests {
     }
 
     #[test]
+    fn edge_budgets_keep_semantic_calls_before_bulk_build_dependencies() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-build-dependency-priority-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.c"),
+            "int helper(void) { return 1; }\nint main(void) { return helper(); }\n",
+        )
+        .unwrap();
+        for source in ["a.c", "b.c", "c.c"] {
+            fs::write(root.join(source), "void dependency(void) {}\n").unwrap();
+        }
+        fs::write(
+            root.join("CMakeLists.txt"),
+            "add_executable(app main.c a.c b.c c.c)\n",
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["c"]);
+        request_value["arguments"]["maxEdges"] = json!(11);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let main_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "function" && node["name"] == "main")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+        let helper_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "function" && node["name"] == "helper")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+        let target_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "build_target" && node["name"] == "app")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "entry_point"
+                && edge["fromNodeId"] == main_id
+                && edge["toNodeId"] == target_id
+        }));
+        assert!(
+            edges.iter().any(|edge| {
+                edge["kind"] == "calls"
+                    && edge["fromNodeId"] == main_id
+                    && edge["toNodeId"] == helper_id
+            }),
+            "{edges:#?}"
+        );
+        assert!(!edges.iter().any(|edge| edge["kind"] == "depends_on"));
+        assert!(
+            graph["diagnostics"].as_array().unwrap().iter().any(|item| {
+                item["code"] == "edge_budget_reached" && item["count"].as_u64().unwrap_or(0) > 0
+            }),
+            "{:#?}",
+            graph["edges"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn go_type_and_same_named_method_keep_distinct_graph_identities() {
         let root = std::env::temp_dir().join(format!(
             "memory-recall-code-intelligence-go-same-name-{}",
