@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-17T17:59:52.015Z",
+  "generatedAt": "2026-07-17T18:18:50.957Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -29,7 +29,7 @@
       {
         "batch": "B",
         "path": "evals/code-intelligence/results/phase2-batch-b.json",
-        "reportFingerprint": "sha256:36dacb7915d1c7fb5a530bc46799cde1387eb7fa998be040ac6fcc416e6fbfc4",
+        "reportFingerprint": "sha256:9a246c90559af88e15658e1d8e1692f02026a15c42071cd5b7c0c5b39e00550e",
         "caseCount": 12,
         "languageCount": 3
       },
@@ -64,12 +64,12 @@
     "graphNodeCount": 49661,
     "graphEdgeCount": 111408,
     "graphResponseBytes": 78309501,
-    "firstRunWallTimeMs": 15857.633,
-    "secondRunWallTimeMs": 14488.991,
-    "peakEvaluatorRssKb": 190016,
-    "meetsFloorCapabilityCount": 52,
+    "firstRunWallTimeMs": 14429.105,
+    "secondRunWallTimeMs": 14413.667,
+    "peakEvaluatorRssKb": 182160,
+    "meetsFloorCapabilityCount": 53,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 102
+    "unmeasuredCapabilityCount": 101
   },
   "cases": [
     {
@@ -1243,9 +1243,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1404.435,
-        "secondElapsedMs": 12.818,
-        "evaluatorMaxRssKb": 60528,
+        "firstElapsedMs": 33.155,
+        "secondElapsedMs": 10.523,
+        "evaluatorMaxRssKb": 60416,
         "graphResponseBytes": 15618,
         "workspaceFingerprintUnchanged": true
       },
@@ -1384,9 +1384,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.895,
-        "secondElapsedMs": 12.197,
-        "evaluatorMaxRssKb": 66448,
+        "firstElapsedMs": 9.889,
+        "secondElapsedMs": 9.91,
+        "evaluatorMaxRssKb": 66272,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -1525,9 +1525,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.642,
-        "secondElapsedMs": 10.666,
-        "evaluatorMaxRssKb": 68128,
+        "firstElapsedMs": 9.782,
+        "secondElapsedMs": 9.651,
+        "evaluatorMaxRssKb": 67984,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -1667,9 +1667,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 225.001,
-        "secondElapsedMs": 227.385,
-        "evaluatorMaxRssKb": 122944,
+        "firstElapsedMs": 219.531,
+        "secondElapsedMs": 225.014,
+        "evaluatorMaxRssKb": 122000,
         "graphResponseBytes": 2231553,
         "workspaceFingerprintUnchanged": true
       },
@@ -1809,9 +1809,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 137.425,
-        "secondElapsedMs": 132.476,
-        "evaluatorMaxRssKb": 132992,
+        "firstElapsedMs": 138.354,
+        "secondElapsedMs": 129.31,
+        "evaluatorMaxRssKb": 133504,
         "graphResponseBytes": 1403813,
         "workspaceFingerprintUnchanged": true
       },
@@ -1951,14 +1951,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 100.23,
-        "secondElapsedMs": 101.565,
-        "evaluatorMaxRssKb": 139808,
+        "firstElapsedMs": 97.691,
+        "secondElapsedMs": 100.27,
+        "evaluatorMaxRssKb": 140384,
         "graphResponseBytes": 1041879,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:63709c04b03fe5529593b0aef390eed3022b5c7eaecf1857af8d10f27c7d52d1",
+        "reportFingerprint": "sha256:08f886b94436dd549b6c64d2fd3587dbc4524b4173a2a9dc6566b2da3879ef51",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -1966,8 +1966,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -1978,8 +1978,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -2012,10 +2012,10 @@
           },
           {
             "id": "heritage",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "types",
@@ -2098,9 +2098,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 910.392,
-        "secondElapsedMs": 896.583,
-        "evaluatorMaxRssKb": 181200,
+        "firstElapsedMs": 890.697,
+        "secondElapsedMs": 875.692,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -2240,9 +2240,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 277.663,
-        "secondElapsedMs": 282.859,
-        "evaluatorMaxRssKb": 181200,
+        "firstElapsedMs": 275.362,
+        "secondElapsedMs": 273.245,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -2382,9 +2382,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.228,
-        "secondElapsedMs": 27.925,
-        "evaluatorMaxRssKb": 181200,
+        "firstElapsedMs": 27.798,
+        "secondElapsedMs": 26.455,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -2524,9 +2524,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.41,
-        "secondElapsedMs": 11.902,
-        "evaluatorMaxRssKb": 181200,
+        "firstElapsedMs": 13.305,
+        "secondElapsedMs": 11.642,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -2666,9 +2666,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 306.341,
-        "secondElapsedMs": 315.97,
-        "evaluatorMaxRssKb": 190016,
+        "firstElapsedMs": 298.006,
+        "secondElapsedMs": 302.258,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -2808,9 +2808,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 473.76,
-        "secondElapsedMs": 468.222,
-        "evaluatorMaxRssKb": 190016,
+        "firstElapsedMs": 458.324,
+        "secondElapsedMs": 451.274,
+        "evaluatorMaxRssKb": 182160,
         "graphResponseBytes": 4237455,
         "workspaceFingerprintUnchanged": true
       },
@@ -8625,8 +8625,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 12,
-          "denominator": 12,
+          "numerator": 13,
+          "denominator": 13,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -8726,14 +8726,14 @@
         {
           "id": "heritage",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 2,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 3,
-              "denominator": 3,
+              "numerator": 4,
+              "denominator": 4,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -8741,7 +8741,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11755,5 +11755,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:c10862da8ae4c149e40af8abb54aba2c132579e25183c60b5d892c88cb861662"
+  "reportFingerprint": "sha256:a3c85761593bdbeae24e2e3fb4378854ec617ec117c99b9617131882d85fe59e"
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-17T17:59:52.015Z",
+  "generatedAt": "2026-07-17T18:18:50.957Z",
   "languages": [
     {
       "id": "typescript",
@@ -671,7 +671,7 @@
         },
         "heritage": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "documentation",
@@ -692,10 +692,14 @@
             {
               "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
@@ -822,7 +826,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 5 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {

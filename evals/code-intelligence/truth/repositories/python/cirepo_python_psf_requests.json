@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T18:14:34.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -23,7 +23,7 @@
     "structure": "partial",
     "imports": "partial",
     "exports": "unmeasured",
-    "heritage": "unmeasured",
+    "heritage": "partial",
     "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
@@ -99,6 +99,18 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_requests_invalid_json_extends_request_exception",
+      "semanticKey": "edge:extends:exceptions.py:InvalidJSONError:RequestException",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "extends",
+      "from": { "kind": "class", "name": "InvalidJSONError", "qualifiedName": "exceptions.py::InvalidJSONError", "locator": "workspace://exceptions.py#L38-L39" },
+      "to": { "kind": "class", "name": "RequestException", "qualifiedName": "exceptions.py::RequestException", "locator": "workspace://exceptions.py#L20-L35" },
+      "locator": "workspace://exceptions.py#L38-L39",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_requests_call_lower_items",
       "semanticKey": "edge:calls:structures.py:CaseInsensitiveDict.__eq__:lower_items",
       "capability": "calls",
@@ -123,5 +135,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:2eebeebdb3fc2d5e6c29a46b712a9b77b322e3d0738f89990250a57178293b1f"
+  "truthFingerprint": "sha256:bc19ddf7499f4dec820ebb2345327266b3714b3a4aa44199b2254c7a2aba3d6b"
 }

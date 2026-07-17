@@ -74,7 +74,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | TypeScript | 6/6 | 10/10 | 6/6 | parse, structure, imports, exports, types, calls | none | meets-floor |
 | JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | none | meets-floor |
-| Python | 16/16 | 12/12 | 4/4 | parse, structure, imports, calls | heritage, types, config, frameworks | unmeasured |
+| Python | 16/16 | 13/13 | 4/4 | parse, structure, imports, heritage, calls | types, config, frameworks | unmeasured |
 | Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
 | Kotlin | 20/20 | 8/8 | 4/4 | parse, structure | imports, heritage, types, calls, frameworks | unmeasured |
 | C# | 23/23 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
@@ -87,8 +87,8 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
 
-Across the 154 Tier 1 capability cells, 52 meet the Phase 2 floor, none has a
-recorded floor failure, and 102 remain unmeasured or not applicable. TypeScript
+Across the 154 Tier 1 capability cells, 53 meet the Phase 2 floor, none has a
+recorded floor failure, and 101 remain unmeasured or not applicable. TypeScript
 and JavaScript are the first two languages whose applicable Phase 2 rows all
 meet the sampled floor; the other twelve languages remain overall unmeasured.
 Five repository scopes hit the configured node or edge budget and report the
@@ -100,11 +100,12 @@ construction or typed-receiver edge in the same four cases. This Phase 2 status
 does not measure TypeScript heritage, configuration, frameworks, impact, or
 processes and is not a full-language or competitor-parity claim.
 
-Python's `imports` row is backed by exact internal-module edges in its fixture
-and each pinned repository. The native resolver now handles dotted relative
-imports and absolute self-package submodules within the existing bounded
-package scopes. Package-root imports, imported-name expansion, heritage, types,
-configuration, frameworks, impact, and processes remain unevaluated.
+Python's `imports` and `heritage` rows are backed by exact reviewed edges in its
+fixture and each pinned repository. The native resolver handles dotted relative
+imports, absolute self-package submodules, and the sampled same-file inheritance
+edges within the existing bounded package scopes. Package-root imports,
+imported-name expansion, types, configuration, frameworks, impact, and processes
+remain unevaluated.
 
 Reproduce the stored batch receipts and aggregate from a source checkout with a
 local release binary:

@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T18:14:34.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -88,16 +88,16 @@
       "resolution": "exact"
     },
     {
-      "id": "cititem_fastapi_extends_starlette",
-      "semanticKey": "edge:extends:applications.py:FastAPI:Starlette",
+      "id": "cititem_fastapi_response_validation_extends_validation",
+      "semanticKey": "edge:extends:exceptions.py:ResponseValidationError:ValidationException",
       "capability": "heritage",
       "expectation": "present",
       "recordKind": "edge",
       "kind": "extends",
-      "from": { "kind": "class", "name": "FastAPI", "qualifiedName": "applications.py::FastAPI", "locator": "workspace://applications.py#L42-L4768" },
-      "to": { "kind": "class", "name": "Starlette", "qualifiedName": "applications.py::Starlette", "locator": "workspace://applications.py#L42-L4768" },
-      "locator": "workspace://applications.py#L42-L4768",
-      "resolution": "unresolved"
+      "from": { "kind": "class", "name": "ResponseValidationError", "qualifiedName": "exceptions.py::ResponseValidationError", "locator": "workspace://exceptions.py#L234-L243" },
+      "to": { "kind": "class", "name": "ValidationException", "qualifiedName": "exceptions.py::ValidationException", "locator": "workspace://exceptions.py#L174-L209" },
+      "locator": "workspace://exceptions.py#L234-L243",
+      "resolution": "exact"
     },
     {
       "id": "cititem_fastapi_call_setup",
@@ -112,5 +112,5 @@
       "resolution": "typed"
     }
   ],
-  "truthFingerprint": "sha256:a2fdbd48a7774c0c2e10617fb61684a61049b19ad6dadc8b3eade05c64059c30"
+  "truthFingerprint": "sha256:0e188468f0c6ace74bf09939318223d86d4187e1059a53769426445e8324bb5f"
 }
