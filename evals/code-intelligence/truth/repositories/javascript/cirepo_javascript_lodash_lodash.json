@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -63,6 +63,28 @@
         "locator": "workspace://lib/common/file.js#L1-L72"
       },
       "locator": "workspace://lib/fp/build-doc.js#L7-L7",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_lodash_export_base_convert",
+      "semanticKey": "edge:exports:fp/_baseConvert.js:baseConvert",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "fp__baseConvert",
+        "qualifiedName": "fp/_baseConvert.js::fp__baseConvert",
+        "locator": "workspace://fp/_baseConvert.js#L1-L570"
+      },
+      "to": {
+        "kind": "function",
+        "name": "baseConvert",
+        "qualifiedName": "fp/_baseConvert.js::baseConvert",
+        "locator": "workspace://fp/_baseConvert.js#L138-L567"
+      },
+      "locator": "workspace://fp/_baseConvert.js#L569-L569",
       "resolution": "exact"
     },
     {
@@ -120,5 +142,5 @@
       "locator": "workspace://lib/main/build-site.js#L208-L208"
     }
   ],
-  "truthFingerprint": "sha256:c72da367030043f5dd02bc1a0197afb21258b0cc627e2a856a6a16cd7d9a654e"
+  "truthFingerprint": "sha256:aa575587666a822f6381e83edf5f08379637aa2521376ce3ff7fafeb29fbc828"
 }

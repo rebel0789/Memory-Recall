@@ -99,11 +99,12 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 47 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 107 remain unmeasured or not applicable. A row
+Across 154 Tier 1 capability cells, 48 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 106 remain unmeasured or not applicable. A row
 requires reviewed evidence from its fixture and all three repositories before
-it can say `meets-floor`. Consequently every language remains overall
-`unmeasured`. The native engine stays an unbundled preview; the npm, MCP, and
+it can say `meets-floor`. JavaScript is the first language to meet every
+applicable sampled row; the other thirteen remain overall `unmeasured`. The
+native engine stays an unbundled preview; the npm, MCP, and
 web defaults remain JS. Competitors remain unmeasured, and the receipt makes no
 parity, leadership, multi-repository, or scale claim.
 

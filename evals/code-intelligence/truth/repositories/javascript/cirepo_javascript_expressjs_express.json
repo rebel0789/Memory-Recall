@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -63,6 +63,28 @@
         "locator": "workspace://application.js#L1-L632"
       },
       "locator": "workspace://express.js#L18-L18",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_express_export_create_application",
+      "semanticKey": "edge:exports:express.js:createApplication",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "express",
+        "qualifiedName": "express.js::express",
+        "locator": "workspace://express.js#L1-L82"
+      },
+      "to": {
+        "kind": "function",
+        "name": "createApplication",
+        "qualifiedName": "express.js::createApplication",
+        "locator": "workspace://express.js#L36-L56"
+      },
+      "locator": "workspace://express.js#L27-L27",
       "resolution": "exact"
     },
     {
@@ -120,5 +142,5 @@
       "locator": "workspace://response.js#L970-L970"
     }
   ],
-  "truthFingerprint": "sha256:73b1e612dbf02cbd19db8ebf04b3c2309a88250fcf4c3fd41c9ce8ca4212259b"
+  "truthFingerprint": "sha256:fcf11ab530b6cf2efccd3aa5d62378518cb96b53db154723fe79331258f7c708"
 }

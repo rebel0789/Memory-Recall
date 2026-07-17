@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-17T13:25:52.798Z",
+  "generatedAt": "2026-07-17T15:38:47.364Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -22,7 +22,7 @@
       {
         "batch": "A",
         "path": "evals/code-intelligence/results/phase2-batch-a.json",
-        "reportFingerprint": "sha256:4a59077f86c52bcdf50683b1168cf4a3eaa68a7f005cd5ed98396f567c1875cf",
+        "reportFingerprint": "sha256:903ac7546c31935fe57e32a5c9ebdc10fb3a57b90857bc5d6bc569617d0a3ddc",
         "caseCount": 8,
         "languageCount": 2
       },
@@ -64,12 +64,12 @@
     "graphNodeCount": 52594,
     "graphEdgeCount": 119163,
     "graphResponseBytes": 83572554,
-    "firstRunWallTimeMs": 15556.666,
-    "secondRunWallTimeMs": 15636.867,
-    "peakEvaluatorRssKb": 223056,
-    "meetsFloorCapabilityCount": 47,
+    "firstRunWallTimeMs": 15494.85,
+    "secondRunWallTimeMs": 15531.994,
+    "peakEvaluatorRssKb": 222656,
+    "meetsFloorCapabilityCount": 48,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 107
+    "unmeasuredCapabilityCount": 106
   },
   "cases": [
     {
@@ -100,9 +100,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 48.231,
-        "secondElapsedMs": 8.518,
-        "evaluatorMaxRssKb": 59024,
+        "firstElapsedMs": 46.712,
+        "secondElapsedMs": 7.853,
+        "evaluatorMaxRssKb": 59008,
         "graphResponseBytes": 8634,
         "workspaceFingerprintUnchanged": true
       },
@@ -241,9 +241,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 8.553,
-        "secondElapsedMs": 8.025,
-        "evaluatorMaxRssKb": 60096,
+        "firstElapsedMs": 8.295,
+        "secondElapsedMs": 7.015,
+        "evaluatorMaxRssKb": 60112,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
@@ -392,9 +392,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 955.701,
-        "secondElapsedMs": 958.176,
-        "evaluatorMaxRssKb": 169248,
+        "firstElapsedMs": 927.791,
+        "secondElapsedMs": 930.274,
+        "evaluatorMaxRssKb": 166144,
         "graphResponseBytes": 6809185,
         "workspaceFingerprintUnchanged": true
       },
@@ -543,9 +543,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1089.666,
-        "secondElapsedMs": 1126.711,
-        "evaluatorMaxRssKb": 223056,
+        "firstElapsedMs": 1069.39,
+        "secondElapsedMs": 1061.381,
+        "evaluatorMaxRssKb": 222656,
         "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
@@ -685,9 +685,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 31.057,
-        "secondElapsedMs": 30.347,
-        "evaluatorMaxRssKb": 223056,
+        "firstElapsedMs": 29.949,
+        "secondElapsedMs": 28.959,
+        "evaluatorMaxRssKb": 222656,
         "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
@@ -827,9 +827,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 39.06,
-        "secondElapsedMs": 36.124,
-        "evaluatorMaxRssKb": 223056,
+        "firstElapsedMs": 34.489,
+        "secondElapsedMs": 32.59,
+        "evaluatorMaxRssKb": 222656,
         "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
@@ -969,14 +969,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 36.73,
-        "secondElapsedMs": 36.942,
-        "evaluatorMaxRssKb": 223056,
+        "firstElapsedMs": 36.437,
+        "secondElapsedMs": 34.982,
+        "evaluatorMaxRssKb": 222656,
         "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:ed0e00864b92c1e23262c6283c8a26b3a60ab0282bae4040fb643fe2476633be",
+        "reportFingerprint": "sha256:89048428a86f381a8a3e630b5f31b499e5d2580ee2a7089a5c170ecf4edbd76f",
         "metrics": {
           "declarationRecall": {
             "numerator": 2,
@@ -984,8 +984,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -996,8 +996,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -1023,10 +1023,10 @@
           },
           {
             "id": "exports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "heritage",
@@ -1111,14 +1111,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 191.96,
-        "secondElapsedMs": 192.228,
-        "evaluatorMaxRssKb": 223056,
+        "firstElapsedMs": 186.079,
+        "secondElapsedMs": 189.144,
+        "evaluatorMaxRssKb": 222656,
         "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:23b9efbd59dffb7420872bf8ec925c9474e8902cf8fb7661d6724566a826e725",
+        "reportFingerprint": "sha256:b43767228896f26fbd9b79d971c4b9f5845a28b7fd4a516b90418da5ffccf6bb",
         "metrics": {
           "declarationRecall": {
             "numerator": 2,
@@ -1126,8 +1126,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -1138,8 +1138,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -1165,10 +1165,10 @@
           },
           {
             "id": "exports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "heritage",
@@ -8366,7 +8366,7 @@
       "fixtureCount": 1,
       "repositoryCount": 3,
       "caseCount": 4,
-      "benchmarkStatus": "unmeasured",
+      "benchmarkStatus": "meets-floor",
       "accuracy": {
         "declarationRecall": {
           "numerator": 8,
@@ -8374,8 +8374,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 6,
-          "denominator": 6,
+          "numerator": 8,
+          "denominator": 8,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -8454,14 +8454,14 @@
         {
           "id": "exports",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 1,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 2,
-              "denominator": 2,
+              "numerator": 4,
+              "denominator": 4,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -8469,7 +8469,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11764,5 +11764,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:facb4944818fd3959bb42d4fe8ec8dbf79fb82582c40bb735f37f434b7ce5323"
+  "reportFingerprint": "sha256:fcdb438b965cd1ccea93bc35a76356117cea6dc88018f80472d43676df42468f"
 }
