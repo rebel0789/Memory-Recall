@@ -196,8 +196,10 @@ test('compatibility preserves the official node:path import key', async (t) => {
   const comparison = compareSourceGraphCompatibility(baseline, translated);
   const nativeNodes = new Map(translated.nodes.map((node) => [node.id, node]));
   const nativeImport = translated.edges.find((edge) => edge.kind === 'imports');
+  const nativeExport = translated.edges.find((edge) => edge.kind === 'exports');
 
   assert.equal(nativeNodes.get(nativeImport?.toNodeId)?.label, 'node:path');
+  assert.equal(nativeNodes.get(nativeExport?.toNodeId)?.label, 'renderPath');
   assert.deepEqual(comparison.dimensions.find((item) => item.name === 'imports'), {
     name: 'imports',
     baselineCount: 1,
