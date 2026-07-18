@@ -67,8 +67,12 @@ else if (args[0] === 'analyze') {
     value: UPSTREAM_SHA,
     verification: 'caller-supplied-unverified'
   });
-  assert.equal(measured.report.runs.gitnexus.evaluation.metrics.unavailableTruthItemCount, 1);
-  assert.equal(measured.report.runs.gitnexus.evaluation.metrics.relationshipRecall.denominator, 4);
+  assert.equal(measured.report.runs.gitnexus.evaluation.metrics.unavailableTruthItemCount, 3);
+  assert.equal(measured.report.runs.gitnexus.evaluation.metrics.relationshipRecall.denominator, 5);
+  assert.deepEqual(
+    measured.report.runs.gitnexus.evaluation.capabilities.find(({ id }) => id === 'exports'),
+    { id: 'exports', status: 'partial', itemCount: 2, matchedItemCount: 0 }
+  );
   assert.equal(measured.report.runs.gitnexus.evaluation.metrics.parseFailureCount, null);
   assert.equal(measured.report.claims.parity, false);
   assert.equal(measured.report.claims.leadership, false);
