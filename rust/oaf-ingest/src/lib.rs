@@ -5017,7 +5017,14 @@ fn batch_d_heritage_targets(
             for index in 0..node.named_child_count() {
                 if let Some(child) = node.named_child(index) {
                     if child.kind() == "base_class_clause" {
-                        collect_heritage_names(child, source, "INHERITS", &mut out);
+                        for base_index in 0..child.named_child_count() {
+                            let Some(base) = child.named_child(base_index) else {
+                                continue;
+                            };
+                            if let Some(name) = cpp_base_specifier_name(base, source) {
+                                out.push(("INHERITS", name));
+                            }
+                        }
                     }
                 }
             }
@@ -5074,6 +5081,20 @@ fn batch_d_heritage_targets(
     out.sort();
     out.dedup();
     out
+}
+
+fn cpp_base_specifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let target = match node.kind() {
+        "template_type" | "qualified_identifier" => node.child_by_field_name("name")?,
+        "type_identifier" => node,
+        _ => return None,
+    };
+    if target.kind() == "template_type" {
+        return target
+            .child_by_field_name("name")
+            .and_then(|name| heritage_target_name(name, source));
+    }
+    heritage_target_name(target, source)
 }
 
 fn batch_c_heritage_targets(

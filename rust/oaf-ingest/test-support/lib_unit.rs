@@ -246,6 +246,40 @@ mod tests {
     }
 
     #[test]
+    fn cpp_generic_base_keeps_only_the_immediate_base_type() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-cpp-generic-base-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("item_service.hpp"),
+            [
+                "template <typename T> class ItemLoader {};",
+                "class Item {};",
+                "class ItemService : public ItemLoader<Item> {};",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let heritage = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.subject == "class:ItemService" && fact.predicate == "EXTENDS")
+            .map(|fact| fact.object)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            heritage,
+            BTreeSet::from(["class:ItemLoader".to_string()])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn go_exports_only_capitalized_package_api_members_without_reparenting_declarations() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evals/code-intelligence/fixtures/batch-b/go")

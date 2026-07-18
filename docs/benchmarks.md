@@ -87,9 +87,9 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 50,692 nodes, 113,731 edges, 79,874,248 serialized
-graph bytes, 24,750.179 ms summed first-run wall time, 25,739.132 ms summed
-second-run wall time, and 210,528 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 50,664 nodes, 113,640 edges, 79,816,280 serialized
+graph bytes, 22,794.19 ms summed first-run wall time, 23,570.05 ms summed
+second-run wall time, and 254,752 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 74 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 79 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 75 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 78 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -145,6 +145,13 @@ C++ types meet the sampled fixture-plus-three-repository floor. The fmt case
 keeps `utf8_system_category` as a class and rejects `FMT_STRING(...)` as a
 construction edge. General preprocessor expansion, template analysis, and C++
 type resolution remain unmeasured.
+C++ heritage meets the sampled fixture-plus-three-repository floor for direct
+base specifiers. The reviewed cases bind `ItemService` to `ItemLoader`,
+`ApproxMatcher` to `MatcherBase`, `utf8_system_category` to unresolved external
+`error_category`, and `lexer` to `lexer_base`. Generic type arguments and a
+class referenced from a body are explicit negative decoys. Template
+substitution, alias expansion, dependent names, and compiler-equivalent
+inheritance analysis remain unmeasured.
 Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
 unmeasured; they were not counted in the passing sample. Python has exact
 framework-route evidence from narrow

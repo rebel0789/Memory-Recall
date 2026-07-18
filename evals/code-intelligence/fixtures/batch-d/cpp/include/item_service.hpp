@@ -7,12 +7,12 @@ struct Item {
   std::string id;
 };
 
-class ItemLoader {
+template <typename ItemType> class ItemLoader {
  public:
-  virtual Item find(const std::string &id) const = 0;
+  virtual ItemType find(const std::string &id) const = 0;
 };
 
-class ItemService final : public ItemLoader {
+class ItemService final : public ItemLoader<Item> {
  public:
   ItemService() = default;
   Item lookup(const std::string &id) const;
