@@ -76,7 +76,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
 | Python | 20/20 | 22/22 | 4/4 | parse, structure, imports, heritage, types, calls, config, frameworks | exports, impact, processes | unmeasured |
 | Java | 21/21 | 10/10 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
-| Kotlin | 20/20 | 11/11 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| Kotlin | 20/20 | 13/13 | 5/5 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
 | C# | 23/23 | 10/10 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
 | Go | 19/19 | 12/12 | 4/4 | parse, structure, imports, exports, calls | heritage, types, config, frameworks, impact, processes | unmeasured |
 | Rust | 23/23 | 18/18 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
@@ -87,8 +87,8 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 16/16 | 9/9 | 4/4 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
 | Dart | 17/17 | 18/18 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
 
-Across the 154 Tier 1 capability cells, 72 meet the Phase 2 floor, none has a
-recorded floor failure, 81 applicable rows remain unmeasured, and C heritage is
+Across the 154 Tier 1 capability cells, 73 meet the Phase 2 floor, none has a
+recorded floor failure, 80 applicable rows remain unmeasured, and C heritage is
 the sole explicit not-applicable row. Every language remains overall
 `unmeasured`.
 Five repository scopes hit the configured node or edge budget and report the
@@ -148,6 +148,16 @@ owner attribution. In Now in Android, the `UserNewsResource` constructor owns
 the `map` call at line 45; the line-57 `map` call belongs to another function and
 is not attributed to that constructor. The sampled target remains unresolved,
 so this is not evidence of general typed, framework, or monorepo call resolution.
+
+Kotlin types meet the fixture-plus-three-repository floor for sampled
+constructor and type-use resolution. Coroutines binds `InlineList(element)` to
+`InlineList` without assigning the line-24 `ArrayList<E>(4)` expression to that
+type. Ktor binds `RoutingResolveTraceEntry(...)` without confusing it with the
+enclosing `RoutingResolveTrace`. Generic constructor calls and property
+initializer constructions remain missed, and the Kotlin `List(size) { ... }`
+factory can appear as an unresolved construction. This does not establish full
+type inference, generic substitution, nullability flow, overload resolution, or
+compiler-equivalent semantic analysis.
 
 C++ types meet the fixture-plus-three-repository floor for the reviewed sample.
 In fmt, `utf8_system_category` remains a class while the macro-shaped

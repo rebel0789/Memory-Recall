@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-18T17:21:42.651Z",
+  "generatedAt": "2026-07-18T17:36:57.223Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -36,7 +36,7 @@
       {
         "batch": "C",
         "path": "evals/code-intelligence/results/phase2-batch-c.json",
-        "reportFingerprint": "sha256:eab4ca2841ad22d5ab696687adbc3f31f83201a0d037885bb8cf387f30a15951",
+        "reportFingerprint": "sha256:90c5ca1e633671993de1f9f0dae40368f08324fae7ec10f8d9c5f07f44c2ee10",
         "caseCount": 12,
         "languageCount": 3
       },
@@ -64,12 +64,12 @@
     "graphNodeCount": 50693,
     "graphEdgeCount": 113739,
     "graphResponseBytes": 79878819,
-    "firstRunWallTimeMs": 23277.563,
-    "secondRunWallTimeMs": 23461.094,
+    "firstRunWallTimeMs": 23281.6,
+    "secondRunWallTimeMs": 23465.692,
     "peakEvaluatorRssKb": 238496,
-    "meetsFloorCapabilityCount": 72,
+    "meetsFloorCapabilityCount": 73,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 81,
+    "unmeasuredCapabilityCount": 80,
     "notApplicableCapabilityCount": 1
   },
   "cases": [
@@ -3388,9 +3388,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 38.426,
-        "secondElapsedMs": 13.936,
-        "evaluatorMaxRssKb": 61856,
+        "firstElapsedMs": 34.035,
+        "secondElapsedMs": 12.829,
+        "evaluatorMaxRssKb": 61664,
         "graphResponseBytes": 29861,
         "workspaceFingerprintUnchanged": true
       },
@@ -3529,9 +3529,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.578,
-        "secondElapsedMs": 12.556,
-        "evaluatorMaxRssKb": 66976,
+        "firstElapsedMs": 12.915,
+        "secondElapsedMs": 12.173,
+        "evaluatorMaxRssKb": 66592,
         "graphResponseBytes": 28638,
         "workspaceFingerprintUnchanged": true
       },
@@ -3670,9 +3670,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.348,
-        "secondElapsedMs": 12.192,
-        "evaluatorMaxRssKb": 67760,
+        "firstElapsedMs": 12.725,
+        "secondElapsedMs": 12.459,
+        "evaluatorMaxRssKb": 67984,
         "graphResponseBytes": 32773,
         "workspaceFingerprintUnchanged": true
       },
@@ -3813,9 +3813,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.489,
-        "secondElapsedMs": 20.032,
-        "evaluatorMaxRssKb": 72480,
+        "firstElapsedMs": 19.49,
+        "secondElapsedMs": 18.813,
+        "evaluatorMaxRssKb": 72576,
         "graphResponseBytes": 107661,
         "workspaceFingerprintUnchanged": true
       },
@@ -3956,9 +3956,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.6,
-        "secondElapsedMs": 12.749,
-        "evaluatorMaxRssKb": 72720,
+        "firstElapsedMs": 12.398,
+        "secondElapsedMs": 12.854,
+        "evaluatorMaxRssKb": 72880,
         "graphResponseBytes": 46010,
         "workspaceFingerprintUnchanged": true
       },
@@ -4099,9 +4099,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 35.382,
-        "secondElapsedMs": 35.422,
-        "evaluatorMaxRssKb": 75632,
+        "firstElapsedMs": 35.111,
+        "secondElapsedMs": 36.171,
+        "evaluatorMaxRssKb": 75376,
         "graphResponseBytes": 312840,
         "workspaceFingerprintUnchanged": true
       },
@@ -4242,9 +4242,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 15.427,
-        "secondElapsedMs": 14.458,
-        "evaluatorMaxRssKb": 75648,
+        "firstElapsedMs": 14.381,
+        "secondElapsedMs": 12.92,
+        "evaluatorMaxRssKb": 75376,
         "graphResponseBytes": 43299,
         "workspaceFingerprintUnchanged": true
       },
@@ -4385,14 +4385,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 55.812,
-        "secondElapsedMs": 55.203,
-        "evaluatorMaxRssKb": 85280,
+        "firstElapsedMs": 57.481,
+        "secondElapsedMs": 57.268,
+        "evaluatorMaxRssKb": 84752,
         "graphResponseBytes": 471062,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:548a4f8253fd10deca206e0e3ed3f5d64602367be821bfc74167dff0db8c535a",
+        "reportFingerprint": "sha256:5439a016996708ac6a0f034904b22cd1261ade3107a39adc11b6c074013ff677",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4400,8 +4400,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -4412,8 +4412,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
         },
         "capabilities": [
           {
@@ -4455,8 +4455,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "calls",
@@ -4528,14 +4528,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 73.01,
-        "secondElapsedMs": 71.743,
-        "evaluatorMaxRssKb": 88912,
+        "firstElapsedMs": 74.381,
+        "secondElapsedMs": 73.754,
+        "evaluatorMaxRssKb": 88432,
         "graphResponseBytes": 647921,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:6bce16afa7d0f12ef737b74f232aae741316554140a3e87cd1a2a2ff669545b5",
+        "reportFingerprint": "sha256:64678515917323d976499bc19c794dc148d4d95229574f3c6c388fe497ac60e6",
         "metrics": {
           "declarationRecall": {
             "numerator": 3,
@@ -4543,8 +4543,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -4555,8 +4555,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
         },
         "capabilities": [
           {
@@ -4598,8 +4598,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "calls",
@@ -4676,9 +4676,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 71.533,
-        "secondElapsedMs": 73.366,
-        "evaluatorMaxRssKb": 102656,
+        "firstElapsedMs": 75.111,
+        "secondElapsedMs": 72.761,
+        "evaluatorMaxRssKb": 101696,
         "graphResponseBytes": 481162,
         "workspaceFingerprintUnchanged": true
       },
@@ -4824,9 +4824,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 76.404,
-        "secondElapsedMs": 78.323,
-        "evaluatorMaxRssKb": 107104,
+        "firstElapsedMs": 80.035,
+        "secondElapsedMs": 80.341,
+        "evaluatorMaxRssKb": 106176,
         "graphResponseBytes": 588258,
         "workspaceFingerprintUnchanged": true
       },
@@ -4972,9 +4972,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 41.484,
-        "secondElapsedMs": 41.693,
-        "evaluatorMaxRssKb": 107440,
+        "firstElapsedMs": 42.467,
+        "secondElapsedMs": 43.928,
+        "evaluatorMaxRssKb": 106560,
         "graphResponseBytes": 276583,
         "workspaceFingerprintUnchanged": true
       },
@@ -9699,8 +9699,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 11,
-          "denominator": 11,
+          "numerator": 13,
+          "denominator": 13,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -9833,14 +9833,14 @@
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract.",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 1,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 2,
-              "denominator": 2,
+              "numerator": 6,
+              "denominator": 6,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -9848,7 +9848,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -12529,5 +12529,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:0d679508a7b0c901753fe5f045e0771d5bce6ea332c977178a25c9fce22761af"
+  "reportFingerprint": "sha256:bea4e6e11df48032e6854bc9b352e188440f1fb9665bb7d428ed146ca5ff37bc"
 }
