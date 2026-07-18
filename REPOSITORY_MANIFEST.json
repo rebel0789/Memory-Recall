@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-17T20:57:44.741Z",
-  "fileCount": 1180,
-  "totalBytes": 9543762,
+  "generatedAt": "2026-07-18T08:28:30.099Z",
+  "fileCount": 1181,
+  "totalBytes": 9573083,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -909,6 +909,11 @@
       "path": "docs/implementation/DEFINITION_OF_DONE.md",
       "bytes": 1471,
       "sha256": "943f6ae5489c7f738aac16a08950b3a8aa67a068e34e0487c44ed1f4836626ca"
+    },
+    {
+      "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
+      "bytes": 29321,
+      "sha256": "ba568bde1cb524779ada680750688ef45f3cf32510570e022dafe0e3405c0b93"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",
