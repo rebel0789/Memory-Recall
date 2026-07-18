@@ -3,6 +3,65 @@ mod tests {
     use super::*;
 
     #[test]
+    fn java_imports_preserve_full_regular_and_static_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-java-import-targets-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("Imports.java"),
+            [
+                "import java.lang.reflect.GenericArrayType;",
+                "import static java.util.Objects.requireNonNull;",
+                "final class Imports {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let imported_targets = || {
+            extract_repo(&IngestOptions::new(&root))
+                .unwrap()
+                .code_facts
+                .into_iter()
+                .filter(|fact| fact.predicate == "IMPORTS")
+                .map(|fact| {
+                    (
+                        fact.object,
+                        fact.note,
+                        fact.source,
+                        fact.span.start_line,
+                        fact.span.end_line,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let expected = vec![
+            (
+                "module:java.lang.reflect.GenericArrayType".to_string(),
+                "oaf.ingest:unresolved-import".to_string(),
+                "workspace://Imports.java".to_string(),
+                1,
+                1,
+            ),
+            (
+                "module:java.util.Objects.requireNonNull".to_string(),
+                "oaf.ingest:unresolved-import".to_string(),
+                "workspace://Imports.java".to_string(),
+                2,
+                2,
+            ),
+        ];
+
+        assert_eq!(imported_targets(), expected);
+        assert_eq!(imported_targets(), expected);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn javascript_route_decorator_only_applies_to_the_immediately_following_method() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-immediate-route-decorator-{}",

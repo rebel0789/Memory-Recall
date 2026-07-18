@@ -55,7 +55,10 @@ for (const item of cases) {
   }
 }
 
-const languages = CODE_INTELLIGENCE_TIER_1_LANGUAGES.map((language) => aggregateLanguage(language, cases, gates.languageFull));
+const matrixLanguages = new Map(currentMatrix.languages.map((language) => [language.id, language]));
+const languages = CODE_INTELLIGENCE_TIER_1_LANGUAGES.map((language) => (
+  aggregateLanguage(language, cases, gates.languageFull, matrixLanguages.get(language))
+));
 for (const language of languages) {
   if (language.fixtureCount !== 1) failures.push({ code: 'language_fixture_count_invalid', language: language.language, count: language.fixtureCount });
   if (language.repositoryCount < 3) failures.push({ code: 'language_repository_count_invalid', language: language.language, count: language.repositoryCount });
@@ -119,7 +122,8 @@ const report = {
     peakEvaluatorRssKb: Math.max(...safeCases.map((item) => item.measurements.evaluatorMaxRssKb)),
     meetsFloorCapabilityCount: languages.flatMap((item) => item.capabilities).filter((item) => item.benchmarkStatus === 'meets-floor').length,
     doesNotMeetFloorCapabilityCount: languages.flatMap((item) => item.capabilities).filter((item) => item.benchmarkStatus === 'does-not-meet-floor').length,
-    unmeasuredCapabilityCount: languages.flatMap((item) => item.capabilities).filter((item) => item.benchmarkStatus === 'unmeasured').length
+    unmeasuredCapabilityCount: languages.flatMap((item) => item.capabilities).filter((item) => item.benchmarkStatus === 'unmeasured').length,
+    notApplicableCapabilityCount: languages.flatMap((item) => item.capabilities).filter((item) => item.benchmarkStatus === 'not-applicable').length
   },
   cases: safeCases,
   languages,
@@ -198,7 +202,11 @@ function buildCapabilityMatrix(matrix, summary, allCases, generatedAt) {
         }
         return [id, {
           ...current,
-          productStatus: capability.applicable && !['typescript', 'javascript'].includes(language.id)
+          applicability: capability.applicability,
+          applicabilityRationale: capability.applicabilityRationale,
+          productStatus: capability.applicability === 'not-applicable'
+            ? 'unsupported'
+            : capability.applicable && !['typescript', 'javascript'].includes(language.id)
             ? promoteExperimental(current.productStatus)
             : current.productStatus,
           benchmarkStatus: capability.benchmarkStatus,
@@ -208,12 +216,13 @@ function buildCapabilityMatrix(matrix, summary, allCases, generatedAt) {
       }));
       const meets = measured.capabilities.filter((item) => item.benchmarkStatus === 'meets-floor').length;
       const applicableUnmeasured = measured.capabilities.filter((item) => item.applicable && item.benchmarkStatus === 'unmeasured').length;
+      const notApplicable = measured.capabilities.filter((item) => item.applicability === 'not-applicable').length;
       return {
         ...language,
         benchmarkStatus: measured.benchmarkStatus,
         capabilities,
         limitations: [
-          `Phase 2 native-preview evidence meets ${meets} capability floors; ${applicableUnmeasured} applicable rows remain unmeasured. Native is unbundled and JS remains the public default.`
+          `Phase 2 native-preview evidence meets ${meets} capability floors; ${applicableUnmeasured} applicable rows remain unmeasured; ${notApplicable} rows are not applicable. Native is unbundled and JS remains the public default.`
         ]
       };
     })
@@ -239,6 +248,7 @@ function deduplicateEvidence(evidence) {
 }
 
 function matrixCapabilityLimitation(capability) {
+  if (capability.applicability === 'not-applicable') return capability.applicabilityRationale;
   if (capability.benchmarkStatus === 'meets-floor') {
     return 'Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged.';
   }
@@ -248,9 +258,11 @@ function matrixCapabilityLimitation(capability) {
   return 'Phase 2 did not measure this capability; no accuracy claim is made.';
 }
 
-function aggregateLanguage(language, allCases, thresholds) {
+function aggregateLanguage(language, allCases, thresholds, matrixLanguage) {
   const selected = allCases.filter((item) => item.language === language);
-  const capabilities = CODE_INTELLIGENCE_CAPABILITIES.map((id) => aggregateCapability(id, selected, thresholds));
+  const capabilities = CODE_INTELLIGENCE_CAPABILITIES.map((id) => (
+    aggregateCapability(id, selected, thresholds, semanticApplicability(language, id, matrixLanguage?.capabilities?.[id]))
+  ));
   const applicable = capabilities.filter((item) => item.applicable);
   const benchmarkStatus = applicable.some((item) => item.benchmarkStatus === 'does-not-meet-floor')
     ? 'does-not-meet-floor'
@@ -284,12 +296,12 @@ function aggregateLanguage(language, allCases, thresholds) {
   };
 }
 
-function aggregateCapability(id, cases, thresholds) {
+function aggregateCapability(id, cases, thresholds, semantic) {
   const entries = cases.map((item) => ({
     item,
     capability: item.report.capabilities.find((candidate) => candidate.id === id)
   }));
-  const applicable = entries.some(({ capability }) => capability?.claim !== 'unmeasured');
+  const applicable = semantic.applicability === 'applicable';
   const hasEvidence = ({ item, capability }) => id === 'parse'
     ? item.graph.coverage.some((coverage) => coverage.language === item.language)
     : (capability?.itemCount ?? 0) > 0;
@@ -315,13 +327,17 @@ function aggregateCapability(id, cases, thresholds) {
     || !deterministic;
   const minimum = id === 'calls' ? thresholds.resolvedCallPrecisionMinimum : thresholds.symbolRecallMinimum;
   let benchmarkStatus = 'unmeasured';
-  if (applicable && (hardFailure || capabilityMismatch || (ratioMetric.value !== null && ratioMetric.value < minimum))) {
+  if (!applicable) {
+    benchmarkStatus = 'not-applicable';
+  } else if (hardFailure || capabilityMismatch || (ratioMetric.value !== null && ratioMetric.value < minimum)) {
     benchmarkStatus = 'does-not-meet-floor';
   } else if (applicable && sourceCoverageMet && (id === 'parse' || ratioMetric.value !== null)) {
     benchmarkStatus = 'meets-floor';
   }
   return {
     id,
+    applicability: semantic.applicability,
+    applicabilityRationale: semantic.applicabilityRationale,
     applicable,
     benchmarkStatus,
     fixtureEvidenceCount,
@@ -337,8 +353,20 @@ function aggregateCapability(id, cases, thresholds) {
       ? ['Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only.']
       : applicable
         ? ['The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor.']
-        : ['This capability was not evaluated in Phase 2.']
+        : [semantic.applicabilityRationale]
   };
+}
+
+function semanticApplicability(language, capability, claim) {
+  if (['applicable', 'not-applicable'].includes(claim?.applicability)
+    && typeof claim.applicabilityRationale === 'string'
+    && claim.applicabilityRationale.length > 0) {
+    return {
+      applicability: claim.applicability,
+      applicabilityRationale: claim.applicabilityRationale
+    };
+  }
+  throw new Error(`phase2_semantic_applicability_missing:${language}:${capability}`);
 }
 
 function ratio(numerator, denominator) {

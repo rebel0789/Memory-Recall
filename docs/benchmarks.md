@@ -87,8 +87,8 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 49,824 nodes, 111,857 edges, 78,601,557 serialized
-graph bytes, 21,954.091 ms summed first-run wall time, 21,512.991 ms summed
+The stored audit records 49,892 nodes, 111,857 edges, 78,630,461 serialized
+graph bytes, 21,944.868 ms summed first-run wall time, 21,504.373 ms summed
 second-run wall time, and 232,976 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
@@ -99,20 +99,22 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 56 meet the Phase 2 evidence floor, none has
-a recorded floor failure, and 98 remain unmeasured or not applicable. A row
+Across 154 Tier 1 capability cells, 57 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 96 applicable rows remain unmeasured, and one row is
+explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
-repositories before it can say `meets-floor`. TypeScript, JavaScript, and Python
-meet every row marked applicable in this Phase 2 sample; the other eleven remain
-overall `unmeasured`. Python now adds exact framework-route evidence from narrow
+repositories before it can say `meets-floor`. Every Tier 1 language remains
+overall `unmeasured`. Java imports now has exact reviewed evidence from its
+fixture plus pinned Gson, Guava, and Spring Petclinic scopes. Python has exact
+framework-route evidence from narrow
 FastAPI, Flask, and Django application scopes. The broader FastAPI and Flask
 implementation scopes and the Requests client remain in the corpus for their
 other reviewed capabilities. Documentation examples do not qualify as routes.
-TypeScript heritage, configuration, frameworks, impact, and processes remain
-unevaluated here. The native engine stays an
-unbundled preview; the npm, MCP, and
-web defaults remain JS. Competitors remain unmeasured, and the receipt makes no
-parity, leadership, multi-repository, or scale claim.
+Only C heritage is recorded as not applicable because C has no language-level
+inheritance, interface, trait, protocol, or mixin relationship. The native
+engine stays an unbundled preview; the npm, MCP, and web defaults remain JS.
+Competitors remain unmeasured, and the receipt makes no parity, leadership,
+multi-repository, or scale claim.
 
 ## Code-intelligence Phase 3 source index
 

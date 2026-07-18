@@ -25,7 +25,7 @@
       ]
     },
     "benchmarkStatus": {
-      "enum": ["unmeasured", "does-not-meet-floor", "meets-floor"]
+      "enum": ["not-applicable", "unmeasured", "does-not-meet-floor", "meets-floor"]
     },
     "evidence": {
       "type": "object",
@@ -46,6 +46,8 @@
       "additionalProperties": false,
       "required": ["productStatus", "benchmarkStatus", "evidence", "limitations"],
       "properties": {
+        "applicability": { "enum": ["applicable", "not-applicable"] },
+        "applicabilityRationale": { "type": "string", "minLength": 1, "maxLength": 240 },
         "productStatus": { "enum": ["implemented", "experimental", "specified", "unsupported"] },
         "benchmarkStatus": { "$ref": "#/$defs/benchmarkStatus" },
         "evidence": {

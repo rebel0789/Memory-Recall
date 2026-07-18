@@ -6430,7 +6430,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
         let target = if lang == LangKind::Go {
-            go_import_target_from_raw(&quoted)
+            full_import_target_from_raw(&quoted)
         } else {
             import_target_from_raw(&quoted)
         };
@@ -6467,7 +6467,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
-                    .and_then(import_target_from_raw)
+                    .and_then(full_import_target_from_raw)
                 {
                     out.push(raw);
                 }
@@ -6600,7 +6600,7 @@ fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
     })
 }
 
-fn go_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+fn full_import_target_from_raw(value: &str) -> Option<ImportTarget> {
     let raw = clean_import_raw(value)?;
     if raw.len() > 512
         || raw

@@ -67,6 +67,20 @@ export async function auditCodeIntelligenceCapabilityMatrix(matrix, { root = pro
       }
       const evidence = Array.isArray(claim.evidence) ? claim.evidence : [];
       const evidenceClasses = new Set(evidence.map((entry) => entry?.class));
+      if (item.tier === 1) {
+        if (!['applicable', 'not-applicable'].includes(claim.applicability)) {
+          findings.push(finding('capability_applicability_missing', language, capability));
+        }
+        if (typeof claim.applicabilityRationale !== 'string' || claim.applicabilityRationale.length === 0) {
+          findings.push(finding('capability_applicability_rationale_missing', language, capability));
+        }
+        if (claim.applicability === 'not-applicable') {
+          if (claim.benchmarkStatus !== 'not-applicable') findings.push(finding('not_applicable_capability_benchmark_status_invalid', language, capability));
+          if (claim.productStatus !== 'unsupported') findings.push(finding('not_applicable_capability_product_status_invalid', language, capability));
+        } else if (claim.benchmarkStatus === 'not-applicable') {
+          findings.push(finding('applicable_capability_benchmark_status_invalid', language, capability));
+        }
+      }
       if (claim.benchmarkStatus === 'meets-floor') {
         if (!evidenceClasses.has('fixture')) findings.push(finding('full_claim_missing_fixture_evidence', language, capability));
         if (!evidenceClasses.has('real-repo')) findings.push(finding('full_claim_missing_real_repo_evidence', language, capability));

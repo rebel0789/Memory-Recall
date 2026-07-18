@@ -24,9 +24,10 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 56);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 57);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 98);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 96);
+  assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
     .capabilities.find((capability) => capability.id === 'config');
@@ -38,16 +39,28 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(pythonFrameworks.benchmarkStatus, 'meets-floor');
   assert.equal(pythonFrameworks.repositoryEvidenceCount, 3);
   assert.deepEqual(pythonFrameworks.metrics.reviewedTruth, { numerator: 5, denominator: 5, value: 1 });
+  const javaImports = summary.languages
+    .find((language) => language.language === 'java')
+    .capabilities.find((capability) => capability.id === 'imports');
+  assert.equal(javaImports.benchmarkStatus, 'meets-floor');
+  assert.equal(javaImports.fixtureEvidenceCount, 1);
+  assert.equal(javaImports.repositoryEvidenceCount, 3);
+  assert.deepEqual(javaImports.metrics.reviewedTruth, { numerator: 4, denominator: 4, value: 1 });
   assert.equal(
     summary.cases.filter((item) => item.graph.diagnostics.some((diagnostic) => diagnostic.code.endsWith('_budget_reached'))).length,
     5
   );
   assert.equal(summary.cases.every((item) => item.graph.diagnostics.every((diagnostic) => !Object.hasOwn(diagnostic, 'locator'))), true);
   const unmeasuredLanguages = summary.languages.filter((language) => !['typescript', 'javascript', 'python'].includes(language.language));
-  assert.deepEqual(
-    summary.languages.filter((language) => language.benchmarkStatus === 'meets-floor').map((language) => language.language),
-    ['typescript', 'javascript', 'python']
-  );
+  assert.deepEqual(summary.languages.filter((language) => language.benchmarkStatus === 'meets-floor'), []);
+  const cHeritage = summary.languages
+    .find((language) => language.language === 'c')
+    .capabilities.find((capability) => capability.id === 'heritage');
+  assert.equal(cHeritage.applicability, 'not-applicable');
+  assert.equal(cHeritage.benchmarkStatus, 'not-applicable');
+  assert.equal(summary.languages.every((language) => language.capabilities.every((capability) => (
+    typeof capability.applicabilityRationale === 'string' && capability.applicabilityRationale.length > 0
+  ))), true);
   assert.equal(unmeasuredLanguages.every((language) => language.benchmarkStatus === 'unmeasured'), true);
   assert.equal(unmeasuredLanguages.every((language) => (
     language.capabilities.some((capability) => capability.applicable && capability.benchmarkStatus === 'unmeasured')

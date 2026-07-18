@@ -79,6 +79,16 @@ The engine emits protocol frames only on stdout. Failures use stable error
 codes with sanitized details; raw errors, source text, absolute paths, provider
 objects, filesystem authority, and network authority are not protocol fields.
 
+The code-intelligence capability matrix can record an additive per-capability
+applicability value and rationale. Tier 1 semantic auditing requires both
+fields. A `not-applicable` row must also use the `not-applicable` benchmark
+state and the `unsupported` product state. Applicable rows cannot use that
+benchmark state. This keeps language semantics separate from missing fixture or
+repository evidence and prevents an unsupported applicable behavior from
+becoming green through an empty sample. Older v1 matrix rows without these
+optional schema fields remain structurally valid, but they cannot pass the
+current Tier 1 semantic audit.
+
 ## Requirements
 
 - canonical IDs are independent of providers;

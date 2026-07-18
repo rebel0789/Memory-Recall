@@ -94,10 +94,17 @@ test('capability matrix covers every Tier 1 language and capability honestly', a
     true
   );
   assert.deepEqual(await auditCodeIntelligenceCapabilityMatrix(matrix, { root: new URL('..', import.meta.url) }), []);
-  assert.deepEqual(
-    matrix.languages.filter((item) => item.benchmarkStatus === 'meets-floor').map((item) => item.id),
-    ['typescript', 'javascript', 'python']
-  );
+  const tier1 = matrix.languages.filter((item) => item.tier === 1);
+  assert.deepEqual(tier1.filter((item) => item.benchmarkStatus === 'meets-floor'), []);
+  assert.equal(tier1.every((item) => Object.values(item.capabilities).every((capability) => (
+    ['applicable', 'not-applicable'].includes(capability.applicability)
+    && typeof capability.applicabilityRationale === 'string'
+    && capability.applicabilityRationale.length > 0
+  ))), true);
+  const notApplicable = tier1.flatMap((item) => Object.entries(item.capabilities)
+    .filter(([, capability]) => capability.applicability === 'not-applicable')
+    .map(([capability]) => `${item.id}:${capability}`));
+  assert.deepEqual(notApplicable, ['c:heritage']);
 });
 
 test('matrix audit rejects unsupported full claims without fixture and real-repo evidence', async () => {

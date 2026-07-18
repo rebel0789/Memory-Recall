@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-c-1",
   "phase": 2,
   "batch": "C",
-  "generatedAt": "2026-07-17T20:14:20.989Z",
+  "generatedAt": "2026-07-18T12:38:48.662Z",
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
@@ -57,8 +57,8 @@
       "sourceRef": "fixture://sha256:ad39462c53135511473eb41f8b657da328927345db347861b0a7ff10bdfc769c",
       "truthPath": "evals/code-intelligence/truth/fixtures/java.json",
       "graph": {
-        "fingerprint": "sha256:0a5e271e8d750e84b671045ae5e69c705ac5889046886859be3af4b0d2daafc1",
-        "nodeCount": 24,
+        "fingerprint": "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd",
+        "nodeCount": 26,
         "edgeCount": 31,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -77,10 +77,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 33.092,
-        "secondElapsedMs": 11.541,
-        "evaluatorMaxRssKb": 59696,
-        "graphResponseBytes": 28741,
+        "firstElapsedMs": 32.168,
+        "secondElapsedMs": 11.159,
+        "evaluatorMaxRssKb": 61696,
+        "graphResponseBytes": 29861,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -90,8 +90,8 @@
         "language": "java",
         "sourceRef": "fixture://sha256:ad39462c53135511473eb41f8b657da328927345db347861b0a7ff10bdfc769c",
         "graphFingerprints": [
-          "sha256:0a5e271e8d750e84b671045ae5e69c705ac5889046886859be3af4b0d2daafc1",
-          "sha256:0a5e271e8d750e84b671045ae5e69c705ac5889046886859be3af4b0d2daafc1"
+          "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd",
+          "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -215,7 +215,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:2e18092ddde2cdf54665ff6b44ad7b30fa3a016d70343fadda1b6a6ea3e5fbe8"
+        "reportFingerprint": "sha256:bc843f0a04e6524eb48f1b9fba71c997def8f957a7e9ce841139b48e064c4f76"
       }
     },
     {
@@ -245,9 +245,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.231,
-        "secondElapsedMs": 12.376,
-        "evaluatorMaxRssKb": 64496,
+        "firstElapsedMs": 11.653,
+        "secondElapsedMs": 10.781,
+        "evaluatorMaxRssKb": 66528,
         "graphResponseBytes": 27219,
         "workspaceFingerprintUnchanged": true
       },
@@ -413,9 +413,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.552,
-        "secondElapsedMs": 10.783,
-        "evaluatorMaxRssKb": 64864,
+        "firstElapsedMs": 10.82,
+        "secondElapsedMs": 10.956,
+        "evaluatorMaxRssKb": 68720,
         "graphResponseBytes": 32743,
         "workspaceFingerprintUnchanged": true
       },
@@ -563,8 +563,8 @@
       "commit": "c9f3fd55854a743b66f857ace3c7b268ea3e2ef7",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
       "graph": {
-        "fingerprint": "sha256:0ce87bc78ea38c68d3bda442dc0911d145d59f45a9c1cefd5f4817477fc337bd",
-        "nodeCount": 66,
+        "fingerprint": "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1",
+        "nodeCount": 74,
         "edgeCount": 149,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -583,10 +583,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 18.682,
-        "secondElapsedMs": 17.793,
-        "evaluatorMaxRssKb": 67776,
-        "graphResponseBytes": 104361,
+        "firstElapsedMs": 18.291,
+        "secondElapsedMs": 17.755,
+        "evaluatorMaxRssKb": 73344,
+        "graphResponseBytes": 107661,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -596,8 +596,8 @@
         "language": "java",
         "sourceRef": "corpus://cirepo_java_google_gson@c9f3fd55854a743b66f857ace3c7b268ea3e2ef7#gson/src/main/java/com/google/gson/reflect",
         "graphFingerprints": [
-          "sha256:0ce87bc78ea38c68d3bda442dc0911d145d59f45a9c1cefd5f4817477fc337bd",
-          "sha256:0ce87bc78ea38c68d3bda442dc0911d145d59f45a9c1cefd5f4817477fc337bd"
+          "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1",
+          "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -611,8 +611,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -623,8 +623,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -643,10 +643,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "exports",
@@ -721,7 +721,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:77cf7b28dfae4212d1aede91820060179cffc5a9f03d691b9522d1a827b595c9"
+        "reportFingerprint": "sha256:99f0e2a7aeeac0e3faaad9eab56e483e812880240fd6db3130e856a0bc806b7f"
       }
     },
     {
@@ -733,8 +733,8 @@
       "commit": "5143dbe06b8a1632b50c8fe19b2870fe135e46e2",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json",
       "graph": {
-        "fingerprint": "sha256:069739b36722a54bec78a2e9270c9414837d7065cbe3e9b19ebfda8bd51a81ab",
-        "nodeCount": 37,
+        "fingerprint": "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf",
+        "nodeCount": 45,
         "edgeCount": 53,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -753,10 +753,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.081,
-        "secondElapsedMs": 11.235,
-        "evaluatorMaxRssKb": 68128,
-        "graphResponseBytes": 42684,
+        "firstElapsedMs": 12.211,
+        "secondElapsedMs": 11.866,
+        "evaluatorMaxRssKb": 73712,
+        "graphResponseBytes": 46010,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -766,8 +766,8 @@
         "language": "java",
         "sourceRef": "corpus://cirepo_java_google_guava@5143dbe06b8a1632b50c8fe19b2870fe135e46e2#guava/src/com/google/common/base/internal",
         "graphFingerprints": [
-          "sha256:069739b36722a54bec78a2e9270c9414837d7065cbe3e9b19ebfda8bd51a81ab",
-          "sha256:069739b36722a54bec78a2e9270c9414837d7065cbe3e9b19ebfda8bd51a81ab"
+          "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf",
+          "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -781,8 +781,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -793,8 +793,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -813,10 +813,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "exports",
@@ -891,7 +891,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:936d4e55f3b30393f42739170a98849c337a33e3736795d59d9c35dfd896d122"
+        "reportFingerprint": "sha256:8ee217002cc6849ff53dd32ae5970ab8d5120033427bdedcce2312915ad8d5e8"
       }
     },
     {
@@ -903,8 +903,8 @@
       "commit": "51045d1648dad955df586150c1a1a6e22ef400c2",
       "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json",
       "graph": {
-        "fingerprint": "sha256:24b746bba13ceb6bd36050fcf6aa0075ff5b06160df48c20ac74badbd914abe0",
-        "nodeCount": 213,
+        "fingerprint": "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068",
+        "nodeCount": 263,
         "edgeCount": 391,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -923,10 +923,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.072,
-        "secondElapsedMs": 32.97,
-        "evaluatorMaxRssKb": 75200,
-        "graphResponseBytes": 291682,
+        "firstElapsedMs": 33.8,
+        "secondElapsedMs": 33.753,
+        "evaluatorMaxRssKb": 76272,
+        "graphResponseBytes": 312840,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -936,8 +936,8 @@
         "language": "java",
         "sourceRef": "corpus://cirepo_java_spring_projects_spring_petclinic@51045d1648dad955df586150c1a1a6e22ef400c2#src/main/java/org/springframework/samples/petclinic/owner",
         "graphFingerprints": [
-          "sha256:24b746bba13ceb6bd36050fcf6aa0075ff5b06160df48c20ac74badbd914abe0",
-          "sha256:24b746bba13ceb6bd36050fcf6aa0075ff5b06160df48c20ac74badbd914abe0"
+          "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068",
+          "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -951,8 +951,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -963,8 +963,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -985,8 +985,8 @@
             "id": "imports",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "exports",
@@ -1061,7 +1061,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:a2280d6c4c92a6d42bf1de23c75420ac4b6aadd105dc1b958e188221b78d2b38"
+        "reportFingerprint": "sha256:10aca7402f0ecabc48a16b1b9a70c24c96ebc9711f7650b910b989e76011fecd"
       }
     },
     {
@@ -1093,9 +1093,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.894,
-        "secondElapsedMs": 13.42,
-        "evaluatorMaxRssKb": 75328,
+        "firstElapsedMs": 13.823,
+        "secondElapsedMs": 13.259,
+        "evaluatorMaxRssKb": 76720,
         "graphResponseBytes": 43265,
         "workspaceFingerprintUnchanged": true
       },
@@ -1263,9 +1263,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 54.19,
-        "secondElapsedMs": 54.207,
-        "evaluatorMaxRssKb": 84848,
+        "firstElapsedMs": 53.788,
+        "secondElapsedMs": 52.97,
+        "evaluatorMaxRssKb": 85136,
         "graphResponseBytes": 468229,
         "workspaceFingerprintUnchanged": true
       },
@@ -1433,9 +1433,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 71.188,
-        "secondElapsedMs": 71.626,
-        "evaluatorMaxRssKb": 86736,
+        "firstElapsedMs": 71.548,
+        "secondElapsedMs": 69.884,
+        "evaluatorMaxRssKb": 88960,
         "graphResponseBytes": 642279,
         "workspaceFingerprintUnchanged": true
       },
@@ -1608,9 +1608,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 71.864,
-        "secondElapsedMs": 70.382,
-        "evaluatorMaxRssKb": 96992,
+        "firstElapsedMs": 70.863,
+        "secondElapsedMs": 71.232,
+        "evaluatorMaxRssKb": 101808,
         "graphResponseBytes": 476144,
         "workspaceFingerprintUnchanged": true
       },
@@ -1783,9 +1783,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 82.831,
-        "secondElapsedMs": 83.312,
-        "evaluatorMaxRssKb": 104064,
+        "firstElapsedMs": 77.871,
+        "secondElapsedMs": 77.441,
+        "evaluatorMaxRssKb": 106528,
         "graphResponseBytes": 583466,
         "workspaceFingerprintUnchanged": true
       },
@@ -1958,9 +1958,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 41.605,
-        "secondElapsedMs": 40.967,
-        "evaluatorMaxRssKb": 104688,
+        "firstElapsedMs": 41.223,
+        "secondElapsedMs": 40.938,
+        "evaluatorMaxRssKb": 106912,
         "graphResponseBytes": 273419,
         "workspaceFingerprintUnchanged": true
       },
@@ -2113,8 +2113,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 7,
-          "denominator": 7,
+          "numerator": 10,
+          "denominator": 10,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -2204,5 +2204,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:81233361babfbb4bded9fdc5e31b994092ba3a24a45629cf7af6787c29bc8b1c"
+  "reportFingerprint": "sha256:d94f7f6520a72d6a2fa9f2a23c76334d03a8eebe461378dc0314157154204905"
 }

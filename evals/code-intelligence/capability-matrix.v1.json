@@ -1,13 +1,13 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-17T20:14:33.401Z",
+  "generatedAt": "2026-07-18T12:38:48.704Z",
   "languages": [
     {
       "id": "typescript",
       "displayName": "TypeScript",
       "tier": 1,
-      "benchmarkStatus": "meets-floor",
+      "benchmarkStatus": "unmeasured",
       "capabilities": {
         "parse": {
           "productStatus": "implemented",
@@ -40,7 +40,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "implemented",
@@ -73,7 +75,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "implemented",
@@ -106,7 +110,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
           "productStatus": "implemented",
@@ -139,7 +145,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "specified",
@@ -148,11 +156,17 @@
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "implemented",
@@ -185,7 +199,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "implemented",
@@ -218,7 +234,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -227,11 +245,17 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -240,11 +264,17 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "implemented",
@@ -253,11 +283,17 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
           "productStatus": "specified",
@@ -266,22 +302,28 @@
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 6 capability floors; 0 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 6 capability floors; 5 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
       "id": "javascript",
       "displayName": "JavaScript",
       "tier": 1,
-      "benchmarkStatus": "meets-floor",
+      "benchmarkStatus": "unmeasured",
       "capabilities": {
         "parse": {
           "productStatus": "implemented",
@@ -314,7 +356,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "implemented",
@@ -347,7 +391,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "implemented",
@@ -380,7 +426,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
           "productStatus": "implemented",
@@ -413,7 +461,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "specified",
@@ -422,11 +472,17 @@
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "implemented",
@@ -459,7 +515,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "implemented",
@@ -492,7 +550,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -501,11 +561,17 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -514,11 +580,17 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "implemented",
@@ -527,11 +599,17 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
           "productStatus": "specified",
@@ -540,22 +618,28 @@
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 6 capability floors; 0 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 6 capability floors; 5 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
       "id": "python",
       "displayName": "Python",
       "tier": 1,
-      "benchmarkStatus": "meets-floor",
+      "benchmarkStatus": "unmeasured",
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
@@ -600,7 +684,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -633,7 +719,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -666,20 +754,28 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -712,7 +808,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -745,7 +843,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -778,7 +878,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -811,7 +913,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -844,7 +948,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -853,28 +959,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 8 capability floors; 0 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 8 capability floors; 3 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -914,7 +1032,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -947,11 +1067,13 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -964,24 +1086,44 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/java.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -1002,7 +1144,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -1023,7 +1167,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -1056,20 +1202,28 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -1094,7 +1248,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -1103,28 +1259,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1164,7 +1332,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -1197,7 +1367,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -1218,20 +1390,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -1252,7 +1432,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -1277,7 +1459,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -1306,20 +1490,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -1340,7 +1532,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -1349,28 +1543,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 2 capability floors; 5 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 2 capability floors; 9 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1410,7 +1616,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -1443,7 +1651,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -1464,20 +1674,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -1498,7 +1716,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -1515,7 +1735,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -1548,20 +1770,28 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -1582,7 +1812,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -1591,28 +1823,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1652,7 +1896,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -1685,7 +1931,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -1706,33 +1954,47 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -1753,7 +2015,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -1786,7 +2050,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -1803,7 +2069,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -1828,7 +2096,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -1837,28 +2107,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1898,7 +2180,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -1931,7 +2215,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -1952,20 +2238,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -1990,7 +2284,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -2023,7 +2319,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -2056,7 +2354,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -2073,7 +2373,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -2094,7 +2396,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -2103,28 +2407,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2164,7 +2480,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -2197,7 +2515,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -2214,20 +2534,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -2260,7 +2588,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -2281,7 +2611,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -2314,20 +2646,28 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -2348,7 +2688,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -2357,28 +2699,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2418,7 +2772,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -2451,7 +2807,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -2472,20 +2830,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -2510,7 +2876,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -2535,7 +2903,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -2568,20 +2938,28 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -2602,7 +2980,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -2611,28 +2991,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2672,7 +3064,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -2705,7 +3099,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -2734,20 +3130,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -2780,7 +3184,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -2813,7 +3219,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -2834,20 +3242,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -2868,7 +3284,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -2877,28 +3295,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2938,7 +3368,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -2971,7 +3403,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -2992,24 +3426,32 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
+          "productStatus": "unsupported",
+          "benchmarkStatus": "not-applicable",
           "evidence": [
             {
               "class": "documentation",
@@ -3017,8 +3459,10 @@
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "C has no language-level inheritance, interface, trait, protocol, or mixin relationship."
+          ],
+          "applicability": "not-applicable",
+          "applicabilityRationale": "C has no language-level inheritance, interface, trait, protocol, or mixin relationship."
         },
         "types": {
           "productStatus": "experimental",
@@ -3039,7 +3483,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -3072,7 +3518,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -3093,20 +3541,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -3115,28 +3571,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 7 applicable rows remain unmeasured; 1 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -3176,7 +3644,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -3209,7 +3679,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -3234,20 +3706,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -3268,7 +3748,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -3297,7 +3779,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -3330,7 +3814,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -3351,20 +3837,28 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -3373,28 +3867,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -3434,7 +3940,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "structure": {
           "productStatus": "experimental",
@@ -3467,7 +3975,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "imports": {
           "productStatus": "experimental",
@@ -3500,7 +4010,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "exports": {
           "productStatus": "experimental",
@@ -3521,7 +4033,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "heritage": {
           "productStatus": "experimental",
@@ -3546,7 +4060,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "types": {
           "productStatus": "experimental",
@@ -3579,7 +4095,9 @@
           ],
           "limitations": [
             "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "calls": {
           "productStatus": "experimental",
@@ -3608,7 +4126,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "config": {
           "productStatus": "experimental",
@@ -3629,7 +4149,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "frameworks": {
           "productStatus": "experimental",
@@ -3654,7 +4176,9 @@
           ],
           "limitations": [
             "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
-          ]
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "impact": {
           "productStatus": "experimental",
@@ -3663,28 +4187,40 @@
             {
               "class": "implementation",
               "path": "rust/oaf/src/main.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         },
         "processes": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Phase 2 did not measure this capability; no accuracy claim is made."
-          ]
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+          ],
+          "applicability": "applicable",
+          "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 5 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {

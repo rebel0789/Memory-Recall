@@ -225,6 +225,13 @@ duplicate truth IDs and semantic keys, source-class mismatches, unsupported
 never presented as a passing percentage. Individual language reports cannot
 claim parity or leadership and do not change the public JavaScript engine.
 
+`code-intelligence-capability-matrix.schema.json` optionally carries
+`applicability` and `applicabilityRationale` on capability rows. The Tier 1
+semantic audit requires them even though the additive v1 schema keeps older
+matrix documents structurally valid. Evidence presence does not decide
+applicability. An applicable unsupported or unmeasured row remains non-green;
+only a language-semantic absence can use `not-applicable`.
+
 `code-intelligence-index-request.schema.json` and
 `code-intelligence-index-response.schema.json` define the Phase 3 SQLite source
 index boundary. Lifecycle operations are closed to build, refresh, explicit
