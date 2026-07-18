@@ -1,23 +1,21 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { promisify } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
+import { acquirePinnedRepository } from './pinned-repository-acquisition.mjs';
 
 const OUTPUT = 'evals/code-intelligence/results/phase4-intelligence.json';
 const PRIVATE_PATH = /(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u;
 const REPETITIONS = 5;
 const QUERY_LIMIT = 50;
 const QUERY_DEADLINE_MS = 2_000;
-const execFileAsync = promisify(execFile);
 const PINNED_REPOSITORIES = Object.freeze([
   { id: 'cirepo_javascript_expressjs_express', url: 'https://github.com/expressjs/express.git', commit: 'ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4', scope: '.', language: 'javascript', query: 'router' },
-  { id: 'cirepo_typescript_microsoft_typescript', url: 'https://github.com/microsoft/TypeScript.git', commit: '637d5746b70257028fb95aad32ddec6b26ab0a14', scope: 'src/compiler/transformers', language: 'typescript', query: 'transform' },
-  { id: 'cirepo_go_hashicorp_go_multierror', url: 'https://github.com/hashicorp/go-multierror.git', commit: '6d4d48630db25c3c83fa83ecd41dd8438b82963c', scope: '.', language: 'go', query: 'error' }
+  { id: 'cirepo_typescript_nestjs_nest_cats_sample', url: 'https://github.com/nestjs/nest.git', commit: '7cdb8f498e7723f5e2e89b6befc693bf07f171b0', scope: 'sample/01-cats-app/src', language: 'typescript', query: 'cats' },
+  { id: 'cirepo_go_gin_gonic_gin', url: 'https://github.com/gin-gonic/gin.git', commit: '34dac209ffb6ef85cc78c5d217bbb7ad001d68fd', scope: '.', language: 'go', query: 'GET' }
 ]);
 const CONSTRAINED_QUERY = Object.freeze({
   kind: 'dependencies',
@@ -30,6 +28,7 @@ const CONSTRAINED_QUERY = Object.freeze({
 const PROCESS_SINK_KINDS = new Set(['route', 'handler', 'storage', 'queue', 'event', 'sink', 'reads', 'writes', 'emits', 'listens']);
 const IMPLEMENTATION_FILES = Object.freeze([
   'scripts/code-intelligence-phase4-intelligence.mjs',
+  'scripts/pinned-repository-acquisition.mjs',
   'providers/native/code-intelligence-rust/src/index.mjs',
   'rust/oaf-ingest/src/lib.rs',
   'rust/oaf-index/src/lib.rs',
@@ -108,7 +107,7 @@ async function runBenchmark() {
       ...CONSTRAINED_QUERY
     }));
     const afterReads = await sqliteBundleSnapshot(indexPath);
-    const realRepositories = await runPinnedRepositories({ provider, temporary });
+    const realRepositories = await runPinnedRepositories({ provider });
     const readQueriesPreservedIndex = sameSnapshots(beforeReads, afterReads);
     const firstCommunities = communityRuns.results[0];
     const firstProcesses = processRuns.results[0];
@@ -243,22 +242,14 @@ async function runBenchmark() {
   }
 }
 
-async function runPinnedRepositories({ provider, temporary }) {
+async function runPinnedRepositories({ provider }) {
   const results = [];
-  const selected = PINNED_REPOSITORIES.slice(0, Math.max(1, Number(process.env.PHASE4_MAX_REPOSITORIES ?? PINNED_REPOSITORIES.length)));
-  for (const pinned of selected) {
+  for (const pinned of PINNED_REPOSITORIES) {
     const started = performance.now();
-    const reuseRoot = process.env[`PHASE4_REPOSITORY_ROOT_${pinned.id}`];
-    const target = reuseRoot ? path.resolve(reuseRoot) : path.join(temporary, 'repositories', pinned.id);
-    if (!reuseRoot) {
-      await mkdir(path.dirname(target), { recursive: true });
-      await execFileAsync('git', ['clone', '--quiet', '--no-tags', '--filter=blob:none', pinned.url, target], { cwd: root });
-      await execFileAsync('git', ['-C', target, 'fetch', '--quiet', '--depth', '1', 'origin', pinned.commit], { cwd: root });
-      await execFileAsync('git', ['-C', target, 'checkout', '--quiet', '--detach', pinned.commit], { cwd: root });
-    }
-    const checked = (await execFileAsync('git', ['-C', target, 'rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
-    if (checked !== pinned.commit) throw new Error(`phase4_repository_commit_mismatch:${pinned.id}`);
-    const clonedMs = reuseRoot ? 0 : performance.now() - started;
+    const acquired = await acquirePinnedRepository(pinned, { scope: pinned.scope, checkoutId: `phase4-${pinned.id}`, lower: 'phase4' });
+    const target = acquired.directory;
+    const acquisitionKind = acquired.acquisitionKind;
+    const clonedMs = performance.now() - started;
     const caseRoot = path.resolve(target, pinned.scope);
     const built = await provider.buildIndex({
       root: caseRoot,
@@ -283,15 +274,31 @@ async function runPinnedRepositories({ provider, temporary }) {
       ['processes', 'processes', { depth: 4, limit: 1 }],
       ['routes', 'routes', {}],
       ['impact', 'impact', { query: pinned.query, depth: 4 }],
-      ['search', 'search', { query: pinned.query }],
-      ['dependencies', 'dependencies', { query: pinned.query, direction: 'outbound', depth: 2 }],
-      ['safeQuery', 'dependencies', { query: pinned.query, direction: 'outbound', depth: 2, edgeKinds: ['calls'] }],
-      // Trace requires two independently resolvable seeds (query + locator).
-      // The pinned corpus metadata does not provide stable symbol pairs, so it
-      // remains covered by the fixture gate rather than inventing a target.
+      ['search', 'search', { query: pinned.query }]
     ]) queryRuns[name] = await repeat(() => query(kind, extra));
-    const traceSeed = traceArguments(queryRuns.processes.results[0]) ?? traceArguments(queryRuns.routes.results[0]);
-    if (traceSeed) queryRuns.trace = await repeat(() => query('trace', traceSeed));
+    const candidates = relationshipCandidates(
+      queryRuns.processes.results[0],
+      queryRuns.routes.results[0],
+      queryRuns.search.results[0],
+      queryRuns.impact.results[0]
+    );
+    for (const candidate of candidates) {
+      const dependencySeed = { query: candidate.query, direction: 'outbound', depth: 2 };
+      const firstDependencies = await query('dependencies', dependencySeed);
+      const safeSeed = { ...dependencySeed, edgeKinds: [candidate.kind] };
+      const firstSafeQuery = await query('dependencies', safeSeed);
+      if (firstDependencies.relationships.length === 0 || firstSafeQuery.relationships.length === 0) continue;
+      queryRuns.dependencies = await repeat(() => query('dependencies', dependencySeed));
+      queryRuns.safeQuery = await repeat(() => query('dependencies', safeSeed));
+      break;
+    }
+    for (const candidate of candidates) {
+      const traceSeed = { query: candidate.query, locator: candidate.locator, depth: 4 };
+      const firstTrace = await query('trace', traceSeed);
+      if (firstTrace.results.length < 2 || firstTrace.relationships.length === 0) continue;
+      queryRuns.trace = await repeat(() => query('trace', traceSeed));
+      break;
+    }
     const pagination = {};
     for (const kind of ['communities', 'processes']) {
       const firstPage = queryRuns[kind].results[0];
@@ -313,43 +320,88 @@ async function runPinnedRepositories({ provider, temporary }) {
       repositoryId: pinned.id,
       sourceRef: `corpus://${pinned.id}@${pinned.commit}#${pinned.scope}`,
       language: pinned.language,
+      acquisitionKind,
       query: pinned.query,
       index: built.summary,
       stageMs: { clone: Number(clonedMs.toFixed(1)), index: Number(indexedMs.toFixed(1)) },
       deterministic: Object.values(queryRuns).every((run) => new Set(run.results.map(projectedResultFingerprint)).size === 1),
       pagination,
-      queries: Object.fromEntries(Object.entries(queryRuns).map(([name, run]) => [name, {
-        wallMs: run.wallMs,
-        resultCount: (run.results[0]?.results ?? []).length,
-        relationshipCount: (run.results[0]?.relationships ?? []).length,
-        communityCount: (run.results[0]?.communities ?? []).length,
-        processCount: (run.results[0]?.processes ?? []).length,
-        truncated: Boolean(run.results[0]?.truncated),
-        deadlineMs: QUERY_DEADLINE_MS,
-        deadlineMet: run.wallMs.p95 <= QUERY_DEADLINE_MS,
-        deliveredBytes: Buffer.byteLength(JSON.stringify(run.results[0] ?? {})),
-        deliveredTokensEstimate: Math.ceil(Buffer.byteLength(JSON.stringify(run.results[0] ?? {})) / 4),
-        nextCursor: run.results[0]?.nextCursor ?? null,
-        representative: first[name]?.results?.[0]?.id ?? null
-      }]))
+      queries: Object.fromEntries(Object.entries(queryRuns).map(([name, run]) => {
+        const result = run.results[0] ?? {};
+        const nodes = result.results ?? [];
+        const relationships = result.relationships ?? [];
+        const processes = result.processes ?? [];
+        const deliveredBytes = Buffer.byteLength(JSON.stringify(result));
+        return [name, {
+          wallMs: run.wallMs,
+          resultCount: nodes.length,
+          locatedResultCount: nodes.filter((item) => /^workspace:\/\//u.test(item.locator ?? '')).length,
+          relationshipCount: relationships.length,
+          evidenceRelationshipCount: relationships.filter(hasRelationshipEvidence).length,
+          minimumRelationshipConfidence: minimumConfidence(relationships),
+          communityCount: (result.communities ?? []).length,
+          processCount: processes.length,
+          processEvidenceCount: processes.filter(hasProcessEvidence).length,
+          minimumProcessConfidence: minimumConfidence(processes),
+          truncated: Boolean(result.truncated),
+          deadlineMs: QUERY_DEADLINE_MS,
+          deadlineMet: run.wallMs.p95 <= QUERY_DEADLINE_MS,
+          deliveredBytes,
+          deliveredTokensEstimate: Math.ceil(deliveredBytes / 4),
+          nextCursor: result.nextCursor ?? null,
+          representative: first[name]?.results?.[0]?.id ?? null
+        }];
+      }))
     });
     console.error(`phase4 real repository ${pinned.id}: clone=${clonedMs.toFixed(0)}ms index=${indexedMs.toFixed(0)}ms queries=${(performance.now() - started - clonedMs - indexedMs).toFixed(0)}ms`);
   }
   return results;
 }
 
-function traceArguments(routeResult) {
-  const resultById = new Map((routeResult?.results ?? []).map((item) => [item.id, item]));
-  const edge = (routeResult?.relationships ?? []).find((item) => resultById.has(item.fromNodeId) && resultById.has(item.toNodeId));
-  if (!edge) return null;
-  const from = resultById.get(edge.fromNodeId);
-  const to = resultById.get(edge.toNodeId);
-  return from?.label && to?.locator ? { query: from.label, locator: to.locator, depth: 4 } : null;
+function relationshipCandidates(...queryResults) {
+  const candidates = [];
+  const seen = new Set();
+  for (const queryResult of queryResults) {
+    const resultById = new Map((queryResult?.results ?? []).map((item) => [item.id, item]));
+    for (const edge of queryResult?.relationships ?? []) {
+      const from = resultById.get(edge.fromNodeId);
+      const to = resultById.get(edge.toNodeId);
+      if (!from?.id || !to?.locator || !edge.kind) continue;
+      const key = `${from.id}:${to.locator}:${edge.kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push({ query: from.id, locator: to.locator, kind: edge.kind });
+      if (candidates.length === 16) return candidates;
+    }
+  }
+  return candidates;
 }
 
 function projectionIds(result, kind) {
   const key = kind === 'communities' ? 'communities' : 'processes';
   return (result?.[key] ?? []).map((item) => item.id);
+}
+
+function hasRelationshipEvidence(item) {
+  return /^ciedge_[a-f0-9]{32}$/u.test(item.id ?? '')
+    && /^cinode_[a-f0-9]{32}$/u.test(item.fromNodeId ?? '')
+    && /^cinode_[a-f0-9]{32}$/u.test(item.toNodeId ?? '')
+    && /^workspace:\/\//u.test(item.locator ?? '')
+    && Number.isFinite(item.confidence)
+    && item.confidence > 0;
+}
+
+function hasProcessEvidence(item) {
+  return Array.isArray(item.nodeIds)
+    && item.nodeIds.length >= 2
+    && Array.isArray(item.relationshipIds)
+    && item.relationshipIds.length >= 1
+    && Number.isFinite(item.confidence)
+    && item.confidence >= 0.75;
+}
+
+function minimumConfidence(items) {
+  return items.length > 0 ? Math.min(...items.map((item) => item.confidence)) : null;
 }
 
 function realRepositoryFailures(repositories) {
@@ -365,6 +417,11 @@ function realRepositoryFailures(repositories) {
       if (!(query.deliveredBytes > 0 && query.deliveredTokensEstimate > 0)) failures.push(`${prefix}_${kind}_delivery_accounting_missing`);
       if (query.truncated) failures.push(`${prefix}_${kind}_unexpected_truncation`);
       if (query.resultCount === 0) failures.push(`${prefix}_${kind}_evidence_missing`);
+      if (query.locatedResultCount !== query.resultCount) failures.push(`${prefix}_${kind}_locator_evidence_incomplete`);
+      if (query.evidenceRelationshipCount !== query.relationshipCount) failures.push(`${prefix}_${kind}_relationship_evidence_incomplete`);
+      if (query.minimumRelationshipConfidence !== null && query.minimumRelationshipConfidence <= 0) failures.push(`${prefix}_${kind}_relationship_confidence_invalid`);
+      if (['dependencies', 'safeQuery', 'trace'].includes(kind) && query.relationshipCount === 0) failures.push(`${prefix}_${kind}_relationship_evidence_missing`);
+      if (kind === 'processes' && (query.processEvidenceCount !== query.processCount || query.minimumProcessConfidence < 0.75)) failures.push(`${prefix}_${kind}_process_evidence_incomplete`);
     }
     for (const kind of ['communities', 'processes']) {
       const page = repository.pagination[kind];

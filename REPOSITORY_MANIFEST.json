@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T08:52:49.913Z",
-  "fileCount": 1183,
-  "totalBytes": 9597290,
+  "generatedAt": "2026-07-18T12:20:20.383Z",
+  "fileCount": 1185,
+  "totalBytes": 9692101,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 31931,
-      "sha256": "981dd3e10fee12cda3e4520a7698290b362d905098ac142b1f41d8a10f3e8b8d"
+      "bytes": 32167,
+      "sha256": "47fc53588256b0a39183cf727cf89d36ca88b39f0c2709c1c4c31b22baf54875"
     },
     {
       "path": "CITATION.cff",
@@ -912,8 +912,8 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 29963,
-      "sha256": "7b4e1209e5cce2b9ff75bc4f11cf756a5303e99dc03622690021df34b3fb635e"
+      "bytes": 30635,
+      "sha256": "c3766e0c415c88e9575c0d269c99bb0b5620a48c9f445be7430ada7ae7726565"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",
@@ -1052,8 +1052,8 @@
     },
     {
       "path": "docs/open-source/release-engineering.md",
-      "bytes": 2989,
-      "sha256": "14ac32ca38109e834b70c6bfc68df6d493bc515a1f99e0ce45c2f0543d2913cd"
+      "bytes": 3779,
+      "sha256": "7605bf4b6697008bbcecf36726f525dc54ea24c55e9787e34f2ccaa7d40613bc"
     },
     {
       "path": "docs/operations/backup-restore.md",
@@ -1153,12 +1153,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "a8c6e9bd7213cde54d0fa4af243ab7b5ddffe14d60342ed93740f9cbff9fa307"
+      "sha256": "81501cd376ce88cea55e162bb47534726c4c33bcdac10568a5b5112c70d557ad"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3381,
-      "sha256": "f9b8cc61d5a93b1526cd7cfb055acc2c8e00b9a8e4aeef7acc40dc6cc42b5dfb"
+      "sha256": "acb2c3a9a791ca589c22f70dcc5224aa63a8b5aa435764d83cb813e8302d4d1b"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1168,7 +1168,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "c75863dc02878505ed650f88468b39fa2f1a1bb7cd84fb7b4725312b22318bd4"
+      "sha256": "28d908e29ed0665191b90de7fb50c2d505bf8a5f11ac910c97c2a39a20fed5d1"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1692,13 +1692,13 @@
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
-      "bytes": 27394,
-      "sha256": "501b9ae1bd76210b6f2aa82c6c9e6342de7b438d6e991169843544e8f49d5743"
+      "bytes": 27386,
+      "sha256": "99ab2684dcaad5fb4064531a58d4431f7147e66ee3e6b1460656844140ac7a85"
     },
     {
       "path": "evals/code-intelligence/results/phase4-intelligence.json",
-      "bytes": 8185,
-      "sha256": "7cc7af15f8ba3c648deff597a00dc84da2f24ce9e261e6f2b411a280b958e940"
+      "bytes": 33114,
+      "sha256": "0729297d21e112369d547b35cce012ad0314fb075a62e9b4b085aee8d5b5c2a5"
     },
     {
       "path": "evals/code-intelligence/results/phase5-cross-service.json",
@@ -1708,7 +1708,7 @@
     {
       "path": "evals/code-intelligence/results/phase5-go-cross-repository.json",
       "bytes": 3744,
-      "sha256": "6ddbe6bf88cb5f3f6dbdc22968cb0f9a002ebfc7875a7ee13271f83519fc4150"
+      "sha256": "13f448ba70a437d1e48abcbda83c87501fbe3406ce2ebb9ef5a2b74e7db10d52"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/c.json",
@@ -3262,8 +3262,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 8698,
-      "sha256": "585ef6da53c6e676bd498fc260e9187332cdcb5ae76e4eae97c27b6bc7c51ff4"
+      "bytes": 8748,
+      "sha256": "a073b34fef256a0b07f4cf6411e356cf8e854ea735ce593728fc7886b9119e6d"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -4403,7 +4403,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 72611,
-      "sha256": "999f1bcf7054471dae90394c8283afd8508e691c50a91066a433b22cc845e30e"
+      "sha256": "12eb16d6ebbb70118e7f79fa3ccb4ed8cae5a429d973a5d71b119a43245676b8"
     },
     {
       "path": "providers/AGENTS.md",
@@ -4682,8 +4682,8 @@
     },
     {
       "path": "rust/oaf-index/src/lib.rs",
-      "bytes": 97265,
-      "sha256": "08917b7a3ecc980d4df0f52858b4670c275e9b180f2c09266bb273140e6146d0"
+      "bytes": 99059,
+      "sha256": "505cdd4cd8f7c44db7484f54282325c50532a3a84e4593e45c80e29da7dead16"
     },
     {
       "path": "rust/oaf-index/src/model.rs",
@@ -4702,8 +4702,8 @@
     },
     {
       "path": "rust/oaf-index/tests/community_process_projection.rs",
-      "bytes": 7908,
-      "sha256": "276d3292dbf0e3b71c543f52d6e4f25286c993cd65e6fd18970a3d026f763225"
+      "bytes": 11260,
+      "sha256": "fb3dbb58e85348bedf27482a01f87ba8a24393982fbbb59071bc7479a1523605"
     },
     {
       "path": "rust/oaf-index/tests/doctor_repair.rs",
@@ -4777,8 +4777,8 @@
     },
     {
       "path": "rust/oaf/src/index_protocol.rs",
-      "bytes": 98676,
-      "sha256": "507e9ecb9ec846da3071c48405d0e240e3330c02c14745cc5c3c6ba65c953bca"
+      "bytes": 98802,
+      "sha256": "430efb81ebcf26b83438124fcffd9f96e9ecbe7f6c8714555bd10e0b91e7dc40"
     },
     {
       "path": "rust/oaf/src/main.rs",
@@ -4827,8 +4827,8 @@
     },
     {
       "path": "scripts/code-intelligence-batch-a.mjs",
-      "bytes": 15521,
-      "sha256": "bd17041484d5ad1203ebcac7417dd7d360aa32f14e845a3fe59504944d19fdc2"
+      "bytes": 13878,
+      "sha256": "90c1f6c17a7bb36a49be11061a389aeaa3f464866a52c9512b4d5a896994a09d"
     },
     {
       "path": "scripts/code-intelligence-batch-b.mjs",
@@ -4857,8 +4857,8 @@
     },
     {
       "path": "scripts/code-intelligence-language-batch.mjs",
-      "bytes": 14385,
-      "sha256": "b958b5c0d8e868280086662ebc6afbc6d75505450bb0e30f68f1e8455dcef8c1"
+      "bytes": 13081,
+      "sha256": "9c68fdcd994d9907ddbb07a6a474effd75a35c3f60b3cc93be539805e5e85ea4"
     },
     {
       "path": "scripts/code-intelligence-million-node-index.mjs",
@@ -4882,13 +4882,13 @@
     },
     {
       "path": "scripts/code-intelligence-phase3-index.mjs",
-      "bytes": 26681,
-      "sha256": "48a6fcfe799d3601b3a82e30ef6a79cded9341bd2b5af58b322570527d2e5f21"
+      "bytes": 26708,
+      "sha256": "03af85ca40b3425369648e2b5d2e18d72d5128e38028528e6203b7b3c6c13b50"
     },
     {
       "path": "scripts/code-intelligence-phase4-intelligence.mjs",
-      "bytes": 24414,
-      "sha256": "5423f5d27bd44c9843ab5fe953e707d8de2c07abc71bcf54cbfdfd1400a48c3e"
+      "bytes": 34391,
+      "sha256": "d5b417e2245e9d368434fe5006aab887d7eb8bcc0c003fadc1233fe9a9ac3591"
     },
     {
       "path": "scripts/code-intelligence-phase5-cross-service.mjs",
@@ -4937,13 +4937,13 @@
     },
     {
       "path": "scripts/native-code-intelligence-consumer-smoke.mjs",
-      "bytes": 50571,
-      "sha256": "b0146d069fbab11d5ed57e135a2257d5b9efe63335057226e247605ebc18e294"
+      "bytes": 51607,
+      "sha256": "6da1e35b1ced608a303a531d4186287fc89504fa3ea0234cde795bd42d3236bc"
     },
     {
       "path": "scripts/native-release-set.mjs",
-      "bytes": 10418,
-      "sha256": "08b8c694853a2782c20aea67757f58c0426cf293b4e96bdb6c39590aae7476df"
+      "bytes": 32540,
+      "sha256": "ba515d127ea758330ff6165004a6db9d903855c325966963509cb4950a284157"
     },
     {
       "path": "scripts/native-smoke.mjs",
@@ -4957,13 +4957,18 @@
     },
     {
       "path": "scripts/package-native-platform.mjs",
-      "bytes": 12365,
-      "sha256": "4990d3cd97a801e785acf4f2b54556dc91998bd7aa4b8723da5e68bfe958d998"
+      "bytes": 17284,
+      "sha256": "5fce96170c62bc336eef4ce2f4785baf784936ef3012c202f22c7ab51d5f11cc"
     },
     {
       "path": "scripts/pin-code-intelligence-corpus.mjs",
       "bytes": 8272,
       "sha256": "b626f81a7e8d41a9c5ee3d012185d8f86bbcc4559d6ba310e5f1203bcd08e804"
+    },
+    {
+      "path": "scripts/pinned-repository-acquisition.mjs",
+      "bytes": 13495,
+      "sha256": "4a92d85d79f0c48339f498f1b11ca60d83014c301f16cad2e857b73234656dc2"
     },
     {
       "path": "scripts/postgres-recovery-test.mjs",
@@ -5387,8 +5392,8 @@
     },
     {
       "path": "tests/code-intelligence-index-contract.test.mjs",
-      "bytes": 11557,
-      "sha256": "e34262edd691fc3b4eff447d2243222ebc7119d624b1a7042f8bb3bda4c004d2"
+      "bytes": 12887,
+      "sha256": "b796739181fb1c207f935251159b74c246271e617c1df35a946097b5e9703865"
     },
     {
       "path": "tests/code-intelligence-language-evaluation.test.mjs",
@@ -5647,13 +5652,13 @@
     },
     {
       "path": "tests/native-platform-packaging.test.mjs",
-      "bytes": 6272,
-      "sha256": "c0c10ea3603ea430708a1dd779bb80b28c89907af6b7b301f83484dc12a27d54"
+      "bytes": 7634,
+      "sha256": "9d7e0f0c03384686c87f4cc0c438e1f0c99a59ebaa140e8721b25aa40b37aa71"
     },
     {
       "path": "tests/native-release-set.test.mjs",
-      "bytes": 10263,
-      "sha256": "93b73ae989edc4ce5727ff81d313f236eaaa6b24b9dd882c26a32511490c9a21"
+      "bytes": 17935,
+      "sha256": "7bcc705f82471f5ca1f39d444e8b6615c58a55c5e5f2df78479e1d91bf3da641"
     },
     {
       "path": "tests/native-workflow-embedded.test.mjs",
@@ -5669,6 +5674,11 @@
       "path": "tests/operations.test.mjs",
       "bytes": 9783,
       "sha256": "12abca709267e72605b37cc3543380190c68bfdacb41575337039478770e0f49"
+    },
+    {
+      "path": "tests/pinned-repository-acquisition.test.mjs",
+      "bytes": 3793,
+      "sha256": "d5f136a6f44e8f509dd757603d5b90ea6dcbb3d802b98b9101b171d38fd33f69"
     },
     {
       "path": "tests/planning.test.mjs",
@@ -5722,8 +5732,8 @@
     },
     {
       "path": "tests/release-readiness.test.mjs",
-      "bytes": 23096,
-      "sha256": "5f6f0887a1b42ebcbb19c299178f794e0645483a41e48776ebcc57e3be7bdaea"
+      "bytes": 23180,
+      "sha256": "e83ce1bf2c7084aaf2bca6311a73be2f41a99d4d122844c4acd18924cb3147ed"
     },
     {
       "path": "tests/release-regressions.test.mjs",

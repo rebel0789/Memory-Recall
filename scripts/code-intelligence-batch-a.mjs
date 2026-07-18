@@ -1,14 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { promisify } from 'node:util';
 import { evaluateCodeIntelligenceLanguage } from '../packages/protocol/src/code-intelligence-evaluation.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
+import { acquirePinnedRepository } from './pinned-repository-acquisition.mjs';
 
-const execFileAsync = promisify(execFile);
 const OUTPUT = 'evals/code-intelligence/results/phase2-batch-a.json';
 const BOUNDS = Object.freeze({ maxFiles: 5_000, maxFileBytes: 512 * 1024, maxNodes: 5_000, maxEdges: 10_000 });
 const REPOSITORY_SCOPES = Object.freeze({
@@ -251,28 +249,7 @@ async function fixtureDefinition(language, fixtureRoot, id) {
 }
 
 async function ensurePinnedRepository(repository, scope) {
-  const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', repository.id);
-  await mkdir(directory, { recursive: true });
-  if (!(await exists(path.join(directory, '.git')))) {
-    await command('git', ['init', '--quiet'], { cwd: directory });
-    await command('git', ['remote', 'add', 'origin', repository.url], { cwd: directory });
-  }
-  let present = false;
-  try {
-    await command('git', ['cat-file', '-e', `${repository.commit}^{commit}`], { cwd: directory });
-    present = true;
-  } catch {}
-  if (!present) await command('git', ['fetch', '--quiet', '--depth', '1', 'origin', repository.commit], { cwd: directory, timeout: 300_000 });
-  await command('git', ['-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach', repository.commit], { cwd: directory });
-  if (scope === '.') {
-    await command('git', ['sparse-checkout', 'disable'], { cwd: directory });
-  } else {
-    await command('git', ['sparse-checkout', 'init', '--cone'], { cwd: directory });
-    await command('git', ['sparse-checkout', 'set', scope], { cwd: directory });
-  }
-  const commit = await command('git', ['rev-parse', 'HEAD'], { cwd: directory });
-  if (commit !== repository.commit) throw new Error(`batch_a_repository_commit_mismatch:${repository.id}`);
-  return directory;
+  return (await acquirePinnedRepository(repository, { scope, checkoutId: repository.id, lower: 'a' })).directory;
 }
 
 async function treeFingerprint(directory) {
@@ -293,11 +270,6 @@ async function treeFingerprint(directory) {
   }
   await visit(directory);
   return `sha256:${hasher.digest('hex')}`;
-}
-
-async function command(file, args, { cwd, timeout = 30_000 } = {}) {
-  const { stdout } = await execFileAsync(file, args, { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
-  return String(stdout).trim();
 }
 
 function parseMode(args) {
@@ -334,13 +306,4 @@ function fingerprint(value) {
 function round(value, precision = 3) {
   const factor = 10 ** precision;
   return Math.round(value * factor) / factor;
-}
-
-async function exists(file) {
-  try {
-    await stat(file);
-    return true;
-  } catch {
-    return false;
-  }
 }

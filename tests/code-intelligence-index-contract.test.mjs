@@ -161,6 +161,7 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   const expectedFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`;
   const implementationFiles = [
     'scripts/code-intelligence-phase4-intelligence.mjs',
+    'scripts/pinned-repository-acquisition.mjs',
     'providers/native/code-intelligence-rust/src/index.mjs',
     'rust/oaf-ingest/src/lib.rs',
     'rust/oaf-index/src/lib.rs',
@@ -186,6 +187,24 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert.equal(report.results.processAlgorithm, 'entry-path-v1');
   assert.equal(report.results.readQueriesPreservedIndex, true);
   assert.equal(report.results.evidenceComplete, true);
+  assert.equal(report.results.realRepositories.length, 3);
+  for (const repository of report.results.realRepositories) {
+    assert.equal(repository.deterministic, true);
+    assert.equal(repository.pagination.communities.continuous, true);
+    assert.equal(repository.pagination.processes.continuous, true);
+    for (const [kind, query] of Object.entries(repository.queries)) {
+      assert.equal(query.deadlineMet, true, `${repository.repositoryId}:${kind}:deadline`);
+      assert(query.deliveredBytes > 0, `${repository.repositoryId}:${kind}:bytes`);
+      assert(query.deliveredTokensEstimate > 0, `${repository.repositoryId}:${kind}:tokens`);
+      assert.equal(query.locatedResultCount, query.resultCount, `${repository.repositoryId}:${kind}:locators`);
+      assert.equal(query.evidenceRelationshipCount, query.relationshipCount, `${repository.repositoryId}:${kind}:relationship evidence`);
+    }
+    for (const kind of ['dependencies', 'safeQuery', 'trace']) {
+      assert(repository.queries[kind].relationshipCount > 0, `${repository.repositoryId}:${kind}:relationships`);
+    }
+    assert.equal(repository.queries.processes.processEvidenceCount, repository.queries.processes.processCount);
+    assert(repository.queries.processes.minimumProcessConfidence >= 0.75);
+  }
   assert(report.results.communityQueryWallMs.p95 <= report.inputs.queryDeadlineMs);
   assert(report.results.processQueryWallMs.p95 <= report.inputs.queryDeadlineMs);
   assert(report.results.searchQueryWallMs.p95 <= report.inputs.queryDeadlineMs);

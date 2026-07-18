@@ -1,15 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { execFile } from 'node:child_process';
 import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { promisify } from 'node:util';
 import { evaluateCodeIntelligenceLanguage } from '../packages/protocol/src/code-intelligence-evaluation.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 import { uniqueRepositoryCount } from './code-intelligence-case-counts.mjs';
+import { acquirePinnedRepository } from './pinned-repository-acquisition.mjs';
 
-const execFileAsync = promisify(execFile);
 const BOUNDS = Object.freeze({ maxFiles: 5_000, maxFileBytes: 512 * 1024, maxNodes: 5_000, maxEdges: 10_000 });
 
 export async function runLanguageBatch({ batch, languages, repositoryScopes, additionalRepositoryCases = [], claimReason }) {
@@ -118,6 +115,9 @@ export async function runLanguageBatch({ batch, languages, repositoryScopes, add
       throw new Error(`batch_${lower}_report_fingerprint_invalid`);
     }
     console.log(`Batch ${batch} evidence is current: ${cases.length} cases, ${languageReports.length} languages.`);
+  } else if (mode === 'verify') {
+    if (report.gateDecision !== 'pass') throw new Error(`batch_${lower}_verification_failed`);
+    console.log(`Batch ${batch} verification passed: ${cases.length} cases, ${languageReports.length} languages.`);
   } else {
     await atomicWrite(root, output, report);
     console.log(`Batch ${batch} evaluated ${cases.length} cases and wrote ${output}.`);
@@ -231,28 +231,7 @@ function sumMetric(cases, metric) {
 }
 
 async function ensurePinnedRepository(repository, lower, scope, checkoutId = repository.id) {
-  const directory = path.join(os.tmpdir(), 'memory-recall-code-intelligence-corpus-v1', checkoutId);
-  await mkdir(directory, { recursive: true });
-  if (!(await exists(path.join(directory, '.git')))) {
-    await command('git', ['init', '--quiet'], { cwd: directory });
-    await command('git', ['remote', 'add', 'origin', repository.url], { cwd: directory });
-  }
-  try {
-    await command('git', ['cat-file', '-e', `${repository.commit}^{commit}`], { cwd: directory });
-  } catch {
-    await command('git', ['fetch', '--quiet', '--depth', '1', 'origin', repository.commit], { cwd: directory, timeout: 300_000 });
-  }
-  await command('git', ['-c', 'advice.detachedHead=false', 'checkout', '--quiet', '--detach', repository.commit], { cwd: directory });
-  if (scope === '.') {
-    await command('git', ['sparse-checkout', 'disable'], { cwd: directory });
-  } else {
-    await command('git', ['sparse-checkout', 'init', '--cone'], { cwd: directory });
-    await command('git', ['sparse-checkout', 'set', scope], { cwd: directory });
-  }
-  if (await command('git', ['rev-parse', 'HEAD'], { cwd: directory }) !== repository.commit) {
-    throw new Error(`batch_${lower}_repository_commit_mismatch:${repository.id}`);
-  }
-  return directory;
+  return (await acquirePinnedRepository(repository, { scope, checkoutId, lower })).directory;
 }
 
 async function treeFingerprint(directory) {
@@ -275,16 +254,12 @@ async function treeFingerprint(directory) {
   return `sha256:${hasher.digest('hex')}`;
 }
 
-async function command(file, args, { cwd, timeout = 30_000 } = {}) {
-  const { stdout } = await execFileAsync(file, args, { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
-  return String(stdout).trim();
-}
-
 function parseMode(args, lower) {
   if (args.length === 0) return 'write';
   if (args.length === 1 && args[0] === '--check') return 'check';
   if (args.length === 1 && args[0] === '--fixtures-only') return 'fixtures';
-  throw new Error(`usage: node scripts/code-intelligence-batch-${lower}.mjs [--check|--fixtures-only]`);
+  if (args.length === 1 && args[0] === '--verify') return 'verify';
+  throw new Error(`usage: node scripts/code-intelligence-batch-${lower}.mjs [--check|--fixtures-only|--verify]`);
 }
 
 async function readJson(root, file) {
@@ -314,13 +289,4 @@ function fingerprint(value) {
 function round(value, precision = 3) {
   const factor = 10 ** precision;
   return Math.round(value * factor) / factor;
-}
-
-async function exists(file) {
-  try {
-    await stat(file);
-    return true;
-  } catch {
-    return false;
-  }
 }

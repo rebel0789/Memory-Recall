@@ -137,6 +137,7 @@
     "!scripts/native-code-intelligence-consumer-smoke.mjs",
     "!scripts/package-native-platform.mjs",
     "!scripts/pin-code-intelligence-corpus.mjs",
+    "!scripts/pinned-repository-acquisition.mjs",
     "!scripts/rust-realworld-bench.mjs",
     "!scripts/rust-ingest-quality.mjs",
     "!scripts/rust-intelligence-quality.mjs",
