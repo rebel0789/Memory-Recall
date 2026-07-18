@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T13:06:30.817Z",
+  "generatedAt": "2026-07-18T13:17:18.958Z",
   "fileCount": 1186,
-  "totalBytes": 9776751,
+  "totalBytes": 9783002,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -912,8 +912,8 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 33559,
-      "sha256": "ad75319e8b35c07189f03188f8d4c9ef401ba16b9999980a7bc11b8eaae7dd77"
+      "bytes": 33633,
+      "sha256": "055fdb69b06009dbdaef1fee0519a4f7897d87b91a9b10a13ae6a8cdb96ee1e3"
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
@@ -1392,8 +1392,8 @@
     },
     {
       "path": "evals/code-intelligence/capability-matrix.v1.json",
-      "bytes": 215707,
-      "sha256": "91d75f7d1f7b179c72ee441087e557f8113ba3d2df8e7b3b34abd412a8f505e7"
+      "bytes": 216200,
+      "sha256": "ad1c3fcd2d882245cfbe631d9b61e9f10c7b45fb7cc39125755ddff50bd8b24d"
     },
     {
       "path": "evals/code-intelligence/corpus-candidates.v1.json",
@@ -1672,8 +1672,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-b.json",
-      "bytes": 84883,
-      "sha256": "5381d9684d482b46d33bc6d0c3b3f957853f526d9bf1bea0e04e186482656388"
+      "bytes": 84866,
+      "sha256": "0a7296e7f5d669bf016aaff37d2a8cfe99d2e453cbc80cdc8ab3ab2fe612a40f"
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-c.json",
@@ -1692,8 +1692,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-tier1-summary.json",
-      "bytes": 397672,
-      "sha256": "0773da180ccda198b3a7c8e2fe5b33a1dbbe3ce3f3398841af70e9e9f891b153"
+      "bytes": 397635,
+      "sha256": "c393c16938f4d535bec10ba378ce1f5af11b187ae0d84980432d0a9cbe884993"
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
@@ -1737,8 +1737,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/go.json",
-      "bytes": 7257,
-      "sha256": "136b090527a02faa512a069d43503df82432ad97840cf1cdf7f0e5fc8b54d87a"
+      "bytes": 7896,
+      "sha256": "2204d73dd2d021f2eeedd10d3642333287023b017fa9bac2213ebe80c1b09bc7"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/java.json",
@@ -1852,18 +1852,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
-      "bytes": 3032,
-      "sha256": "bf9b17476e570db6b01950a9d27599595d7b2c66d72a0321110ccf0784b30a14"
+      "bytes": 4632,
+      "sha256": "1689a86ab9c1fc5e9eb2f138ba724bfbb2d09df60813d0a63a42de916a457577"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
-      "bytes": 3795,
-      "sha256": "6db9e356862f59ae9f7fe56c52dfa51610ddd09b464c9762a34f314f249ec51a"
+      "bytes": 5430,
+      "sha256": "1a71f5bfc4704faf8823886c48924516c82142a163ada84929df1b9c2c9169dc"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
-      "bytes": 3072,
-      "sha256": "9fb5ad101712cce787421e23b432ebfaca2fd475e9f21e7224bd15468894e37c"
+      "bytes": 4259,
+      "sha256": "a1dd60f0d046412e2a6857c3ce9d213e48b6d35095cae454fdc4b49d06fad64f"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
@@ -5422,13 +5422,13 @@
     },
     {
       "path": "tests/code-intelligence-phase8-gitnexus.test.mjs",
-      "bytes": 6740,
-      "sha256": "bb040af6857b40742f7b1783afb9fecab23e28a859b77b5dde8efd1f9aeff677"
+      "bytes": 6998,
+      "sha256": "57286f74fa9039edf06f65b964c2b7c1d39e954961d03f458258e6ed3caf2168"
     },
     {
       "path": "tests/code-intelligence-tier1.test.mjs",
-      "bytes": 6119,
-      "sha256": "8eb682dddd796ba3e27a9d3ada2d78c1eb19949b1506c16376cc09d8d96cd01e"
+      "bytes": 6538,
+      "sha256": "6982badb8fd0abc4e8a0c8b3335f96cad2928675588a5da0d1de486a93d7bcd3"
     },
     {
       "path": "tests/content-intelligence.test.mjs",

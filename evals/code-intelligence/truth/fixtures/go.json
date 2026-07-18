@@ -122,6 +122,18 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_go_import_service_not_net_http",
+      "semanticKey": "edge:imports:api/routes.go:service-line:not-net-http",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "api_routes", "qualifiedName": "api/routes.go::api_routes", "locator": "workspace://api/routes.go#L1-L19" },
+      "to": { "kind": "module", "name": "net/http", "qualifiedName": "api/routes.go::net/http", "locator": "workspace://api/routes.go#L4-L4" },
+      "locator": "workspace://api/routes.go#L6-L6",
+      "resolution": "unresolved"
+    },
+    {
       "id": "cititem_go_construct_service",
       "semanticKey": "edge:constructs:api/routes.go:Build:Service",
       "capability": "types",
@@ -181,5 +193,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:745e1de66c45ff80570e5abf47dff8b6fa9f05ef19bf57983f785544e08ee07f"
+  "truthFingerprint": "sha256:b66484c35bba1cdfb87e84cdb958e95873374b67b6eb1abe49767f364705c779"
 }

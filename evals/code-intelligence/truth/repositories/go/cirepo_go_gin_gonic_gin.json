@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
     "types": "partial",
@@ -87,7 +87,31 @@
       "to": { "kind": "method", "name": "rebuild404Handlers", "qualifiedName": "gin.go::Engine::rebuild404Handlers", "locator": "workspace://gin.go#L356-L358" },
       "locator": "workspace://gin.go#L328-L328",
       "resolution": "typed"
+    },
+    {
+      "id": "cititem_gin_import_crypto_rand",
+      "semanticKey": "edge:imports:internal/bytesconv/bytesconv_test.go:crypto/rand",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "internal_bytesconv_bytesconv_test", "qualifiedName": "internal/bytesconv/bytesconv_test.go::internal_bytesconv_bytesconv_test", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L1-L125" },
+      "to": { "kind": "module", "name": "crypto/rand", "qualifiedName": "internal/bytesconv/bytesconv_test.go::crypto/rand", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9" },
+      "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_gin_import_crypto_rand_not_math_rand",
+      "semanticKey": "edge:imports:internal/bytesconv/bytesconv_test.go:crypto-line:not-math-rand",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "internal_bytesconv_bytesconv_test", "qualifiedName": "internal/bytesconv/bytesconv_test.go::internal_bytesconv_bytesconv_test", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L1-L125" },
+      "to": { "kind": "module", "name": "math/rand", "qualifiedName": "githubapi_test.go::math/rand", "locator": "workspace://githubapi_test.go#L9-L9" },
+      "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9",
+      "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:40d10fceb193c4b81a3638423b8a949cc314ba6835d863173b23c44da05d2651"
+  "truthFingerprint": "sha256:6a63783b1317ff069e2f0cad8e2bc7601da633c9455d9a2679d8362101a876d8"
 }

@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
     "types": "unmeasured",
@@ -87,7 +87,31 @@
       "to": { "kind": "function", "name": "Append", "qualifiedName": "append.go::Append", "locator": "workspace://append.go#L14-L46" },
       "locator": "workspace://append.go#L44-L44",
       "resolution": "inferred"
+    },
+    {
+      "id": "cititem_multierror_import_strings",
+      "semanticKey": "edge:imports:format.go:strings",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "format", "qualifiedName": "format.go::format", "locator": "workspace://format.go#L1-L31" },
+      "to": { "kind": "module", "name": "strings", "qualifiedName": "format.go::strings", "locator": "workspace://format.go#L8-L8" },
+      "locator": "workspace://format.go#L8-L8",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_multierror_import_strings_not_fmt",
+      "semanticKey": "edge:imports:format.go:strings-line:not-fmt",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "format", "qualifiedName": "format.go::format", "locator": "workspace://format.go#L1-L31" },
+      "to": { "kind": "module", "name": "fmt", "qualifiedName": "flatten_test.go::fmt", "locator": "workspace://flatten_test.go#L8-L8" },
+      "locator": "workspace://format.go#L8-L8",
+      "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:201cd18fde7e6b29dab223e0ece8a003ddc9fd5801e1cd812622eff83c3ce367"
+  "truthFingerprint": "sha256:05ec3e6b7faf58f98ec4f2857db47b62e1d307b198514523dbaf5da46ef6678f"
 }

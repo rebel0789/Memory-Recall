@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
     "types": "unmeasured",
@@ -99,7 +99,31 @@
       "to": { "kind": "route", "name": "GET_users_param", "qualifiedName": "_examples/pathvalue/main.go::GET_users_param", "locator": "workspace://_examples/pathvalue/main.go#L14-L14" },
       "locator": "workspace://_examples/pathvalue/main.go#L14-L14",
       "resolution": "exact"
+    },
+    {
+      "id": "cititem_chi_import_middleware",
+      "semanticKey": "edge:imports:_examples/custom-method/main.go:chi-middleware",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "_examples_custom_method_main", "qualifiedName": "_examples/custom-method/main.go::_examples_custom_method_main", "locator": "workspace://_examples/custom-method/main.go#L1-L34" },
+      "to": { "kind": "module", "name": "github.com/go-chi/chi/v5/middleware", "qualifiedName": "_examples/custom-method/main.go::github.com/go-chi/chi/v5/middleware", "locator": "workspace://_examples/custom-method/main.go#L7-L7" },
+      "locator": "workspace://_examples/custom-method/main.go#L7-L7",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_chi_import_middleware_not_router",
+      "semanticKey": "edge:imports:_examples/custom-method/main.go:middleware-line:not-router",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "_examples_custom_method_main", "qualifiedName": "_examples/custom-method/main.go::_examples_custom_method_main", "locator": "workspace://_examples/custom-method/main.go#L1-L34" },
+      "to": { "kind": "module", "name": "github.com/go-chi/chi/v5", "qualifiedName": "_examples/custom-handler/main.go::github.com/go-chi/chi/v5", "locator": "workspace://_examples/custom-handler/main.go#L7-L7" },
+      "locator": "workspace://_examples/custom-method/main.go#L7-L7",
+      "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:1f5d03185ee0cac67eaf96a698d14c82ba6c70eafb9ffe7bdc9bc511ad7601c7"
+  "truthFingerprint": "sha256:5d10e346e10e4432e4bf93dce707353393602fbf1f374a0f21b19d348b417a3e"
 }

@@ -98,7 +98,9 @@ else if (args[0] === 'analyze') {
   assert.equal(calls[1].args.includes('--skip-git'), true);
   assert.notEqual(calls[1].home, os.homedir());
   const queries = calls.filter(({ args }) => args[0] === 'cypher').map(({ args }) => args[1]);
-  assert.equal(queries.length, 24);
+  const measuredQueryCount = measured.report.runs.gitnexus.evaluation.metrics.truthItemCount
+    - measured.report.runs.gitnexus.evaluation.metrics.unavailableTruthItemCount;
+  assert.equal(queries.length, measuredQueryCount * 2, 'measured and repeated runs query every supported truth item');
   assert.equal(queries.filter((query) => query.includes("type: 'IMPORTS'")).every((query) => !query.includes('api_routes') && !query.includes('service_service')), true);
   assert.equal(queries.filter((query) => query.includes('handlerSymbolId')).every((query) => query.includes("b.name = '/items/:item_id'") || query.includes("b.name = '/legacy/{item_id}'")), true);
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-18T12:38:48.704Z",
+  "generatedAt": "2026-07-18T13:12:37.926Z",
   "languages": [
     {
       "id": "typescript",
@@ -1937,7 +1937,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -1950,10 +1950,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/go.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -2140,7 +2152,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {

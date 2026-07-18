@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-b-1",
   "phase": 2,
   "batch": "B",
-  "generatedAt": "2026-07-17T20:10:08.624Z",
+  "generatedAt": "2026-07-18T13:12:37.881Z",
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
@@ -83,9 +83,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 30.862,
-        "secondElapsedMs": 10.214,
-        "evaluatorMaxRssKb": 60544,
+        "firstElapsedMs": 30.079,
+        "secondElapsedMs": 9.97,
+        "evaluatorMaxRssKb": 60640,
         "graphResponseBytes": 17791,
         "workspaceFingerprintUnchanged": true
       },
@@ -251,9 +251,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.363,
-        "secondElapsedMs": 9.155,
-        "evaluatorMaxRssKb": 66464,
+        "firstElapsedMs": 10.057,
+        "secondElapsedMs": 9.271,
+        "evaluatorMaxRssKb": 66480,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -291,8 +291,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 13,
-          "matchedTruthItemCount": 13
+          "truthItemCount": 14,
+          "matchedTruthItemCount": 14
         },
         "capabilities": [
           {
@@ -313,8 +313,8 @@
             "id": "imports",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 1,
-            "matchedItemCount": 1
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "exports",
@@ -389,7 +389,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:f696d448b80671a329d2586574f4c0b0129e778ee0201527e3dfb831dc087d74"
+        "reportFingerprint": "sha256:ded776287aabe6ef0e85cf3e36566fa974d8afa3d721e0e2804a8e8c42c3b583"
       }
     },
     {
@@ -419,9 +419,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.46,
-        "secondElapsedMs": 9.083,
-        "evaluatorMaxRssKb": 69216,
+        "firstElapsedMs": 8.991,
+        "secondElapsedMs": 9.418,
+        "evaluatorMaxRssKb": 66816,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -589,9 +589,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 225.265,
-        "secondElapsedMs": 233.142,
-        "evaluatorMaxRssKb": 124400,
+        "firstElapsedMs": 225.917,
+        "secondElapsedMs": 230.073,
+        "evaluatorMaxRssKb": 123664,
         "graphResponseBytes": 2232748,
         "workspaceFingerprintUnchanged": true
       },
@@ -759,9 +759,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 135.808,
-        "secondElapsedMs": 131.085,
-        "evaluatorMaxRssKb": 137456,
+        "firstElapsedMs": 135.424,
+        "secondElapsedMs": 133.712,
+        "evaluatorMaxRssKb": 134544,
         "graphResponseBytes": 1403619,
         "workspaceFingerprintUnchanged": true
       },
@@ -929,9 +929,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 101.093,
-        "secondElapsedMs": 103.056,
-        "evaluatorMaxRssKb": 144304,
+        "firstElapsedMs": 103.122,
+        "secondElapsedMs": 101.977,
+        "evaluatorMaxRssKb": 141472,
         "graphResponseBytes": 1043140,
         "workspaceFingerprintUnchanged": true
       },
@@ -1104,9 +1104,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 896.154,
-        "secondElapsedMs": 912.979,
-        "evaluatorMaxRssKb": 170816,
+        "firstElapsedMs": 920.235,
+        "secondElapsedMs": 926.081,
+        "evaluatorMaxRssKb": 185344,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -1132,9 +1132,9 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 0,
-            "denominator": 0,
-            "value": null
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
           },
           "reviewedCallPrecision": {
             "numerator": 1,
@@ -1144,8 +1144,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
         },
         "capabilities": [
           {
@@ -1164,10 +1164,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "exports",
@@ -1242,7 +1242,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:9578422557d7c626b18ad660b9f083c3a612dd5e66e43571f7a272f6ee42765d"
+        "reportFingerprint": "sha256:9c57dbd8c24982866279b364e9baf559c1ffb4f854c5c32e46db4a39ebe21975"
       }
     },
     {
@@ -1274,9 +1274,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 277.946,
-        "secondElapsedMs": 279.436,
-        "evaluatorMaxRssKb": 178688,
+        "firstElapsedMs": 284.344,
+        "secondElapsedMs": 283.066,
+        "evaluatorMaxRssKb": 199408,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -1302,8 +1302,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -1314,8 +1314,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 6,
-          "matchedTruthItemCount": 6
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -1334,10 +1334,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "exports",
@@ -1412,7 +1412,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:21f5b842ebffb0501f6de0f8a6f8e68d47c4da8e2270c60d8cf0509bebe2c554"
+        "reportFingerprint": "sha256:dc95caa3c812b7d4db48055e8ddebd2857df6826ba314e29374245aa8e8abc38"
       }
     },
     {
@@ -1444,9 +1444,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 29.13,
-        "secondElapsedMs": 27.624,
-        "evaluatorMaxRssKb": 179248,
+        "firstElapsedMs": 28.127,
+        "secondElapsedMs": 27.379,
+        "evaluatorMaxRssKb": 200160,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -1472,9 +1472,9 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 0,
-            "denominator": 0,
-            "value": null
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
           },
           "reviewedCallPrecision": {
             "numerator": 1,
@@ -1484,8 +1484,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
         },
         "capabilities": [
           {
@@ -1504,10 +1504,10 @@
           },
           {
             "id": "imports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "exports",
@@ -1582,7 +1582,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:e33e2cf18007a05ccb5eaba0072c76e3a4f6f66f1b4e72db6ddd66fd9f0897bc"
+        "reportFingerprint": "sha256:8045a9f176517b9718203a0d9079a47c2e3bccd2061ac875d40bd7f78570fbba"
       }
     },
     {
@@ -1614,9 +1614,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 14.282,
-        "secondElapsedMs": 14.486,
-        "evaluatorMaxRssKb": 179248,
+        "firstElapsedMs": 13.787,
+        "secondElapsedMs": 12.859,
+        "evaluatorMaxRssKb": 200160,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -1784,9 +1784,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 317.559,
-        "secondElapsedMs": 315.883,
-        "evaluatorMaxRssKb": 202096,
+        "firstElapsedMs": 314.258,
+        "secondElapsedMs": 314.886,
+        "evaluatorMaxRssKb": 221056,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -1954,9 +1954,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 477.261,
-        "secondElapsedMs": 477.808,
-        "evaluatorMaxRssKb": 232768,
+        "firstElapsedMs": 477.029,
+        "secondElapsedMs": 473.899,
+        "evaluatorMaxRssKb": 221056,
         "graphResponseBytes": 4241187,
         "workspaceFingerprintUnchanged": true
       },
@@ -2124,9 +2124,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.399,
-        "secondElapsedMs": 10.653,
-        "evaluatorMaxRssKb": 232880,
+        "firstElapsedMs": 11.343,
+        "secondElapsedMs": 9.67,
+        "evaluatorMaxRssKb": 221056,
         "graphResponseBytes": 31262,
         "workspaceFingerprintUnchanged": true
       },
@@ -2294,9 +2294,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 16.656,
-        "secondElapsedMs": 16.424,
-        "evaluatorMaxRssKb": 232976,
+        "firstElapsedMs": 15.168,
+        "secondElapsedMs": 15.823,
+        "evaluatorMaxRssKb": 221056,
         "graphResponseBytes": 101541,
         "workspaceFingerprintUnchanged": true
       },
@@ -2464,9 +2464,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 21.909,
-        "secondElapsedMs": 21.378,
-        "evaluatorMaxRssKb": 232976,
+        "firstElapsedMs": 20.816,
+        "secondElapsedMs": 21.127,
+        "evaluatorMaxRssKb": 221056,
         "graphResponseBytes": 164735,
         "workspaceFingerprintUnchanged": true
       },
@@ -2646,8 +2646,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 5,
-          "denominator": 5,
+          "numerator": 8,
+          "denominator": 8,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -2710,5 +2710,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:18ca0fdf07e5f9a281a9f430f589fbe2dfa326b24cf3e49a169172989ce09c6b"
+  "reportFingerprint": "sha256:7370314759fec6b464881c2314d3e4e8d5fb86ff002434f9cf8f9f2b1e9daaec"
 }

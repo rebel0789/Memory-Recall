@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 57);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 58);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 96);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 95);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -46,6 +46,13 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(javaImports.fixtureEvidenceCount, 1);
   assert.equal(javaImports.repositoryEvidenceCount, 3);
   assert.deepEqual(javaImports.metrics.reviewedTruth, { numerator: 4, denominator: 4, value: 1 });
+  const goImports = summary.languages
+    .find((language) => language.language === 'go')
+    .capabilities.find((capability) => capability.id === 'imports');
+  assert.equal(goImports.benchmarkStatus, 'meets-floor');
+  assert.equal(goImports.fixtureEvidenceCount, 1);
+  assert.equal(goImports.repositoryEvidenceCount, 3);
+  assert.deepEqual(goImports.metrics.reviewedTruth, { numerator: 8, denominator: 8, value: 1 });
   assert.equal(
     summary.cases.filter((item) => item.graph.diagnostics.some((diagnostic) => diagnostic.code.endsWith('_budget_reached'))).length,
     5
