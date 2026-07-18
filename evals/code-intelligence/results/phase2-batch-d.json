@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-d-1",
   "phase": 2,
   "batch": "D",
-  "generatedAt": "2026-07-18T14:21:49.669Z",
+  "generatedAt": "2026-07-18T16:28:29.455Z",
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
@@ -42,7 +42,7 @@
       "corpus://cirepo_swift_alamofire_alamofire@903c53c710d1cbbac0b4b9c2527aefb791e1fee3#Source/Core",
       "corpus://cirepo_swift_apple_swift_nio@0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b#Sources/NIOCore",
       "corpus://cirepo_swift_vapor_vapor@059b578bde8a037a42543914b8e14041fbec01e7#Sources/Vapor/Routing",
-      "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib/src",
+      "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib",
       "corpus://cirepo_dart_dart_lang_shelf@833433edf813df24e9a48e01fc38647d53b979f8#pkgs/shelf_router/lib",
       "corpus://cirepo_dart_flutter_samples@09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1#navigation_and_routing/lib"
     ]
@@ -84,9 +84,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 29.441,
-        "secondElapsedMs": 8.731,
-        "evaluatorMaxRssKb": 59600,
+        "firstElapsedMs": 32.331,
+        "secondElapsedMs": 9.657,
+        "evaluatorMaxRssKb": 59584,
         "graphResponseBytes": 10617,
         "workspaceFingerprintUnchanged": true
       },
@@ -252,9 +252,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.875,
-        "secondElapsedMs": 10.819,
-        "evaluatorMaxRssKb": 66496,
+        "firstElapsedMs": 11.14,
+        "secondElapsedMs": 10.966,
+        "evaluatorMaxRssKb": 66464,
         "graphResponseBytes": 27884,
         "workspaceFingerprintUnchanged": true
       },
@@ -420,9 +420,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.813,
-        "secondElapsedMs": 9.486,
-        "evaluatorMaxRssKb": 66816,
+        "firstElapsedMs": 10.644,
+        "secondElapsedMs": 10.092,
+        "evaluatorMaxRssKb": 68352,
         "graphResponseBytes": 18525,
         "workspaceFingerprintUnchanged": true
       },
@@ -568,8 +568,8 @@
       "sourceRef": "fixture://sha256:75ad927a4e8ded1ac3b1c1b7fef6fa3a8d909dd00204d3cc7538731bbcec43da",
       "truthPath": "evals/code-intelligence/truth/fixtures/dart.json",
       "graph": {
-        "fingerprint": "sha256:bd4bb61fc130772f4d61a77543c3be31b81e7604d4927232dcaddce5b69e1ce6",
-        "nodeCount": 26,
+        "fingerprint": "sha256:bf447c4574efd18dec76e05c3e778b4266db0e7b397ad9468f79d41361791882",
+        "nodeCount": 27,
         "edgeCount": 34,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -588,10 +588,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.593,
-        "secondElapsedMs": 9.641,
-        "evaluatorMaxRssKb": 69216,
-        "graphResponseBytes": 28352,
+        "firstElapsedMs": 10.317,
+        "secondElapsedMs": 9.79,
+        "evaluatorMaxRssKb": 70784,
+        "graphResponseBytes": 28813,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -601,8 +601,8 @@
         "language": "dart",
         "sourceRef": "fixture://sha256:75ad927a4e8ded1ac3b1c1b7fef6fa3a8d909dd00204d3cc7538731bbcec43da",
         "graphFingerprints": [
-          "sha256:bd4bb61fc130772f4d61a77543c3be31b81e7604d4927232dcaddce5b69e1ce6",
-          "sha256:bd4bb61fc130772f4d61a77543c3be31b81e7604d4927232dcaddce5b69e1ce6"
+          "sha256:bf447c4574efd18dec76e05c3e778b4266db0e7b397ad9468f79d41361791882",
+          "sha256:bf447c4574efd18dec76e05c3e778b4266db0e7b397ad9468f79d41361791882"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -628,8 +628,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 17,
-          "matchedTruthItemCount": 17
+          "truthItemCount": 18,
+          "matchedTruthItemCount": 18
         },
         "capabilities": [
           {
@@ -657,8 +657,8 @@
             "id": "exports",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 1,
-            "matchedItemCount": 1
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "heritage",
@@ -726,7 +726,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:b5fc73db91431a095bef63cd37587c4a2260efb67fa73c9bb6d0ae7dda427081"
+        "reportFingerprint": "sha256:2988c7d652b6a7444f24140c780e54e0021e6c582a29831725bb842f5cdc5e5c"
       }
     },
     {
@@ -758,9 +758,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 22.311,
-        "secondElapsedMs": 22.542,
-        "evaluatorMaxRssKb": 72576,
+        "firstElapsedMs": 25.104,
+        "secondElapsedMs": 25.186,
+        "evaluatorMaxRssKb": 74032,
         "graphResponseBytes": 155949,
         "workspaceFingerprintUnchanged": true
       },
@@ -941,9 +941,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12766.131,
-        "secondElapsedMs": 12701.896,
-        "evaluatorMaxRssKb": 159264,
+        "firstElapsedMs": 12488.962,
+        "secondElapsedMs": 12594.834,
+        "evaluatorMaxRssKb": 159520,
         "graphResponseBytes": 7021532,
         "workspaceFingerprintUnchanged": true
       },
@@ -1120,9 +1120,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1054.911,
-        "secondElapsedMs": 1061.476,
-        "evaluatorMaxRssKb": 167536,
+        "firstElapsedMs": 1068.266,
+        "secondElapsedMs": 1050.286,
+        "evaluatorMaxRssKb": 182320,
         "graphResponseBytes": 6638156,
         "workspaceFingerprintUnchanged": true
       },
@@ -1299,9 +1299,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1135.865,
-        "secondElapsedMs": 1136.344,
-        "evaluatorMaxRssKb": 206416,
+        "firstElapsedMs": 1128.97,
+        "secondElapsedMs": 1123.843,
+        "evaluatorMaxRssKb": 206640,
         "graphResponseBytes": 6865245,
         "workspaceFingerprintUnchanged": true
       },
@@ -1474,9 +1474,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 26.583,
-        "secondElapsedMs": 26.27,
-        "evaluatorMaxRssKb": 206912,
+        "firstElapsedMs": 26.07,
+        "secondElapsedMs": 25.657,
+        "evaluatorMaxRssKb": 207312,
         "graphResponseBytes": 208275,
         "workspaceFingerprintUnchanged": true
       },
@@ -1649,9 +1649,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 410.522,
-        "secondElapsedMs": 410.549,
-        "evaluatorMaxRssKb": 228416,
+        "firstElapsedMs": 395.435,
+        "secondElapsedMs": 399.146,
+        "evaluatorMaxRssKb": 228640,
         "graphResponseBytes": 3133956,
         "workspaceFingerprintUnchanged": true
       },
@@ -1824,9 +1824,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 183.988,
-        "secondElapsedMs": 182.863,
-        "evaluatorMaxRssKb": 235376,
+        "firstElapsedMs": 191.833,
+        "secondElapsedMs": 183.337,
+        "evaluatorMaxRssKb": 235600,
         "graphResponseBytes": 1264956,
         "workspaceFingerprintUnchanged": true
       },
@@ -1999,9 +1999,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 690.713,
-        "secondElapsedMs": 697.427,
-        "evaluatorMaxRssKb": 256192,
+        "firstElapsedMs": 682.597,
+        "secondElapsedMs": 685.431,
+        "evaluatorMaxRssKb": 256480,
         "graphResponseBytes": 4681614,
         "workspaceFingerprintUnchanged": true
       },
@@ -2169,9 +2169,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 25.09,
-        "secondElapsedMs": 24.085,
-        "evaluatorMaxRssKb": 256192,
+        "firstElapsedMs": 24.973,
+        "secondElapsedMs": 25.211,
+        "evaluatorMaxRssKb": 256480,
         "graphResponseBytes": 157592,
         "workspaceFingerprintUnchanged": true
       },
@@ -2315,21 +2315,21 @@
       "repositoryId": "cirepo_dart_dart_lang_http",
       "language": "dart",
       "sourceClass": "real-repo",
-      "sourceRef": "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib/src",
+      "sourceRef": "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib",
       "commit": "fe4aaa900d50f0423200dd333314729d2c0650b9",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json",
       "graph": {
-        "fingerprint": "sha256:e955a8b3ae3dc932e34003f1325f6eea10d059d856d8aaeea078eef058323065",
-        "nodeCount": 291,
-        "edgeCount": 528,
+        "fingerprint": "sha256:539b156f7b56b59abc2ea9787d8b8d7e9da4d4434cfd464f9fbac248b2c3c092",
+        "nodeCount": 352,
+        "edgeCount": 623,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
           {
             "language": "dart",
             "support": "partial",
-            "discoveredFileCount": 22,
-            "indexedFileCount": 22,
+            "discoveredFileCount": 27,
+            "indexedFileCount": 27,
             "failedFileCount": 0,
             "omittedFileCount": 0,
             "reasonCodes": [
@@ -2339,10 +2339,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 51.606,
-        "secondElapsedMs": 53.042,
-        "evaluatorMaxRssKb": 256192,
-        "graphResponseBytes": 388253,
+        "firstElapsedMs": 62.534,
+        "secondElapsedMs": 58.635,
+        "evaluatorMaxRssKb": 256480,
+        "graphResponseBytes": 464282,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2350,10 +2350,10 @@
         "reportVersion": "memory-recall-code-intelligence-language-report-1",
         "truthId": "citruth_dart_http_base_client",
         "language": "dart",
-        "sourceRef": "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib/src",
+        "sourceRef": "corpus://cirepo_dart_dart_lang_http@fe4aaa900d50f0423200dd333314729d2c0650b9#pkgs/http/lib",
         "graphFingerprints": [
-          "sha256:e955a8b3ae3dc932e34003f1325f6eea10d059d856d8aaeea078eef058323065",
-          "sha256:e955a8b3ae3dc932e34003f1325f6eea10d059d856d8aaeea078eef058323065"
+          "sha256:539b156f7b56b59abc2ea9787d8b8d7e9da4d4434cfd464f9fbac248b2c3c092",
+          "sha256:539b156f7b56b59abc2ea9787d8b8d7e9da4d4434cfd464f9fbac248b2c3c092"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -2367,8 +2367,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2379,8 +2379,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 6,
-          "matchedTruthItemCount": 6
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -2406,10 +2406,10 @@
           },
           {
             "id": "exports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "heritage",
@@ -2477,7 +2477,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:ad1a8a536728cc3b53c1dc0a8559b8790c8d1f7a2b0efda155d019830d3dd7fb"
+        "reportFingerprint": "sha256:c5bb481bc4f2277c6f0b07b9bfeba0fd39c4b3748d4d216e8442ca6b55f08fa2"
       }
     },
     {
@@ -2489,8 +2489,8 @@
       "commit": "833433edf813df24e9a48e01fc38647d53b979f8",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json",
       "graph": {
-        "fingerprint": "sha256:af5142212cb7f133643fb69035c454c724125ca5d81f4079b511e21b93d80fef",
-        "nodeCount": 88,
+        "fingerprint": "sha256:e0aeddfddc5fbb0589af75df8f47517e952adc0876d064ed593818587266e840",
+        "nodeCount": 92,
         "edgeCount": 133,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -2509,10 +2509,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.374,
-        "secondElapsedMs": 19.313,
-        "evaluatorMaxRssKb": 256192,
-        "graphResponseBytes": 103869,
+        "firstElapsedMs": 19.956,
+        "secondElapsedMs": 19.521,
+        "evaluatorMaxRssKb": 256480,
+        "graphResponseBytes": 105473,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2522,8 +2522,8 @@
         "language": "dart",
         "sourceRef": "corpus://cirepo_dart_dart_lang_shelf@833433edf813df24e9a48e01fc38647d53b979f8#pkgs/shelf_router/lib",
         "graphFingerprints": [
-          "sha256:af5142212cb7f133643fb69035c454c724125ca5d81f4079b511e21b93d80fef",
-          "sha256:af5142212cb7f133643fb69035c454c724125ca5d81f4079b511e21b93d80fef"
+          "sha256:e0aeddfddc5fbb0589af75df8f47517e952adc0876d064ed593818587266e840",
+          "sha256:e0aeddfddc5fbb0589af75df8f47517e952adc0876d064ed593818587266e840"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -2537,8 +2537,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2549,8 +2549,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 6,
-          "matchedTruthItemCount": 6
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -2576,10 +2576,10 @@
           },
           {
             "id": "exports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "heritage",
@@ -2647,7 +2647,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:03ed787225e681b5626424715437417c86125c1966e1800461f716125f2d2406"
+        "reportFingerprint": "sha256:5ea1e907d04ea6a0f10f68df7ec94db6eb829b43849667c742f877b0ecfa9ee4"
       }
     },
     {
@@ -2659,8 +2659,8 @@
       "commit": "09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1",
       "truthPath": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json",
       "graph": {
-        "fingerprint": "sha256:ed804b14d898c974c513041446a5ac226b49650b6a8520c5eb614e5aab8fbb2b",
-        "nodeCount": 180,
+        "fingerprint": "sha256:ac17d18ca39661cf2a5ece9fdf11a1f42de74ae8d5fb78cfbc48ac231631f775",
+        "nodeCount": 184,
         "edgeCount": 354,
         "diagnosticCount": 0,
         "diagnostics": [],
@@ -2679,10 +2679,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 36.548,
-        "secondElapsedMs": 36.032,
-        "evaluatorMaxRssKb": 256192,
-        "graphResponseBytes": 258717,
+        "firstElapsedMs": 37.416,
+        "secondElapsedMs": 37.162,
+        "evaluatorMaxRssKb": 256480,
+        "graphResponseBytes": 260455,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2692,8 +2692,8 @@
         "language": "dart",
         "sourceRef": "corpus://cirepo_dart_flutter_samples@09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1#navigation_and_routing/lib",
         "graphFingerprints": [
-          "sha256:ed804b14d898c974c513041446a5ac226b49650b6a8520c5eb614e5aab8fbb2b",
-          "sha256:ed804b14d898c974c513041446a5ac226b49650b6a8520c5eb614e5aab8fbb2b"
+          "sha256:ac17d18ca39661cf2a5ece9fdf11a1f42de74ae8d5fb78cfbc48ac231631f775",
+          "sha256:ac17d18ca39661cf2a5ece9fdf11a1f42de74ae8d5fb78cfbc48ac231631f775"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -2707,8 +2707,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2719,8 +2719,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 6,
-          "matchedTruthItemCount": 6
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -2746,10 +2746,10 @@
           },
           {
             "id": "exports",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "heritage",
@@ -2817,7 +2817,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:9cda947af20d6c3220959537bc245ac59e2b922b997b212477018425eb6a871d"
+        "reportFingerprint": "sha256:ea84bf685d23f00df66243a04afd4d99442c370fe41917f3dd11ae7801eac94c"
       }
     }
   ],
@@ -2915,8 +2915,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 15,
-          "denominator": 15,
+          "numerator": 18,
+          "denominator": 18,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -2952,5 +2952,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:4d87f5e8b0aabb2352246d2c324bcfff4bf0efda3c0ad376f5a4431d502ddecb"
+  "reportFingerprint": "sha256:75c09deeb22e87627efde3c3ed02f754ad3538f958137187a60f100d576f9c32"
 }

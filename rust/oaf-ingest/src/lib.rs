@@ -305,6 +305,7 @@ struct ParsedRepo {
     definitions_by_name: BTreeMap<String, BTreeSet<String>>,
     symbol_aliases: BTreeMap<(String, String), String>,
     package_entries: BTreeMap<String, String>,
+    dart_package_name: Option<String>,
     generated_call_count: usize,
     import_count: usize,
     definition_count: usize,
@@ -327,6 +328,7 @@ impl ParsedRepo {
             definitions_by_name: BTreeMap::new(),
             symbol_aliases: BTreeMap::new(),
             package_entries: BTreeMap::new(),
+            dart_package_name: None,
             generated_call_count: 0,
             import_count: 0,
             definition_count: 0,
@@ -827,6 +829,9 @@ impl ParsedRepo {
         if let Some(stem) = package_stem {
             candidates.push(stem);
         }
+        if let Some(stem) = self.local_dart_package_import_stem(import) {
+            candidates.push(stem);
+        }
         candidates.extend(self.local_language_import_stems(import));
         candidates.sort();
         candidates.dedup();
@@ -866,6 +871,15 @@ impl ParsedRepo {
                 Some(format!("{}/{tail}", root.trim_end_matches('/')))
             })
             .collect()
+    }
+
+    fn local_dart_package_import_stem(&self, import: &ImportRef) -> Option<String> {
+        if !import.source.ends_with(".dart") {
+            return None;
+        }
+        let (package, path) = import.raw.strip_prefix("package:")?.split_once('/')?;
+        (self.dart_package_name.as_deref() == Some(package))
+            .then(|| strip_known_extension(path).to_string())
     }
 
     fn resolve_existing_module_subject(&self, stem: &str) -> Option<String> {
@@ -1514,6 +1528,7 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         cgroup_memory_limit_bytes,
     );
     let mut parsed = ParsedRepo::new();
+    parsed.dart_package_name = dart_package_name(&root);
     let package_entries = scan_package_entries(&root, options, &mut parsed)?;
     let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
     let results = parse_jobs(jobs, effective_worker_count)?;
@@ -1566,6 +1581,28 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         code_facts,
         language_counts,
     })
+}
+
+fn dart_package_name(root: &Path) -> Option<String> {
+    if root.file_name().is_some_and(|name| name == "lib") {
+        let name = root.parent()?.file_name()?.to_str()?;
+        return valid_dart_package_name(name).then(|| name.to_string());
+    }
+    let source = fs::read_to_string(root.join("pubspec.yaml")).ok()?;
+    source.lines().find_map(|line| {
+        let value = line.strip_prefix("name:")?.trim();
+        valid_dart_package_name(value).then(|| value.to_string())
+    })
+}
+
+fn valid_dart_package_name(value: &str) -> bool {
+    value
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_lowercase())
+        && value
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')
 }
 
 fn augment_build_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
@@ -3854,7 +3891,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
 
     if context.lang == LangKind::Dart && node.kind() == "library_export" {
         for raw in quoted_literals(node_text(node, source)) {
-            if let Some(target) = import_target_from_raw(&raw) {
+            if let Some(target) = full_import_target_from_raw(&raw) {
                 let owner = context.owner_subject.as_deref().unwrap_or(&context.module);
                 parsed.add_re_export(owner, target, &context.source, CodeSpan::from_node(node));
             }
@@ -6544,7 +6581,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
         let target = match lang {
-            LangKind::Go | LangKind::Ruby | LangKind::C | LangKind::Cpp => {
+            LangKind::Go | LangKind::Ruby | LangKind::C | LangKind::Cpp | LangKind::Dart => {
                 full_import_target_from_raw(&quoted)
             }
             LangKind::Php => php_import_target_from_raw(&quoted),

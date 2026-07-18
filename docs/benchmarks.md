@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 68 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 85 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 69 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 84 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -114,6 +114,11 @@ pinned repositories each. Go export evidence omits exported fields and interface
 methods. Rust exact evidence covers unrestricted top-level `pub` items and
 simple-symbol `pub use`; grouped and glob re-exports remain outside the passing
 sample.
+Dart URI-level module re-exports also meet the sampled floor across one fixture
+and three pinned repositories. Local relative exports and self-package
+`package:` URIs resolve exactly when the scan root is a Dart package root or
+its `lib` directory. `show` and `hide` symbol filtering remain unmeasured and
+outside the passing sample.
 Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
 unmeasured; they were not counted in the passing sample. Python has exact
 framework-route evidence from narrow

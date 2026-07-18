@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 68);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 69);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 85);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 84);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -53,7 +53,7 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(goImports.fixtureEvidenceCount, 1);
   assert.equal(goImports.repositoryEvidenceCount, 3);
   assert.deepEqual(goImports.metrics.reviewedTruth, { numerator: 8, denominator: 8, value: 1 });
-  for (const language of ['go', 'rust']) {
+  for (const language of ['go', 'rust', 'dart']) {
     const exports = summary.languages
       .find((item) => item.language === language)
       .capabilities.find((capability) => capability.id === 'exports');

@@ -85,10 +85,10 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | Swift | 16/16 | 10/10 | 1/1 | parse, structure, imports, heritage, types | exports, calls, config, frameworks, impact, processes | unmeasured |
 | C | 14/14 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types, config, frameworks, impact, processes | unmeasured |
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
-| Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks, impact, processes | unmeasured |
+| Dart | 17/17 | 18/18 | 3/3 | parse, structure, imports, exports, types | heritage, calls, config, frameworks, impact, processes | unmeasured |
 
-Across the 154 Tier 1 capability cells, 68 meet the Phase 2 floor, none has a
-recorded floor failure, 85 applicable rows remain unmeasured, and C heritage is
+Across the 154 Tier 1 capability cells, 69 meet the Phase 2 floor, none has a
+recorded floor failure, 84 applicable rows remain unmeasured, and C heritage is
 the sole explicit not-applicable row. Every language remains overall
 `unmeasured`.
 Five repository scopes hit the configured node or edge budget and report the
@@ -130,6 +130,12 @@ methods. Exported fields and interface methods are omitted and are not part of
 the passing sample. Rust evidence covers unrestricted top-level `pub` items and
 simple-symbol `pub use` re-exports. Grouped and glob `pub use` forms are not part
 of the passing sample.
+
+Dart exports also meet the fixture-plus-three-repository floor for exact
+URI-level module re-exports. Local relative exports and self-package
+`package:` URIs resolve to workspace modules when the scan root is a Dart
+package root or its `lib` directory. `show` and `hide` symbol filtering remain
+unmeasured and are not part of this passing claim.
 
 PHP, Ruby, Swift, C, and C++ imports have the same fixture-plus-three-repository
 coverage. The reviewed evidence preserves dotted PHP namespace coordinates and

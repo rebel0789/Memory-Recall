@@ -13,7 +13,7 @@ await runLanguageBatch({
     cirepo_swift_alamofire_alamofire: 'Source/Core',
     cirepo_swift_apple_swift_nio: 'Sources/NIOCore',
     cirepo_swift_vapor_vapor: 'Sources/Vapor/Routing',
-    cirepo_dart_dart_lang_http: 'pkgs/http/lib/src',
+    cirepo_dart_dart_lang_http: 'pkgs/http/lib',
     cirepo_dart_dart_lang_shelf: 'pkgs/shelf_router/lib',
     cirepo_dart_flutter_samples: 'navigation_and_routing/lib'
   },

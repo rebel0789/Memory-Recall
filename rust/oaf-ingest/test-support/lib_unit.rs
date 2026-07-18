@@ -331,6 +331,62 @@ mod tests {
     }
 
     #[test]
+    fn dart_package_uri_exports_resolve_to_distinct_local_modules() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-dart-package-uri-exports-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("pubspec.yaml"), "name: shelf_router\n").unwrap();
+        fs::write(root.join("other.dart"), "library other;\n").unwrap();
+        fs::write(
+            root.join("shelf_router.dart"),
+            [
+                "import 'package:shelf_router/src/route.dart';",
+                "import 'package:shelf_router/src/router.dart';",
+                "export 'package:shelf_router/src/route.dart';",
+                "export 'package:shelf_router/src/router.dart';",
+                "export 'package:other/src/route.dart';",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(root.join("src/route.dart"), "class Route {}\n").unwrap();
+        fs::write(root.join("src/router.dart"), "class Router {}\n").unwrap();
+
+        let re_exports = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "RE_EXPORTS")
+            .map(|fact| (fact.object, fact.source, fact.span.start_line))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            re_exports,
+            BTreeSet::from([
+                (
+                    "module:package:other/src/route.dart".to_string(),
+                    "workspace://shelf_router.dart".to_string(),
+                    5,
+                ),
+                (
+                    "module:src_route".to_string(),
+                    "workspace://shelf_router.dart".to_string(),
+                    3,
+                ),
+                (
+                    "module:src_router".to_string(),
+                    "workspace://shelf_router.dart".to_string(),
+                    4,
+                ),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn rust_kotlin_and_csharp_imports_preserve_full_external_targets() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-full-external-import-targets-{}",
