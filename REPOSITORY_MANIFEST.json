@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T16:35:38.388Z",
+  "generatedAt": "2026-07-18T16:42:09.208Z",
   "fileCount": 1186,
-  "totalBytes": 9870345,
+  "totalBytes": 9870324,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -912,13 +912,13 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 33906,
-      "sha256": "213382714dc0a054657ba4422c24f3b22c396991babd72a607acc364e3a495c5"
+      "bytes": 33887,
+      "sha256": "62a46cfb6a71ca8296f8c5ea2fca0b11d853616fff9437bfbfae4128ab51fb09"
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
-      "bytes": 8521,
-      "sha256": "6ccc725af4934fcdb7692799f649212f8ac0e704821fba47066890475db44480"
+      "bytes": 8528,
+      "sha256": "a6ca3c94173ba87c9e72303948f00e360ef35d0b2efce09b956ec0e8ee73d472"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",
@@ -1697,13 +1697,13 @@
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
-      "bytes": 27401,
-      "sha256": "cc8da9b604ae2b10831dc4256fe2caf20cd5bd6f2b32dafa6df7b08e2854fe33"
+      "bytes": 27390,
+      "sha256": "7a267c4494c946cb873dbd1daa9cef59b8860efc87b10deef900b0c3e7001bf6"
     },
     {
       "path": "evals/code-intelligence/results/phase4-intelligence.json",
-      "bytes": 33118,
-      "sha256": "dc1cc0c603e43c9f51155f79dee4e9f5f9ca59ccc6559853b9b6eac31b9fa8be"
+      "bytes": 33120,
+      "sha256": "d7f87c8fad515255c20f73d9001e96823df41c3eadc8703e711fd5be050e72c2"
     },
     {
       "path": "evals/code-intelligence/results/phase5-cross-service.json",

@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `5ef530a2493f65cd9c52b92c19d0e30ddbf10146`
+Current evidence commit: `d3e0502ef312344804d8c4da5b73d5554f944598`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -26,7 +26,7 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | V-1 | Ship one normal stable release, not a beta, preview, RC, or partial package. | Incomplete | `package.json` says `1.1.1`; `PROJECT_STATUS.json` and release documents still call it a patch candidate/readiness artifact; no release is authorized. The compatibility audit rejects a patch and does not choose a replacement version. | Freeze the implementation, re-run the compatibility audit against the exact root tarball, choose the stable line, and pass every final gate before publication. |
-| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...5ef530a` changes 351 files with 94,771 insertions and 2,559 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
+| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...d3e0502` changes 351 files with 94,933 insertions and 2,597 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
 | V-3 | Preserve the exact original completion criteria. | Proven | This matrix maps the approved polyglot design, the active goal, and the ten stable-release priorities without redefining success. | Keep this ledger current after each slice. |
 
 ## Product target
@@ -111,7 +111,7 @@ Phase 2 currently reports 69 `meets-floor` rows, 84 applicable `unmeasured` rows
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| I-1 | Deterministic communities on real repositories. | Incomplete | The Phase 4 receipt regenerated from `08bc953` runs `label-propagation-v1` five times on exact pinned Express, Nest cats-sample, and Gin scopes (260 files, 4,564 nodes, 13,640 edges combined), records deterministic results, and proves two non-overlapping cursor pages for every repository. It does not contain reviewed community truth or large-repository stability evidence. | Add reviewed community truth and stability metrics on representative pinned repositories and large repos. |
+| I-1 | Deterministic communities on real repositories. | Incomplete | The current Phase 4 receipt runs `label-propagation-v1` five times on exact pinned Express, Nest cats-sample, and Gin scopes (260 files, 4,564 nodes, 13,640 edges combined), records deterministic results, and proves two non-overlapping cursor pages for every repository. It does not contain reviewed community truth or large-repository stability evidence. | Add reviewed community truth and stability metrics on representative pinned repositories and large repos. |
 | I-2 | Bounded entry-to-sink processes on real repositories. | Incomplete | All three exact repositories return deterministic `entry-path-v1` processes with at least two nodes, canonical relationship evidence, confidence of at least 0.75, continuous pagination, and p95 latency below the two-second deadline. The receipt has no reviewed process ground truth and does not cover cycles, incomplete paths, varied sinks, or representative language breadth. | Prove correct complete/incomplete paths, multiple entries/sinks, cycles, depth bounds, and language coverage on real repositories. |
 | I-3 | Hybrid local search. | Incomplete | Native exact, lexical, and one-hop structural search passes the local fixture. Search is deterministic on Express, Nest, and Gin; each result has a workspace locator, all p95 values are below 74 ms, and receipts record delivered bytes/token estimates plus continuation where present. There is no reviewed relevance set, MRR/recall result, lexical-only comparison, or exact tokenizer measurement. | Add reviewed query sets, MRR/recall, lexical-only baseline, exercised search continuation, and exact delivered-token measurements on representative real repositories. |
 | I-4 | Routes, impact, dependencies, trace, and safe graph queries. | Incomplete | All three exact repositories run every query family deterministically under the two-second deadline. Dependencies, safe query, and trace must traverse at least one real relationship; every returned relationship carries canonical endpoints, locator evidence, and confidence. Generic seeds and the absence of reviewed positive/negative truth prevent a correctness claim. | Add identical real-repository queries with reviewed positive/negative truth, decoys, and deadlines across representative languages. |
@@ -184,7 +184,7 @@ Phase 2 currently reports 69 `meets-floor` rows, 84 applicable `unmeasured` rows
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | R-1 | Full Node CI on frozen implementation. | Incomplete | The current evidence slice passed 803 tests, 208 protocol fixtures, and 144 evaluations after the native resolver and receipt changes; implementation is not frozen. | Run once more only after all required implementation is complete. |
-| R-2 | Full Rust workspace on frozen implementation. | Incomplete | The current evidence slice passed the full Rust workspace: 115 unit and integration tests plus all doc tests; implementation is not frozen. | Run at final freeze. |
+| R-2 | Full Rust workspace on frozen implementation. | Incomplete | The current evidence slice passed the full Rust workspace: 121 unit and integration tests plus all doc tests; implementation is not frozen. | Run at final freeze. |
 | R-3 | All five platform package jobs. | Missing | Workflow matrix exists; only darwin-arm64 is locally proven. | Run the GitHub `Rust` workflow `native-artifacts` matrix at the exact frozen commit and retain all receipts. |
 | R-4 | Security and CodeQL. | Incomplete | CodeQL workflow exists; no final frozen-commit result is recorded here. | Run CodeQL and security audit at the frozen commit and bind run URLs/SHAs to release evidence. |
 | R-5 | Packed clean installs. | Incomplete | Darwin-arm64 root-plus-native smoke passes. | Pass all five platforms from clean HOME without Cargo/rustc. |
