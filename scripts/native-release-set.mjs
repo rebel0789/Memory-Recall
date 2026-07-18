@@ -223,7 +223,23 @@ export async function verifyRootRegistry(artifact) {
   return auditRegistrySignatures([{ packageName: artifact.packageName, version: artifact.version }]);
 }
 
-export async function publishRootPackage({ artifact, artifactsDirectory, authMode }) {
+export async function publishRootPackage({
+  artifact,
+  artifactsDirectory,
+  nativeArtifactsDirectory,
+  expectedVersion,
+  expectedCommit,
+  authMode
+}) {
+  if (!nativeArtifactsDirectory) throw new Error('root publication requires native artifacts directory');
+  if (artifact.version !== expectedVersion) throw new Error('root artifact version does not match the release version');
+  const releaseSet = await validateNativeReleaseSet({
+    artifactsDirectory: nativeArtifactsDirectory,
+    expectedVersion,
+    expectedCommit,
+    requireSigned: true
+  });
+  await verifyNativeRegistry(releaseSet);
   let record = registryRecord(artifact.packageName, artifact.version, { allowMissing: true });
   if (!record) {
     const tarball = path.resolve(artifactsDirectory, artifact.tarball);
@@ -573,7 +589,7 @@ function parseArguments(argv) {
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index];
     const value = rest[index + 1];
-    if (!value || !['--artifacts', '--version', '--commit', '--auth-mode', '--out', '--created'].includes(flag)) {
+    if (!value || !['--artifacts', '--native-artifacts', '--version', '--commit', '--auth-mode', '--out', '--created'].includes(flag)) {
       throw new Error(`invalid argument ${flag ?? ''}`.trim());
     }
     values[flag.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())] = value;
@@ -586,6 +602,9 @@ function parseArguments(argv) {
   }
   if (['publish-native', 'publish-root'].includes(command) && !['trusted-publishing', 'npm-token'].includes(values.authMode)) {
     throw new Error(`${command} requires a supported auth mode`);
+  }
+  if (command === 'publish-root' && !values.nativeArtifacts) {
+    throw new Error('publish-root requires native-artifacts');
   }
   return values;
 }
@@ -610,6 +629,9 @@ async function main() {
     if (options.command === 'publish-root') await publishRootPackage({
       artifact,
       artifactsDirectory: options.artifacts,
+      nativeArtifactsDirectory: options.nativeArtifacts,
+      expectedVersion: options.version,
+      expectedCommit: options.commit,
       authMode: options.authMode
     });
     const registryProof = options.command === 'verify-root-registry' ? await verifyRootRegistry(artifact) : null;

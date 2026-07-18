@@ -243,7 +243,7 @@ jobs:
           RELEASE_COMMIT: ${{ github.sha }}
           AUTH_MODE: ${{ inputs.auth_mode }}
           NODE_AUTH_TOKEN: ${{ inputs.auth_mode == 'npm-token' && secrets.NPM_TOKEN || '' }}
-        run: node scripts/native-release-set.mjs publish-root --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" --auth-mode "$AUTH_MODE"
+        run: node scripts/native-release-set.mjs publish-root --artifacts output/root-release --native-artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" --auth-mode "$AUTH_MODE"
       - name: Verify root package on npm
         env:
           RELEASE_VERSION: ${{ inputs.version }}
