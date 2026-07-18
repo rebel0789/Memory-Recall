@@ -87,9 +87,9 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 50,583 nodes, 113,988 edges, 79,978,321 serialized
-graph bytes, 23,394.749 ms summed first-run wall time, 23,201.339 ms summed
-second-run wall time, and 256,192 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 50,692 nodes, 113,731 edges, 79,874,248 serialized
+graph bytes, 24,750.179 ms summed first-run wall time, 25,739.132 ms summed
+second-run wall time, and 210,528 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 73 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 80 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 74 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 79 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -123,6 +123,13 @@ Dart calls also meet the sampled fixture-plus-three-repository floor. In the
 Flutter sample, `BookstoreAuth.of(context)` resolves to the workspace method and
 the same-name `GoRouter.of(context)` decoy does not. This does not establish
 general framework or monorepo call resolution.
+Dart heritage meets the sampled fixture-plus-three-repository floor. Flutter
+keeps `_BookstoreState` attached only to the direct outer `State` superclass,
+rejects the generic argument `Bookstore` as heritage, and retains the sampled
+mixin edge. Shelf's `RouterParams on Request` edge remains explicitly
+unresolved, while HTTP's `BaseClient implements Client` edge resolves exactly.
+Generic substitution, compiler-level inference, and broader framework heritage
+remain unmeasured.
 Kotlin calls meet the sampled floor for callsite-owner attribution. In Now in
 Android, the `UserNewsResource` constructor owns the line-45 `map` call while the
 line-57 `map` call is not attributed to it. The sampled target remains unresolved;

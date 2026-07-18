@@ -203,6 +203,49 @@ mod tests {
     }
 
     #[test]
+    fn dart_generic_superclass_keeps_only_outer_type_with_mixins_and_interfaces() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-dart-generic-superclass-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("app.dart"),
+            [
+                "abstract class State<T> {}",
+                "class Bookstore {}",
+                "mixin StateMixin {}",
+                "abstract class StateContract {}",
+                "class _BookstoreState extends State<Bookstore> with StateMixin implements StateContract {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let heritage = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| {
+                fact.subject == "class:_BookstoreState"
+                    && matches!(fact.predicate.as_str(), "EXTENDS" | "MIXES_IN" | "IMPLEMENTS")
+            })
+            .map(|fact| (fact.predicate, fact.object))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            heritage,
+            BTreeSet::from([
+                ("EXTENDS".to_string(), "class:State".to_string()),
+                ("IMPLEMENTS".to_string(), "class:StateContract".to_string()),
+                ("MIXES_IN".to_string(), "mixin:StateMixin".to_string()),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn go_exports_only_capitalized_package_api_members_without_reparenting_declarations() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evals/code-intelligence/fixtures/batch-b/go")

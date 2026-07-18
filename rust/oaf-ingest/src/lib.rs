@@ -5050,14 +5050,18 @@ fn batch_d_heritage_targets(
         }
         LangKind::Dart => {
             if let Some(superclass) = node.child_by_field_name("superclass") {
+                let mut direct_superclass_found = false;
                 for index in 0..superclass.named_child_count() {
                     let Some(child) = superclass.named_child(index) else {
                         continue;
                     };
                     if child.kind() == "mixins" {
                         collect_heritage_names(child, source, "MIXES_IN", &mut out);
-                    } else if let Some(name) = heritage_target_name(child, source) {
-                        out.push(("EXTENDS", name));
+                    } else if !direct_superclass_found {
+                        if let Some(name) = heritage_target_name(child, source) {
+                            out.push(("EXTENDS", name));
+                            direct_superclass_found = true;
+                        }
                     }
                 }
             }

@@ -85,10 +85,10 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | Swift | 16/16 | 10/10 | 1/1 | parse, structure, imports, heritage, types | exports, calls, config, frameworks, impact, processes | unmeasured |
 | C | 14/14 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types, config, frameworks, impact, processes | unmeasured |
 | C++ | 16/16 | 9/9 | 4/4 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
-| Dart | 17/17 | 18/18 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
+| Dart | 17/17 | 21/21 | 4/4 | parse, structure, imports, exports, heritage, types, calls | config, frameworks, impact, processes | unmeasured |
 
-Across the 154 Tier 1 capability cells, 73 meet the Phase 2 floor, none has a
-recorded floor failure, 80 applicable rows remain unmeasured, and C heritage is
+Across the 154 Tier 1 capability cells, 74 meet the Phase 2 floor, none has a
+recorded floor failure, 79 applicable rows remain unmeasured, and C heritage is
 the sole explicit not-applicable row. Every language remains overall
 `unmeasured`.
 Five repository scopes hit the configured node or edge budget and report the
@@ -142,6 +142,14 @@ resolved calls. The Flutter sample binds `BookstoreAuth.of(context)` to the
 workspace method while a same-name `GoRouter.of(context)` decoy remains
 unresolved. This is sampled call evidence, not general framework or monorepo
 support.
+
+Dart heritage meets the sampled fixture-plus-three-repository floor. Flutter
+binds `_BookstoreState` only to its direct outer superclass `State`, does not
+emit the generic argument `Bookstore` as a superclass, and retains the reviewed
+`SingleTickerProviderStateMixin` edge. Shelf records `RouterParams on Request`
+as an unresolved external extension-type edge, while HTTP resolves
+`BaseClient implements Client` exactly. Generic substitution, compiler-level
+inference, and broader framework heritage remain unmeasured.
 
 Kotlin calls meet the fixture-plus-three-repository floor for sampled callsite
 owner attribution. In Now in Android, the `UserNewsResource` constructor owns

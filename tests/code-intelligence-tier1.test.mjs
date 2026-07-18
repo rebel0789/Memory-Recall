@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 73);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 74);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 80);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 79);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -69,6 +69,13 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(dartCalls.fixtureEvidenceCount, 1);
   assert.equal(dartCalls.repositoryEvidenceCount, 3);
   assert.deepEqual(dartCalls.metrics.reviewedTruth, { numerator: 4, denominator: 4, value: 1 });
+  const dartHeritage = summary.languages
+    .find((item) => item.language === 'dart')
+    .capabilities.find((capability) => capability.id === 'heritage');
+  assert.equal(dartHeritage.benchmarkStatus, 'meets-floor');
+  assert.equal(dartHeritage.fixtureEvidenceCount, 1);
+  assert.equal(dartHeritage.repositoryEvidenceCount, 3);
+  assert.deepEqual(dartHeritage.metrics.reviewedTruth, { numerator: 10, denominator: 10, value: 1 });
   const kotlinCalls = summary.languages
     .find((item) => item.language === 'kotlin')
     .capabilities.find((capability) => capability.id === 'calls');
