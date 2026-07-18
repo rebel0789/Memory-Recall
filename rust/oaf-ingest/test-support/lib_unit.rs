@@ -3,6 +3,166 @@ mod tests {
     use super::*;
 
     #[test]
+    fn php_ruby_and_swift_imports_preserve_full_external_coordinates() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-tier1-external-imports-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("external.php"),
+            [
+                "<?php",
+                "use Symfony\\Component\\Routing\\Attribute\\Route;",
+                "use Symfony\\Component\\HttpFoundation\\Request;",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("external.rb"),
+            ["require \"sinatra/base\"", "require \"sinatra/contrib\""]
+                .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("External.swift"),
+            ["import struct Foundation.Date", "import Foundation.URL"].join("\n"),
+        )
+        .unwrap();
+
+        let imports = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "IMPORTS")
+            .map(|fact| (fact.object, fact.source, fact.span.start_line))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            imports,
+            BTreeSet::from([
+                (
+                    "module:Foundation.Date".to_string(),
+                    "workspace://External.swift".to_string(),
+                    1,
+                ),
+                (
+                    "module:Foundation.URL".to_string(),
+                    "workspace://External.swift".to_string(),
+                    2,
+                ),
+                (
+                    "module:Symfony.Component.HttpFoundation.Request".to_string(),
+                    "workspace://external.php".to_string(),
+                    3,
+                ),
+                (
+                    "module:Symfony.Component.Routing.Attribute.Route".to_string(),
+                    "workspace://external.php".to_string(),
+                    2,
+                ),
+                (
+                    "module:sinatra/base".to_string(),
+                    "workspace://external.rb".to_string(),
+                    1,
+                ),
+                (
+                    "module:sinatra/contrib".to_string(),
+                    "workspace://external.rb".to_string(),
+                    2,
+                ),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn php_namespace_import_resolves_matching_local_module() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-php-local-namespace-import-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/Item.php"),
+            "<?php\nnamespace App;\nfinal class Item {}\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/Controller.php"),
+            "<?php\nnamespace App;\nuse App\\Item;\nfinal class Controller {}\n",
+        )
+        .unwrap();
+
+        let imports = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "IMPORTS")
+            .map(|fact| (fact.object, fact.source, fact.span.start_line))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            imports,
+            BTreeSet::from([(
+                "module:src_Item".to_string(),
+                "workspace://src/Controller.php".to_string(),
+                3,
+            )])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn c_and_cpp_angle_includes_emit_distinct_full_coordinates() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-tier1-angle-includes-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("external.c"), "#include <stdio.h>\n").unwrap();
+        fs::write(
+            root.join("external.cpp"),
+            "#include <fmt/format.h>\n#include <string>\n",
+        )
+        .unwrap();
+
+        let imports = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "IMPORTS")
+            .map(|fact| (fact.object, fact.source, fact.span.start_line))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            imports,
+            BTreeSet::from([
+                (
+                    "module:fmt/format.h".to_string(),
+                    "workspace://external.cpp".to_string(),
+                    1,
+                ),
+                (
+                    "module:stdio.h".to_string(),
+                    "workspace://external.c".to_string(),
+                    1,
+                ),
+                (
+                    "module:string".to_string(),
+                    "workspace://external.cpp".to_string(),
+                    2,
+                ),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn rust_kotlin_and_csharp_imports_preserve_full_external_targets() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-full-external-import-targets-{}",

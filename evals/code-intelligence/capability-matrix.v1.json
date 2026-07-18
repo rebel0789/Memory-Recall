@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-18T13:35:03.930Z",
+  "generatedAt": "2026-07-18T14:23:28.620Z",
   "languages": [
     {
       "id": "typescript",
@@ -2569,7 +2569,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -2578,10 +2578,26 @@
             {
               "class": "benchmark",
               "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -2780,7 +2796,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 5 capability floors; 6 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2861,7 +2877,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -2874,10 +2890,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -3072,7 +3100,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -3153,7 +3181,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -3173,11 +3201,15 @@
             },
             {
               "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json"
+            },
+            {
+              "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -3376,7 +3408,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 5 capability floors; 6 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -3457,7 +3489,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -3470,10 +3502,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/c.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -3652,7 +3696,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 7 applicable rows remain unmeasured; 1 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 6 applicable rows remain unmeasured; 1 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -3733,7 +3777,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -3749,11 +3793,19 @@
             },
             {
               "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json"
+            },
+            {
+              "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -3948,7 +4000,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {

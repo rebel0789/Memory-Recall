@@ -812,7 +812,15 @@ impl ParsedRepo {
                 candidates.push(stem);
             }
         }
-        if let Some(stem) = resolve_package_import(&self.package_entries, &import.raw) {
+        let package_stem =
+            resolve_package_import(&self.package_entries, &import.raw).or_else(|| {
+                import
+                    .source
+                    .ends_with(".php")
+                    .then(|| import.raw.replace('\\', "."))
+                    .and_then(|raw| resolve_package_import(&self.package_entries, &raw))
+            });
+        if let Some(stem) = package_stem {
             candidates.push(stem);
         }
         candidates.extend(self.local_language_import_stems(import));
@@ -3663,7 +3671,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                 } else {
                     raw
                 };
-                if let Some(target) = import_target_from_raw(&raw) {
+                if let Some(target) = full_import_target_from_raw(&raw) {
                     parsed.add_import(
                         &context.module,
                         target,
@@ -6429,12 +6437,19 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     let text = node_text(node, source);
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
-        let target = if lang == LangKind::Go {
-            full_import_target_from_raw(&quoted)
-        } else {
-            import_target_from_raw(&quoted)
+        let target = match lang {
+            LangKind::Go | LangKind::Ruby | LangKind::C | LangKind::Cpp => {
+                full_import_target_from_raw(&quoted)
+            }
+            LangKind::Php => php_import_target_from_raw(&quoted),
+            _ => import_target_from_raw(&quoted),
         };
         if let Some(target) = target {
+            out.push(target);
+        }
+    }
+    if out.is_empty() && matches!(lang, LangKind::C | LangKind::Cpp) {
+        if let Some(target) = angle_include_target(text) {
             out.push(target);
         }
     }
@@ -6487,7 +6502,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 let raw = cleaned
                     .strip_prefix("use ")
                     .or_else(|| cleaned.strip_prefix("include "));
-                if let Some(raw) = raw.and_then(import_target_from_raw) {
+                if let Some(raw) = raw.and_then(php_import_target_from_raw) {
                     out.push(raw);
                 }
             }
@@ -6500,7 +6515,16 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                     out.push(raw);
                 }
             }
-            LangKind::Swift | LangKind::Scala | LangKind::Dart | LangKind::Julia => {
+            LangKind::Swift => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(swift_import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Scala | LangKind::Dart | LangKind::Julia => {
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
@@ -6625,6 +6649,52 @@ fn rust_import_target_from_raw(value: &str) -> Option<ImportTarget> {
     let coordinate = raw
         .split_once("::{")
         .map_or(raw.as_str(), |(prefix, _)| prefix);
+    full_import_target_from_raw(coordinate)
+}
+
+fn php_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let raw = raw
+        .strip_prefix("function ")
+        .or_else(|| raw.strip_prefix("const "))
+        .unwrap_or(&raw)
+        .trim_start_matches('\\')
+        .to_string();
+    let coordinate = raw.replace('\\', ".");
+    if coordinate.len() > 512
+        || coordinate
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
+    {
+        return None;
+    }
+    Some(ImportTarget {
+        raw,
+        fallback: format!("module:{coordinate}"),
+    })
+}
+
+fn swift_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let coordinate = [
+        "class ",
+        "enum ",
+        "func ",
+        "let ",
+        "protocol ",
+        "struct ",
+        "typealias ",
+        "var ",
+    ]
+    .into_iter()
+    .find_map(|prefix| raw.strip_prefix(prefix))
+    .unwrap_or(&raw);
+    full_import_target_from_raw(coordinate)
+}
+
+fn angle_include_target(value: &str) -> Option<ImportTarget> {
+    let (_, tail) = value.split_once('<')?;
+    let (coordinate, _) = tail.split_once('>')?;
     full_import_target_from_raw(coordinate)
 }
 
