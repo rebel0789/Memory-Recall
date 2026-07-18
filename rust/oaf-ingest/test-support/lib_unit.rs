@@ -163,6 +163,46 @@ mod tests {
     }
 
     #[test]
+    fn cpp_constructs_reject_macro_shaped_callees_without_losing_pascal_case_types() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-cpp-constructor-shape-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("constructs.cpp"),
+            [
+                "class PascalCase {};",
+                "void render() {",
+                "  auto value = PascalCase();",
+                "  FMT_STRING(\"{}\");",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let constructs = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "CONSTRUCTS")
+            .map(|fact| (fact.subject, fact.object, fact.span.start_line))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            constructs,
+            BTreeSet::from([(
+                "function:render".to_string(),
+                "class:PascalCase".to_string(),
+                3,
+            )])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn go_exports_only_capitalized_package_api_members_without_reparenting_declarations() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evals/code-intelligence/fixtures/batch-b/go")

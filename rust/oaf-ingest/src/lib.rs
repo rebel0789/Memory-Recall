@@ -3796,6 +3796,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                                 | LangKind::Swift
                                 | LangKind::Dart
                         ) && looks_like_type_name(&callee)
+                            && (context.lang != LangKind::Cpp || !looks_like_macro_name(&callee))
                         {
                             parsed.constructs.push(ConstructRef {
                                 caller: caller.to_string(),
@@ -5765,6 +5766,11 @@ fn constructor_name(rhs: &str) -> Option<String> {
 
 fn looks_like_type_name(name: &str) -> bool {
     name.chars().next().is_some_and(char::is_uppercase)
+}
+
+fn looks_like_macro_name(name: &str) -> bool {
+    name.chars()
+        .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
 }
 
 fn receiver_method(value: &str) -> Option<(String, String)> {

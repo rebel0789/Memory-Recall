@@ -84,11 +84,11 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | Ruby | 17/17 | 11/11 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
 | Swift | 16/16 | 10/10 | 1/1 | parse, structure, imports, heritage, types | exports, calls, config, frameworks, impact, processes | unmeasured |
 | C | 14/14 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types, config, frameworks, impact, processes | unmeasured |
-| C++ | 15/15 | 6/6 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| C++ | 16/16 | 9/9 | 4/4 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
 | Dart | 17/17 | 18/18 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
 
-Across the 154 Tier 1 capability cells, 71 meet the Phase 2 floor, none has a
-recorded floor failure, 82 applicable rows remain unmeasured, and C heritage is
+Across the 154 Tier 1 capability cells, 72 meet the Phase 2 floor, none has a
+recorded floor failure, 81 applicable rows remain unmeasured, and C heritage is
 the sole explicit not-applicable row. Every language remains overall
 `unmeasured`.
 Five repository scopes hit the configured node or edge budget and report the
@@ -148,6 +148,11 @@ owner attribution. In Now in Android, the `UserNewsResource` constructor owns
 the `map` call at line 45; the line-57 `map` call belongs to another function and
 is not attributed to that constructor. The sampled target remains unresolved,
 so this is not evidence of general typed, framework, or monorepo call resolution.
+
+C++ types meet the fixture-plus-three-repository floor for the reviewed sample.
+In fmt, `utf8_system_category` remains a class while the macro-shaped
+`FMT_STRING(...)` call does not become a construction edge. This does not prove
+general preprocessor expansion, template analysis, or C++ type resolution.
 
 PHP, Ruby, Swift, C, and C++ imports have the same fixture-plus-three-repository
 coverage. The reviewed evidence preserves dotted PHP namespace coordinates and

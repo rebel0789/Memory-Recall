@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 71);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 72);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 82);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 81);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -101,6 +101,13 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(cppImports.fixtureEvidenceCount, 1);
   assert.equal(cppImports.repositoryEvidenceCount, 3);
   assert.deepEqual(cppImports.metrics.reviewedTruth, { numerator: 9, denominator: 9, value: 1 });
+  const cppTypes = summary.languages
+    .find((item) => item.language === 'cpp')
+    .capabilities.find((capability) => capability.id === 'types');
+  assert.equal(cppTypes.benchmarkStatus, 'meets-floor');
+  assert.equal(cppTypes.fixtureEvidenceCount, 1);
+  assert.equal(cppTypes.repositoryEvidenceCount, 3);
+  assert.deepEqual(cppTypes.metrics.reviewedTruth, { numerator: 5, denominator: 5, value: 1 });
   assert.equal(
     summary.cases.filter((item) => item.graph.diagnostics.some((diagnostic) => diagnostic.code.endsWith('_budget_reached'))).length,
     5

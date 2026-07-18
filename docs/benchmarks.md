@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 71 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 82 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 72 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 81 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -127,6 +127,10 @@ Kotlin calls meet the sampled floor for callsite-owner attribution. In Now in
 Android, the `UserNewsResource` constructor owns the line-45 `map` call while the
 line-57 `map` call is not attributed to it. The sampled target remains unresolved;
 this does not establish general typed, framework, or monorepo call resolution.
+C++ types meet the sampled fixture-plus-three-repository floor. The fmt case
+keeps `utf8_system_category` as a class and rejects `FMT_STRING(...)` as a
+construction edge. General preprocessor expansion, template analysis, and C++
+type resolution remain unmeasured.
 Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
 unmeasured; they were not counted in the passing sample. Python has exact
 framework-route evidence from narrow
