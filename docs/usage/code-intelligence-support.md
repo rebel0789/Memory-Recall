@@ -80,15 +80,15 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C# | 23/23 | 10/10 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
 | Go | 19/19 | 8/8 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
 | Rust | 23/23 | 14/14 | 4/4 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
-| PHP | 18/18 | 12/12 | 4/4 | parse, structure, heritage, calls | imports, exports, types, config, frameworks, impact, processes | unmeasured |
-| Ruby | 17/17 | 11/11 | 4/4 | parse, structure, calls | imports, exports, heritage, types, config, frameworks, impact, processes | unmeasured |
-| Swift | 16/16 | 10/10 | 1/1 | parse, structure, heritage, types | imports, exports, calls, config, frameworks, impact, processes | unmeasured |
-| C | 14/14 | 6/6 | 4/4 | parse, structure, calls | imports, exports, types, config, frameworks, impact, processes | unmeasured |
-| C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| PHP | 18/18 | 12/12 | 4/4 | parse, structure, imports, heritage, calls | exports, types, config, frameworks, impact, processes | unmeasured |
+| Ruby | 17/17 | 11/11 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| Swift | 16/16 | 10/10 | 1/1 | parse, structure, imports, heritage, types | exports, calls, config, frameworks, impact, processes | unmeasured |
+| C | 14/14 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types, config, frameworks, impact, processes | unmeasured |
+| C++ | 15/15 | 6/6 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks, impact, processes | unmeasured |
 
-Across the 154 Tier 1 capability cells, 61 meet the Phase 2 floor, none has a
-recorded floor failure, 92 applicable rows remain unmeasured, and C heritage is
+Across the 154 Tier 1 capability cells, 66 meet the Phase 2 floor, none has a
+recorded floor failure, 87 applicable rows remain unmeasured, and C heritage is
 the sole explicit not-applicable row. Every language remains overall
 `unmeasured`.
 Five repository scopes hit the configured node or edge budget and report the
@@ -123,6 +123,13 @@ Go, Rust, Kotlin, and C# imports are also backed by one fixture and three pinned
 repositories per language. External module or namespace coordinates remain
 complete, internal Go imports resolve to canonical modules, and reviewed
 same-source decoys prevent first-segment namespace truncation from passing.
+
+PHP, Ruby, Swift, C, and C++ imports have the same fixture-plus-three-repository
+coverage. The reviewed evidence preserves dotted PHP namespace coordinates and
+exact local PHP module resolution, full Ruby `require` paths, scoped Swift
+coordinates, and C/C++ angle-bracket header paths. Grouped PHP imports such as
+`use Foo\{Bar, Baz};` remain unsupported and unmeasured; they are not part of
+the passing PHP import sample.
 Decorators must be bound to imported and constructed FastAPI, APIRouter, Flask,
 or Blueprint receivers. Conventional Django `path` and `re_path` registrations
 use their first two positional arguments; `include(...)` remains explicit

@@ -4,7 +4,7 @@ Audit date: 2026-07-18
 
 Published baseline: `memory-recall@1.1.0` at commit `06a947fb52b5c23544a6e1b18ed8e28bd0735fb2`
 
-Audited worktree: `codex/memory-recall-orientation-workbench` at commit `86862717736522bc7ff390b4314219cafb5c3134`
+Audited worktree: `codex/memory-recall-orientation-workbench` at commit `aac93e8c69aa9a0ddc236e2e2c45943edb7cf002`
 
 ## Decision
 
@@ -17,13 +17,13 @@ until implementation is frozen and the final compatibility and release gates
 pass.
 
 The size of the change is supporting context, not the reason for the decision:
-`main...8686271` changes 351 files with 93,662 additions and 2,441 deletions. The
+`main...aac93e8` changes 351 files with 94,012 additions and 2,459 deletions. The
 major-line conclusion comes from observed public contract breaks.
 
-Commits through `8686271` add pagination, bounded exact-repository intelligence
-gates, explicit Tier 1 applicability, and exact Java, Go, Rust, Kotlin, and C#
-import evidence. They do not restore or dual-serve any breaking boundary
-recorded below, so the SemVer conclusion is unchanged.
+Commits through `aac93e8` add pagination, bounded exact-repository intelligence
+gates, explicit Tier 1 applicability, and qualifying import evidence for all
+fourteen Tier 1 languages. They do not restore or dual-serve any breaking
+boundary recorded below, so the SemVer conclusion is unchanged.
 
 ## Evidence snapshot
 

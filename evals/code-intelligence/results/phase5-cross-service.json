@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-18T12:52:24.637Z",
+  "generatedAt": "2026-07-18T14:31:39.167Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:e50f154a3022333cbf58448029b85dc7f28c0dc9cc8c47ce841e917c7beee2e5",
+    "implementationFingerprint": "sha256:1e93ee1c7f409a1cde8a4bbac3d9aad434d3d43ccefc2112af4c9394f543e1c0",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:18e77a4d37f7040bec18b445de2cfe4d51f686c61fcf58b8c2c38e262464e952",
+    "repositoryIdentityHash": "sha256:e715c7b27b31a5315b728e8618bde642b259b639f6ff05b2d8ec53510dcfb884",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:b2a9c057d29154cd0857a845df65455ca7ada2ea600dbbabf4ee2bcb8245a7bb",
+    "deterministicFingerprint": "sha256:327feac4baa2043bf97159422d3ed36570611783aba4592ace966e8235af6127",
     "queryWallMs": {
-      "minimum": 6.778,
-      "p50": 7.852,
-      "p95": 8.854,
-      "maximum": 8.854
+      "minimum": 6.69,
+      "p50": 8.477,
+      "p95": 11.695,
+      "maximum": 11.695
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:53c7ee360d22046dba7791831bed8a4b28756ab1d3968651c9351f6b93f3fe24"
+  "reportFingerprint": "sha256:9ee79f4cdb57b96fc92e1f088cdd2333a0089392fd5c5bb6ad03eaac17e0a805"
 }

@@ -165,7 +165,7 @@
     "dev": "node services/control-api/src/server.mjs",
     "demo": "node scripts/demo.mjs",
     "demo:memory-loop": "node apps/cli/oaf.mjs demo memory-loop --root . --format summary --contradicting-fact",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
     "eval": "node scripts/run-evals.mjs",
     "eval:context-recall": "node scripts/context-recall-eval.mjs --dataset evals/context-recall/oaf-repo-gold.v1.json --mode compiler-code-search",
     "check": "node scripts/check.mjs",
