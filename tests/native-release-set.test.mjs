@@ -8,8 +8,12 @@ import test from 'node:test';
 import {
   auditRegistrySignatures,
   NATIVE_RELEASE_ORDER,
+  packageRootRelease,
   publishNativePackages,
+  publishRootPackage,
   validateNativeReleaseSet,
+  validateRootReleaseArtifact,
+  verifyRootRegistry,
   verifyRegistryRecord
 } from '../scripts/native-release-set.mjs';
 import { buildNativeSpdxSbom, NATIVE_TARGETS } from '../scripts/package-native-platform.mjs';
@@ -181,6 +185,32 @@ test('stable npm release requires a signed exact native set before the root pack
     const finalLog = (await readFile(fakeLog, 'utf8')).trim().split('\n').map(JSON.parse);
     assert.equal(finalLog.filter(({ command }) => command === 'publish').length, 10);
     assert.deepEqual(finalLog.slice(-2).map(({ command }) => command), ['install', 'audit']);
+    const rootBytes = Buffer.from('verified-root-package');
+    const rootTarball = `memory-recall-${version}.tgz`;
+    await writeFile(path.join(root, rootTarball), rootBytes);
+    const rootArtifact = {
+      packageName: 'memory-recall',
+      version,
+      tarball: rootTarball,
+      tarballIntegrity: `sha512-${createHash('sha512').update(rootBytes).digest('base64')}`
+    };
+    tarballs[rootTarball] = {
+      packageName: rootArtifact.packageName,
+      version,
+      integrity: rootArtifact.tarballIntegrity,
+      attestations: npmAttestations(rootArtifact.packageName, version)
+    };
+    const stateBeforeRoot = JSON.parse(await readFile(fakeState, 'utf8'));
+    stateBeforeRoot.tarballs = tarballs;
+    await writeFile(fakeState, `${JSON.stringify(stateBeforeRoot)}\n`);
+    await publishRootPackage({ artifact: rootArtifact, artifactsDirectory: root, authMode: 'npm-token' });
+    await publishRootPackage({ artifact: rootArtifact, artifactsDirectory: root, authMode: 'npm-token' });
+    const rootProof = await verifyRootRegistry(rootArtifact);
+    assert.deepEqual(rootProof.verified, [`memory-recall@${version}`]);
+    const afterRootLog = (await readFile(fakeLog, 'utf8')).trim().split('\n').map(JSON.parse);
+    const rootPublishes = afterRootLog.filter(({ command, args }) => command === 'publish' && path.basename(args[0]) === rootTarball);
+    assert.equal(rootPublishes.length, 1);
+    assert(rootPublishes[0].args.includes('--provenance'));
     process.env.FAKE_NPM_AUDIT_MODE = 'incomplete';
     await assert.rejects(
       auditRegistrySignatures([{ packageName: releaseSet.artifacts[0].packageName, version }]),
@@ -234,6 +264,52 @@ test('stable npm release requires a signed exact native set before the root pack
     /must use 1\.2\.0/u
   );
 
+  const rootReleaseDirectory = path.join(root, 'root-release');
+  const currentPackage = JSON.parse(await readFile('package.json', 'utf8'));
+  const rootReceipt = await packageRootRelease({
+    outDirectory: rootReleaseDirectory,
+    expectedCommit: commit,
+    created: '2026-07-18T00:00:00Z'
+  });
+  assert.equal(rootReceipt.package.name, 'memory-recall');
+  assert.equal(rootReceipt.package.version, currentPackage.version);
+  assert.equal(rootReceipt.nativePackages.length, 5);
+  assert.match(rootReceipt.package.tarballSha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.match(rootReceipt.package.tarballIntegrity, /^sha512-/u);
+  const rootReleaseArtifact = await validateRootReleaseArtifact({
+    artifactsDirectory: rootReleaseDirectory,
+    expectedVersion: currentPackage.version,
+    expectedCommit: commit
+  });
+  assert.equal(rootReleaseArtifact.tarball, rootReceipt.package.tarball);
+  assert.equal(rootReleaseArtifact.tarballIntegrity, rootReceipt.package.tarballIntegrity);
+  const rootSbom = JSON.parse(await readFile(path.join(rootReleaseDirectory, rootReceipt.package.sbom), 'utf8'));
+  assert.equal(rootSbom.files.length, rootReceipt.package.entryCount);
+  assert.equal(rootSbom.packages[0].filesAnalyzed, true);
+  assert.equal(rootSbom.relationships.length, rootReceipt.package.entryCount);
+  const rootTarballPath = path.join(rootReleaseDirectory, rootReceipt.package.tarball);
+  const rootTarballBytes = await readFile(rootTarballPath);
+  await writeFile(rootTarballPath, Buffer.concat([rootTarballBytes, Buffer.from('tampered')]));
+  await assert.rejects(
+    validateRootReleaseArtifact({
+      artifactsDirectory: rootReleaseDirectory,
+      expectedVersion: currentPackage.version,
+      expectedCommit: commit
+    }),
+    /checksum or size is invalid/u
+  );
+  await writeFile(rootTarballPath, rootTarballBytes);
+  await writeFile(path.join(rootReleaseDirectory, 'unexpected.tgz'), 'unexpected');
+  await assert.rejects(
+    validateRootReleaseArtifact({
+      artifactsDirectory: rootReleaseDirectory,
+      expectedVersion: currentPackage.version,
+      expectedCommit: commit
+    }),
+    /exactly the receipt, SBOM, and tarball/u
+  );
+  await rm(path.join(rootReleaseDirectory, 'unexpected.tgz'));
+
   const workflow = await readFile('.github/workflows/npm-publish.yml', 'utf8');
   const download = workflow.indexOf('Download exact native release artifacts');
   const verifyRun = workflow.indexOf('Verify exact successful Rust workflow run');
@@ -243,11 +319,12 @@ test('stable npm release requires a signed exact native set before the root pack
   const publishNative = workflow.indexOf('Publish native packages');
   const verifyNative = workflow.indexOf('Verify native packages on npm');
   const dryRunRoot = workflow.indexOf('Dry-run root package after native registry verification');
-  const publishRoot = workflow.indexOf('Publish with npm Trusted Publishing');
+  const publishRoot = workflow.indexOf('Publish exact root package');
+  const verifyRoot = workflow.indexOf('Verify root package on npm');
   assert(verifyRun >= 0 && verifyRun < download && download < validate);
   assert(validate < verifyAttestations && verifyAttestations < verifySbomAttestations);
   assert(verifySbomAttestations < publishNative && publishNative < verifyNative);
-  assert(verifyNative < dryRunRoot && dryRunRoot < publishRoot);
+  assert(verifyNative < dryRunRoot && dryRunRoot < publishRoot && publishRoot < verifyRoot);
   assert.match(workflow, /native_run_id:/u);
   assert.match(workflow, /name: memory-recall-native-release-set-\$\{\{ github\.sha \}\}/u);
   assert.match(workflow, /run\.path !== expected\.workflow/u);
@@ -258,6 +335,15 @@ test('stable npm release requires a signed exact native set before the root pack
   assert.match(workflow, /node scripts\/native-release-set\.mjs validate/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs publish-native/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs verify-registry/u);
+  assert.match(workflow, /node scripts\/native-release-set\.mjs publish-root/u);
+  assert.match(workflow, /node scripts\/native-release-set\.mjs verify-root-registry/u);
+  assert.match(workflow, /git status --porcelain --untracked-files=all/u);
+  assert.match(workflow, /root-release\.validation\.json/u);
+  assert.match(workflow, /native-release\.validation\.json/u);
+  assert.equal((workflow.match(/validate-root[^\n]+> output\/root-release\.validation\.json/gu) ?? []).length, 2);
+  assert.doesNotMatch(workflow, /find output\/root-release[^\n]*-print -quit/u);
+  assert.doesNotMatch(workflow, /find output\/native-release[^\n]*-print -quit/u);
+  assert.doesNotMatch(workflow, /run: npm publish --access public(?:\s|$)/u);
 });
 
 function npmAttestations(packageName, version) {

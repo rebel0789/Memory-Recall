@@ -27,6 +27,7 @@ const reinstallPrefix = path.join(temp, 'reinstall-prefix');
 const runtimeBin = path.join(temp, 'runtime-bin');
 const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 const suppliedNativePackageTarball = process.env.MEMORY_RECALL_NATIVE_PACKAGE_TARBALL;
+const suppliedRootPackageTarball = process.env.MEMORY_RECALL_ROOT_PACKAGE_TARBALL;
 const fixtureRoot = path.resolve('evals', 'code-intelligence', 'fixtures');
 const target = nativeTarget();
 const languages = Object.freeze([
@@ -53,7 +54,9 @@ let pendingGoCrossRepositoryReceipt = null;
 
 consumerSmoke: try {
   if (goCrossRepositoryReceiptPath !== null) await rm(goCrossRepositoryReceiptPath, { force: true });
-  must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
+  if (!suppliedNativePackageTarball) {
+    must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
+  }
   await mkdir(home, { recursive: true });
   const mcpConfig = path.join(home, '.cursor', 'mcp.json');
   await mkdir(path.dirname(mcpConfig), { recursive: true });
@@ -79,30 +82,15 @@ consumerSmoke: try {
     ? { tarball: path.resolve(suppliedNativePackageTarball) }
     : await packageNativePlatform({ target, binaryPath: nativeBinary, outDirectory: packDirectory, root });
   must((await stat(nativePackage.tarball)).isFile(), 'native package tarball is available');
-  const [pack] = runJson('npm', ['pack', '--pack-destination', packDirectory, '--json'], { cwd: root });
-  const packedPaths = new Set(pack.files.map((file) => file.path));
-  for (const required of [
-    'apps/cli/oaf.mjs',
-    'providers/native/code-intelligence-rust/provider.json',
-    'providers/native/code-intelligence-rust/src/index.mjs',
-    'providers/native/code-intelligence-rust/src/binary-resolver.mjs',
-    'packages/source-graph/src/native-compatibility.mjs',
-    'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
-    'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
-    'packages/protocol/schemas/code-intelligence-graph.schema.json'
-  ]) must(packedPaths.has(required), `package includes ${required}`);
-  for (const forbiddenPrefix of [
-    'rust/target/',
-    'evals/code-intelligence/results/',
-    'tests/'
-  ]) must(![...packedPaths].some((filePath) => filePath.startsWith(forbiddenPrefix)), `package excludes ${forbiddenPrefix}`);
-  must(!packedPaths.has('scripts/native-code-intelligence-consumer-smoke.mjs'), 'package excludes checkout-only native consumer smoke');
-
-  const tarball = path.join(packDirectory, pack.filename);
+  const tarball = suppliedRootPackageTarball
+    ? path.resolve(suppliedRootPackageTarball)
+    : path.join(packDirectory, runJson('npm', ['pack', '--pack-destination', packDirectory, '--json'], { cwd: root })[0].filename);
+  must((await stat(tarball)).isFile(), 'root package tarball is available');
   const {
     MEMORY_RECALL_NATIVE_BINARY: _ambientNativeBinary,
     MEMORY_RECALL_NATIVE_SHA256: _ambientNativeSha256,
     MEMORY_RECALL_NATIVE_PACKAGE_TARBALL: _ambientNativePackageTarball,
+    MEMORY_RECALL_ROOT_PACKAGE_TARBALL: _ambientRootPackageTarball,
     ...ambientEnvironment
   } = process.env;
   const installEnvironment = {
@@ -125,6 +113,7 @@ consumerSmoke: try {
   }).stdout.trim();
   const packageRoot = path.join(installedModules, 'memory-recall');
   const platformPackageRoot = path.join(installedModules, '@memory-recall', `native-${target}`);
+  verifyRootPackagePaths(await treeFiles(packageRoot));
   const installedCli = path.join(packageRoot, 'apps', 'cli', 'oaf.mjs');
   const isolatedEnvironment = {
     ...ambientEnvironment,
@@ -639,6 +628,43 @@ async function treeFingerprint(directory) {
       }
     }
   }
+}
+
+async function treeFiles(directory) {
+  const files = [];
+  await visit(directory, '');
+  return files.sort();
+
+  async function visit(current, relative) {
+    const entries = await readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryRelative = relative ? `${relative}/${entry.name}` : entry.name;
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) await visit(entryPath, entryRelative);
+      else if (entry.isFile()) files.push(entryRelative);
+      else throw new Error(`installed root package contains unsupported entry ${entryRelative}`);
+    }
+  }
+}
+
+function verifyRootPackagePaths(paths) {
+  const installedPaths = new Set(paths);
+  for (const required of [
+    'apps/cli/oaf.mjs',
+    'providers/native/code-intelligence-rust/provider.json',
+    'providers/native/code-intelligence-rust/src/index.mjs',
+    'providers/native/code-intelligence-rust/src/binary-resolver.mjs',
+    'packages/source-graph/src/native-compatibility.mjs',
+    'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
+    'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
+    'packages/protocol/schemas/code-intelligence-graph.schema.json'
+  ]) must(installedPaths.has(required), `package includes ${required}`);
+  for (const forbiddenPrefix of [
+    'rust/target/',
+    'evals/code-intelligence/results/',
+    'tests/'
+  ]) must(!paths.some((filePath) => filePath.startsWith(forbiddenPrefix)), `package excludes ${forbiddenPrefix}`);
+  must(!installedPaths.has('scripts/native-code-intelligence-consumer-smoke.mjs'), 'package excludes checkout-only native consumer smoke');
 }
 
 async function createPolyglotWorkspace() {

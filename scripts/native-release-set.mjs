@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { NATIVE_TARGETS, spawnNpmSync } from './package-native-platform.mjs';
+import { buildPackageSpdxSbom, NATIVE_TARGETS, spawnNpmSync } from './package-native-platform.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT_RELEASE_RECEIPT = 'memory-recall-root-release.json';
+const ROOT_RELEASE_SBOM = 'memory-recall-root.spdx.json';
 export const NATIVE_RELEASE_ORDER = Object.freeze([
   'darwin-arm64',
   'darwin-x64',
@@ -15,6 +18,223 @@ export const NATIVE_RELEASE_ORDER = Object.freeze([
   'linux-x64-gnu',
   'win32-x64'
 ]);
+
+export async function packageRootRelease({ outDirectory, expectedCommit, created, root = ROOT }) {
+  if (!/^[a-f0-9]{40}$/u.test(expectedCommit ?? '')) throw new Error('root release commit must be a full Git SHA');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(created ?? '') || Number.isNaN(Date.parse(created))) {
+    throw new Error('root release creation time must be canonical SPDX ISO-8601');
+  }
+  const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+  if (packageJson.name !== 'memory-recall' || !/^\d+\.\d+\.\d+$/u.test(packageJson.version ?? '')) {
+    throw new Error('root package identity must use an exact stable version');
+  }
+  validateRootNativeDependencies(packageJson, packageJson.version);
+  const output = path.resolve(outDirectory);
+  await mkdir(output, { recursive: true });
+  const packed = spawnNpmSync([
+    'pack', path.resolve(root), '--pack-destination', output, '--json', '--ignore-scripts'
+  ], { cwd: root, encoding: 'utf8', env: process.env });
+  if (packed.status !== 0) throw new Error(`root npm pack failed: ${packed.stderr || packed.stdout || packed.error?.message || 'unknown error'}`);
+  const results = JSON.parse(packed.stdout);
+  if (!Array.isArray(results) || results.length !== 1) throw new Error('root npm pack must produce exactly one artifact');
+  const [packReport] = results;
+  if (packReport?.name !== packageJson.name || packReport?.version !== packageJson.version
+    || packReport?.filename !== `memory-recall-${packageJson.version}.tgz`
+    || !Number.isInteger(packReport?.entryCount) || packReport.entryCount <= 0
+    || packReport.entryCount !== packReport.files?.length
+    || !Number.isInteger(packReport?.size) || packReport.size <= 0
+    || !Number.isInteger(packReport?.unpackedSize) || packReport.unpackedSize <= 0) {
+    throw new Error('root npm pack report is invalid');
+  }
+  const files = await Promise.all(packReport.files.map(async ({ path: relativePath, size }) => {
+    if (!safePackagePath(relativePath)) throw new Error('root npm pack contains an unsafe path');
+    const sourcePath = path.resolve(root, relativePath);
+    const metadata = await lstat(sourcePath);
+    if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size !== size) {
+      throw new Error(`root npm pack file metadata differs for ${relativePath}`);
+    }
+    const bytes = await readFile(sourcePath);
+    return Object.freeze({
+      path: relativePath,
+      size: bytes.length,
+      sha1: createHash('sha1').update(bytes).digest('hex'),
+      sha256: createHash('sha256').update(bytes).digest('hex')
+    });
+  }));
+  const tarball = path.join(output, packReport.filename);
+  const tarballBytes = await readFile(tarball);
+  const tarballSha256 = `sha256:${createHash('sha256').update(tarballBytes).digest('hex')}`;
+  const tarballIntegrity = `sha512-${createHash('sha512').update(tarballBytes).digest('base64')}`;
+  const sbom = buildPackageSpdxSbom({
+    packageName: packageJson.name,
+    version: packageJson.version,
+    files,
+    commit: expectedCommit,
+    created,
+    tarballSha256,
+    namespaceKey: 'root'
+  });
+  const sbomBytes = Buffer.from(`${JSON.stringify(sbom, null, 2)}\n`);
+  const receipt = Object.freeze({
+    schemaVersion: '1.0.0',
+    receiptVersion: 'memory-recall-root-release-1',
+    commit: expectedCommit,
+    package: {
+      name: packageJson.name,
+      version: packageJson.version,
+      tarball: packReport.filename,
+      tarballSha256,
+      tarballIntegrity,
+      sbom: ROOT_RELEASE_SBOM,
+      sbomSha256: `sha256:${createHash('sha256').update(sbomBytes).digest('hex')}`,
+      entryCount: packReport.entryCount,
+      size: packReport.size,
+      unpackedSize: packReport.unpackedSize
+    },
+    nativePackages: NATIVE_RELEASE_ORDER.map((target) => ({
+      name: `@memory-recall/native-${target}`,
+      version: packageJson.version
+    }))
+  });
+  await Promise.all([
+    writeFile(path.join(output, ROOT_RELEASE_SBOM), sbomBytes),
+    writeFile(path.join(output, ROOT_RELEASE_RECEIPT), `${JSON.stringify(receipt, null, 2)}\n`)
+  ]);
+  return receipt;
+}
+
+export async function validateRootReleaseArtifact({ artifactsDirectory, expectedVersion, expectedCommit }) {
+  if (!/^\d+\.\d+\.\d+$/u.test(expectedVersion ?? '')) throw new Error('root release version must be exact and stable');
+  if (!/^[a-f0-9]{40}$/u.test(expectedCommit ?? '')) throw new Error('root release commit must be a full Git SHA');
+  const root = path.resolve(artifactsDirectory);
+  const files = await walk(root);
+  const receiptPath = uniqueBasename(files, ROOT_RELEASE_RECEIPT);
+  const receipt = JSON.parse(await readFile(receiptPath, 'utf8'));
+  if (receipt?.schemaVersion !== '1.0.0' || receipt?.receiptVersion !== 'memory-recall-root-release-1'
+    || receipt?.commit !== expectedCommit || receipt?.package?.name !== 'memory-recall'
+    || receipt?.package?.version !== expectedVersion || receipt?.package?.tarball !== `memory-recall-${expectedVersion}.tgz`
+    || receipt?.package?.sbom !== ROOT_RELEASE_SBOM
+    || !Number.isInteger(receipt?.package?.entryCount) || receipt.package.entryCount <= 0
+    || !Number.isInteger(receipt?.package?.size) || receipt.package.size <= 0
+    || !Number.isInteger(receipt?.package?.unpackedSize) || receipt.package.unpackedSize <= 0) {
+    throw new Error('root release receipt is invalid');
+  }
+  const expectedNatives = NATIVE_RELEASE_ORDER.map((target) => `@memory-recall/native-${target}@${expectedVersion}`);
+  const actualNatives = (receipt.nativePackages ?? []).map(({ name, version }) => `${name}@${version}`);
+  if (JSON.stringify(actualNatives) !== JSON.stringify(expectedNatives)) throw new Error('root release native dependencies are invalid');
+  const tarballPath = uniqueBasename(files, receipt.package.tarball);
+  const expectedArtifactNames = [ROOT_RELEASE_RECEIPT, ROOT_RELEASE_SBOM, receipt.package.tarball].sort();
+  const actualArtifactNames = files.map((file) => path.basename(file)).sort();
+  if (JSON.stringify(actualArtifactNames) !== JSON.stringify(expectedArtifactNames)) {
+    throw new Error('root release must contain exactly the receipt, SBOM, and tarball');
+  }
+  const tarballBytes = await readFile(tarballPath);
+  const tarballSha256 = `sha256:${createHash('sha256').update(tarballBytes).digest('hex')}`;
+  const tarballIntegrity = `sha512-${createHash('sha512').update(tarballBytes).digest('base64')}`;
+  if (receipt.package.tarballSha256 !== tarballSha256 || receipt.package.tarballIntegrity !== tarballIntegrity
+    || receipt.package.size !== tarballBytes.length) {
+    throw new Error('root release tarball checksum or size is invalid');
+  }
+  const sbomPath = uniqueBasename(files, ROOT_RELEASE_SBOM);
+  const sbomBytes = await readFile(sbomPath);
+  if (receipt.package.sbomSha256 !== `sha256:${createHash('sha256').update(sbomBytes).digest('hex')}`) {
+    throw new Error('root release SBOM checksum is invalid');
+  }
+  validatePackageSbom({
+    sbom: JSON.parse(sbomBytes),
+    packageName: 'memory-recall',
+    expectedVersion,
+    expectedCommit,
+    namespaceKey: 'root',
+    tarballSha256,
+    expectedFileCount: receipt.package.entryCount
+  });
+  await validateArchiveAgainstSbom({ tarballPath, sbom: JSON.parse(sbomBytes) });
+  return Object.freeze({
+    packageName: 'memory-recall',
+    version: expectedVersion,
+    tarball: path.relative(root, tarballPath).split(path.sep).join('/'),
+    tarballSha256,
+    tarballIntegrity,
+    sbom: path.relative(root, sbomPath).split(path.sep).join('/'),
+    receipt: path.relative(root, receiptPath).split(path.sep).join('/')
+  });
+}
+
+async function validateArchiveAgainstSbom({ tarballPath, sbom }) {
+  const listed = spawnSync('tar', ['-tzf', tarballPath], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    windowsHide: true,
+    maxBuffer: 5 * 1024 * 1024
+  });
+  if (listed.status !== 0) throw new Error(`root release tarball listing failed: ${listed.stderr || listed.error?.message || 'unknown error'}`);
+  const archivePaths = listed.stdout.split(/\r?\n/u).filter(Boolean).map((entry) => entry.endsWith('/') ? entry.slice(0, -1) : entry);
+  if (archivePaths.length === 0 || new Set(archivePaths).size !== archivePaths.length
+    || archivePaths.some((entry) => entry !== 'package' && (!entry.startsWith('package/') || !safePackagePath(entry)))) {
+    throw new Error('root release tarball paths are unsafe or ambiguous');
+  }
+  const extracted = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-root-release-'));
+  try {
+    const unpacked = spawnSync('tar', ['-xzf', tarballPath, '-C', extracted], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 1024 * 1024
+    });
+    if (unpacked.status !== 0) throw new Error(`root release tarball extraction failed: ${unpacked.stderr || unpacked.error?.message || 'unknown error'}`);
+    const packageRoot = path.join(extracted, 'package');
+    const extractedFiles = await walkRegularFiles(packageRoot);
+    const sbomFiles = new Map(sbom.files.map((file) => [file.fileName.slice(2), file]));
+    if (extractedFiles.length !== sbomFiles.size
+      || extractedFiles.some((file) => !sbomFiles.has(file.relativePath))) {
+      throw new Error('root release SBOM file set does not match the tarball');
+    }
+    for (const { relativePath, absolutePath } of extractedFiles) {
+      const bytes = await readFile(absolutePath);
+      const checksums = new Map(sbomFiles.get(relativePath).checksums.map(({ algorithm, checksumValue }) => [algorithm, checksumValue]));
+      if (checksums.get('SHA1') !== createHash('sha1').update(bytes).digest('hex')
+        || checksums.get('SHA256') !== createHash('sha256').update(bytes).digest('hex')) {
+        throw new Error(`root release SBOM checksum does not match tarball entry ${relativePath}`);
+      }
+    }
+  } finally {
+    await rm(extracted, { recursive: true, force: true });
+  }
+}
+
+async function walkRegularFiles(directory, relative = '') {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = relative ? `${relative}/${entry.name}` : entry.name;
+    const absolutePath = path.join(directory, entry.name);
+    const metadata = await lstat(absolutePath);
+    if (metadata.isSymbolicLink()) throw new Error(`root release tarball contains symbolic link ${relativePath}`);
+    if (metadata.isDirectory()) files.push(...await walkRegularFiles(absolutePath, relativePath));
+    else if (metadata.isFile()) files.push({ relativePath, absolutePath });
+    else throw new Error(`root release tarball contains unsupported entry ${relativePath}`);
+  }
+  return files.sort((left, right) => left.relativePath < right.relativePath ? -1 : left.relativePath > right.relativePath ? 1 : 0);
+}
+
+export async function verifyRootRegistry(artifact) {
+  verifyRegistryRecord(artifact, registryRecord(artifact.packageName, artifact.version));
+  return auditRegistrySignatures([{ packageName: artifact.packageName, version: artifact.version }]);
+}
+
+export async function publishRootPackage({ artifact, artifactsDirectory, authMode }) {
+  let record = registryRecord(artifact.packageName, artifact.version, { allowMissing: true });
+  if (!record) {
+    const tarball = path.resolve(artifactsDirectory, artifact.tarball);
+    const args = ['publish', tarball, '--access', 'public'];
+    if (authMode === 'npm-token') args.push('--provenance');
+    const published = spawnNpmSync(args, { cwd: ROOT, encoding: 'utf8', env: process.env });
+    if (published.status !== 0) throw new Error(`root npm publish failed: ${published.stderr || published.stdout || published.error?.message || 'unknown error'}`);
+    record = await waitForRegistry(artifact.packageName, artifact.version);
+  }
+  verifyRegistryRecord(artifact, record);
+}
 
 export async function validateNativeReleaseSet({
   artifactsDirectory,
@@ -32,13 +252,7 @@ export async function validateNativeReleaseSet({
     throw new Error('root package identity does not match the release version');
   }
   const expectedPackageNames = new Set(NATIVE_RELEASE_ORDER.map((target) => `@memory-recall/native-${target}`));
-  const optionalDependencies = packageJson.optionalDependencies ?? {};
-  if (Object.keys(optionalDependencies).length !== expectedPackageNames.size) {
-    throw new Error('root package must reference exactly the five native packages');
-  }
-  for (const name of expectedPackageNames) {
-    if (optionalDependencies[name] !== expectedVersion) throw new Error(`root native dependency ${name} must use ${expectedVersion}`);
-  }
+  validateRootNativeDependencies(packageJson, expectedVersion, expectedPackageNames);
 
   const receipts = [];
   for (const target of NATIVE_RELEASE_ORDER) {
@@ -159,26 +373,50 @@ function validateReceipt({ receipt, target, expectedVersion, expectedCommit, req
 
 function validateNativeSbom({ sbom, target, expectedVersion, expectedCommit, tarballSha256 }) {
   const packageName = `@memory-recall/native-${target}`;
-  const described = sbom?.packages?.[0];
   const expectedFiles = ['LICENSE', 'NOTICE', NATIVE_TARGETS[target].binary, 'native-manifest.json', 'package.json']
     .sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  validatePackageSbom({
+    sbom,
+    packageName,
+    expectedVersion,
+    expectedCommit,
+    namespaceKey: target,
+    tarballSha256,
+    expectedFiles,
+    expectedFileCount: 5
+  });
+}
+
+function validatePackageSbom({
+  sbom,
+  packageName,
+  expectedVersion,
+  expectedCommit,
+  namespaceKey,
+  tarballSha256,
+  expectedFiles = null,
+  expectedFileCount
+}) {
+  const described = sbom?.packages?.[0];
   const files = Array.isArray(sbom?.files) ? [...sbom.files]
     .sort((left, right) => left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0) : [];
   if (sbom?.spdxVersion !== 'SPDX-2.3' || sbom?.dataLicense !== 'CC0-1.0'
     || sbom?.SPDXID !== 'SPDXRef-DOCUMENT' || sbom?.name !== `${packageName}@${expectedVersion}`
-    || sbom?.documentNamespace !== `https://github.com/rebel0789/Memory-Recall/sbom/${expectedCommit}/${target}/${expectedVersion}/${tarballSha256.slice('sha256:'.length)}`
+    || sbom?.documentNamespace !== `https://github.com/rebel0789/Memory-Recall/sbom/${expectedCommit}/${namespaceKey}/${expectedVersion}/${tarballSha256.slice('sha256:'.length)}`
     || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(sbom?.creationInfo?.created ?? '')
     || !sbom?.creationInfo?.creators?.includes('Tool: memory-recall-native-release')
     || !sbom?.documentDescribes?.includes('SPDXRef-Package')) {
-    throw new Error(`${target} SPDX document metadata is invalid`);
+    throw new Error(`${packageName} SPDX document metadata is invalid`);
   }
-  if (files.length !== 5 || files.map(({ fileName }) => fileName).some((fileName, index) => fileName !== `./${expectedFiles[index]}`)
+  if (files.length !== expectedFileCount
+    || (expectedFiles !== null && files.map(({ fileName }) => fileName).some((fileName, index) => fileName !== `./${expectedFiles[index]}`))
+    || files.some(({ fileName }) => !safePackagePath(fileName?.slice(2)) || !fileName.startsWith('./'))
     || files.some((file, index) => file.SPDXID !== `SPDXRef-File-${index + 1}`
       || file.licenseConcluded !== 'NOASSERTION' || file.copyrightText !== 'NOASSERTION'
       || file.checksums?.length !== 2 || file.checksums[0]?.algorithm !== 'SHA1'
       || !/^[a-f0-9]{40}$/u.test(file.checksums[0]?.checksumValue ?? '')
       || file.checksums[1]?.algorithm !== 'SHA256' || !/^[a-f0-9]{64}$/u.test(file.checksums[1]?.checksumValue ?? ''))) {
-    throw new Error(`${target} SPDX file evidence is invalid`);
+    throw new Error(`${packageName} SPDX file evidence is invalid`);
   }
   const verificationCode = createHash('sha1')
     .update(files.map((file) => file.checksums[0].checksumValue).sort().join(''))
@@ -189,14 +427,39 @@ function validateNativeSbom({ sbom, target, expectedVersion, expectedCommit, tar
     || described?.licenseConcluded !== 'Apache-2.0' || described?.licenseDeclared !== 'Apache-2.0'
     || described?.checksums?.length !== 1 || described.checksums[0]?.algorithm !== 'SHA256'
     || described.checksums[0]?.checksumValue !== tarballSha256.slice('sha256:'.length)) {
-    throw new Error(`${target} SPDX package evidence is invalid`);
+    throw new Error(`${packageName} SPDX package evidence is invalid`);
   }
-  if (!Array.isArray(sbom?.relationships) || sbom.relationships.length !== 5
+  if (!Array.isArray(sbom?.relationships) || sbom.relationships.length !== expectedFileCount
     || sbom.relationships.some((relationship, index) => relationship.spdxElementId !== 'SPDXRef-Package'
       || relationship.relationshipType !== 'CONTAINS'
       || relationship.relatedSpdxElement !== `SPDXRef-File-${index + 1}`)) {
-    throw new Error(`${target} SPDX package relationships are invalid`);
+    throw new Error(`${packageName} SPDX package relationships are invalid`);
   }
+}
+
+function validateRootNativeDependencies(packageJson, expectedVersion, expectedPackageNames = new Set(
+  NATIVE_RELEASE_ORDER.map((target) => `@memory-recall/native-${target}`)
+)) {
+  const optionalDependencies = packageJson.optionalDependencies ?? {};
+  if (Object.keys(optionalDependencies).length !== expectedPackageNames.size) {
+    throw new Error('root package must reference exactly the five native packages');
+  }
+  for (const name of expectedPackageNames) {
+    if (optionalDependencies[name] !== expectedVersion) throw new Error(`root native dependency ${name} must use ${expectedVersion}`);
+  }
+}
+
+function safePackagePath(relativePath) {
+  return typeof relativePath === 'string' && relativePath.length > 0
+    && relativePath.length <= 512 && !path.posix.isAbsolute(relativePath)
+    && !relativePath.includes('\\') && !relativePath.split('/').includes('..')
+    && /^[A-Za-z0-9._/@+ -]+$/u.test(relativePath);
+}
+
+function uniqueBasename(files, name) {
+  const matches = files.filter((file) => path.basename(file) === name);
+  if (matches.length !== 1) throw new Error(`root release requires exactly one ${name}`);
+  return matches[0];
 }
 
 function verifyRegistryProvenance(packageName, version, attestations) {
@@ -303,21 +566,56 @@ async function walk(directory) {
 
 function parseArguments(argv) {
   const [command, ...rest] = argv;
-  if (!['validate', 'publish-native', 'verify-registry'].includes(command)) throw new Error('command must be validate, publish-native, or verify-registry');
+  if (!['validate', 'publish-native', 'verify-registry', 'package-root', 'validate-root', 'publish-root', 'verify-root-registry'].includes(command)) {
+    throw new Error('unsupported release command');
+  }
   const values = { command, requireSigned: true };
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index];
     const value = rest[index + 1];
-    if (!value || !['--artifacts', '--version', '--commit', '--auth-mode'].includes(flag)) throw new Error(`invalid argument ${flag ?? ''}`.trim());
+    if (!value || !['--artifacts', '--version', '--commit', '--auth-mode', '--out', '--created'].includes(flag)) {
+      throw new Error(`invalid argument ${flag ?? ''}`.trim());
+    }
     values[flag.slice(2).replace(/-([a-z])/gu, (_, letter) => letter.toUpperCase())] = value;
   }
-  if (!values.artifacts || !values.version || !values.commit) throw new Error('artifacts, version, and commit are required');
-  if (command === 'publish-native' && !['trusted-publishing', 'npm-token'].includes(values.authMode)) throw new Error('publish-native requires a supported auth mode');
+  if (command === 'package-root' && (!values.out || !values.commit || !values.created)) {
+    throw new Error('package-root requires out, commit, and created');
+  }
+  if (command !== 'package-root' && (!values.artifacts || !values.version || !values.commit)) {
+    throw new Error('artifacts, version, and commit are required');
+  }
+  if (['publish-native', 'publish-root'].includes(command) && !['trusted-publishing', 'npm-token'].includes(values.authMode)) {
+    throw new Error(`${command} requires a supported auth mode`);
+  }
   return values;
 }
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.command === 'package-root') {
+    const receipt = await packageRootRelease({
+      outDirectory: options.out,
+      expectedCommit: options.commit,
+      created: options.created
+    });
+    process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
+    return;
+  }
+  if (['validate-root', 'publish-root', 'verify-root-registry'].includes(options.command)) {
+    const artifact = await validateRootReleaseArtifact({
+      artifactsDirectory: options.artifacts,
+      expectedVersion: options.version,
+      expectedCommit: options.commit
+    });
+    if (options.command === 'publish-root') await publishRootPackage({
+      artifact,
+      artifactsDirectory: options.artifacts,
+      authMode: options.authMode
+    });
+    const registryProof = options.command === 'verify-root-registry' ? await verifyRootRegistry(artifact) : null;
+    process.stdout.write(`${JSON.stringify({ artifact, registryProof }, null, 2)}\n`);
+    return;
+  }
   const releaseSet = await validateNativeReleaseSet({
     artifactsDirectory: options.artifacts,
     expectedVersion: options.version,

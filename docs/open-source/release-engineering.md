@@ -33,10 +33,17 @@ publishes the five native packages in fixed order. It verifies every native
 version, npm integrity, and exact publish/SLSA attestation bundle before it can
 dry-run or publish the root package.
 
-The validation job runs CI, native smoke, consumer smoke, release-readiness
-verification, and a root-package dry run. Both jobs use Node 22.14.0 and npm
-11.18.0 so validation, JSON attestation verification, and publication do not
-drift with `npm@latest`.
+The validation job runs CI, native smoke, consumer smoke, and release-readiness
+verification, then packs the root package exactly once. It records the tarball's
+SHA-256 and SHA-512 integrity, generates a file-complete SPDX 2.3 document, signs
+both provenance and SBOM attestations, and uploads the exact artifact. The
+protected job downloads and validates those bytes, verifies both GitHub
+attestations, installs the exact root tarball with its matching native tarball in
+an isolated lifecycle, and publishes that same tarball only after all five
+native registry records pass. It then requires exact root registry integrity and
+both npm publish and SLSA attestations. No later bare `npm publish` repack is
+permitted. Both jobs use Node 22.14.0 and npm 11.18.0 so validation, JSON
+attestation verification, and publication do not drift with `npm@latest`.
 
 Prefer npm Trusted Publishing. Configure npm with GitHub Actions as the trusted
 publisher for repository `rebel0789/Memory-Recall` and workflow filename
@@ -49,7 +56,8 @@ release, set the repository secret `NPM_TOKEN` and run the same workflow with
 
 The workflows do not create tags, submit marketplace manifests, publish from
 pull requests, or publish without the protected environment. GitHub provenance
-attestation, native SBOM binding, and npm provenance verification are implemented
-locally, but the remote five-runner result and stable publication remain unproven.
+attestation, root and native SBOM binding, exact-artifact lifecycle proof, and npm
+provenance verification are implemented locally, but the remote five-runner
+result and stable publication remain unproven.
 Marketplace or plugin-registry submission remains blocked until target registry
 requirements are known and a maintainer approves the submission.

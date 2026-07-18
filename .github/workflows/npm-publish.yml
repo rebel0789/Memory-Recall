@@ -24,6 +24,8 @@ on:
         type: string
 permissions:
   actions: read
+  artifact-metadata: write
+  attestations: write
   contents: read
   id-token: write
 jobs:
@@ -63,7 +65,47 @@ jobs:
       - run: npm run native:smoke
       - run: npm run consumer:smoke
       - run: npm run release:readiness:check
-      - run: npm publish --access public --dry-run
+      - name: Verify source identity before packing
+        env:
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Pack exact root release artifact once
+        env:
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          SOURCE_CREATED="$(git show -s --format=%cI "$RELEASE_COMMIT")"
+          CREATED="$(node -e "process.stdout.write(new Date(process.argv[1]).toISOString().replace('.000Z', 'Z'))" "$SOURCE_CREATED")"
+          node scripts/native-release-set.mjs package-root --out output/root-release --commit "$RELEASE_COMMIT" --created "$CREATED"
+      - name: Validate exact root release artifact
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/native-release-set.mjs validate-root --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" > output/root-release.validation.json
+      - name: Dry-run exact root tarball
+        shell: bash
+        run: |
+          ROOT_TARBALL="output/root-release/$(node -p "JSON.parse(require('fs').readFileSync('output/root-release/memory-recall-root-release.json', 'utf8')).package.tarball")"
+          npm publish "$ROOT_TARBALL" --access public --dry-run
+      - name: Attest root package provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: output/root-release/*.tgz
+      - name: Attest root package SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: output/root-release/*.tgz
+          sbom-path: output/root-release/memory-recall-root.spdx.json
+      - name: Upload exact root release artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-recall-root-release-${{ github.sha }}
+          path: output/root-release/*
+          if-no-files-found: error
+          retention-days: 14
 
   publish:
     needs: validate
@@ -78,6 +120,39 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - run: npm install -g npm@11.18.0
+      - name: Download exact root release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: memory-recall-root-release-${{ github.sha }}
+          path: output/root-release
+      - name: Validate exact root release artifact
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/native-release-set.mjs validate-root --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" > output/root-release.validation.json
+      - name: Verify root provenance signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh attestation verify output/root-release/*.tgz \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/npm-publish.yml" \
+            --signer-digest "$GITHUB_SHA" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners
+      - name: Verify root SBOM signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh attestation verify output/root-release/*.tgz \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/npm-publish.yml" \
+            --signer-digest "$GITHUB_SHA" \
+            --source-digest "$GITHUB_SHA" \
+            --predicate-type https://spdx.dev/Document/v2.3 \
+            --deny-self-hosted-runners
       - name: Verify exact successful Rust workflow run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,7 +184,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_COMMIT: ${{ github.sha }}
-        run: node scripts/native-release-set.mjs validate --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"
+        run: node scripts/native-release-set.mjs validate --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" > output/native-release.validation.json
       - name: Verify native provenance signatures
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -137,6 +212,14 @@ jobs:
               --predicate-type https://spdx.dev/Document/v2.3 \
               --deny-self-hosted-runners
           done < <(find output/native-release -type f -name '*.tgz' -print0)
+      - name: Prove exact root install, uninstall, and clean reinstall
+        shell: bash
+        run: |
+          export MEMORY_RECALL_ROOT_PACKAGE_TARBALL="$(node -p "require('path').resolve('output/root-release', JSON.parse(require('fs').readFileSync('output/root-release.validation.json', 'utf8')).artifact.tarball)")"
+          export MEMORY_RECALL_NATIVE_PACKAGE_TARBALL="$(node -p "require('path').resolve('output/native-release', JSON.parse(require('fs').readFileSync('output/native-release.validation.json', 'utf8')).artifacts.find(({ target }) => target === 'linux-x64-gnu').tarball)")"
+          test -f "$MEMORY_RECALL_ROOT_PACKAGE_TARBALL"
+          test -f "$MEMORY_RECALL_NATIVE_PACKAGE_TARBALL"
+          node scripts/native-code-intelligence-consumer-smoke.mjs
       - name: Publish native packages
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -150,12 +233,19 @@ jobs:
           RELEASE_COMMIT: ${{ github.sha }}
         run: node scripts/native-release-set.mjs verify-registry --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"
       - name: Dry-run root package after native registry verification
-        run: npm publish --access public --dry-run
-      - name: Publish with npm Trusted Publishing
-        if: ${{ inputs.auth_mode == 'trusted-publishing' }}
-        run: npm publish --access public
-      - name: Publish with NPM_TOKEN fallback
-        if: ${{ inputs.auth_mode == 'npm-token' }}
+        shell: bash
+        run: |
+          ROOT_TARBALL="output/root-release/$(node -p "JSON.parse(require('fs').readFileSync('output/root-release/memory-recall-root-release.json', 'utf8')).package.tarball")"
+          npm publish "$ROOT_TARBALL" --access public --dry-run
+      - name: Publish exact root package
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          AUTH_MODE: ${{ inputs.auth_mode }}
+          NODE_AUTH_TOKEN: ${{ inputs.auth_mode == 'npm-token' && secrets.NPM_TOKEN || '' }}
+        run: node scripts/native-release-set.mjs publish-root --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" --auth-mode "$AUTH_MODE"
+      - name: Verify root package on npm
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/native-release-set.mjs verify-root-registry --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"

@@ -47,27 +47,47 @@ export function buildPublishedPackageJson(template, target) {
 export function buildNativeSpdxSbom({ packageReport, commit, created, tarballSha256 }) {
   const expected = NATIVE_TARGETS[packageReport?.target];
   if (!expected) throw new Error('native SBOM target is unsupported');
-  if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('native SBOM commit must be a full Git SHA');
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(created ?? '') || Number.isNaN(Date.parse(created))) {
-    throw new Error('native SBOM creation time must be canonical SPDX ISO-8601');
-  }
   if (packageReport.packageName !== `@memory-recall/native-${packageReport.target}`) throw new Error('native SBOM package name is invalid');
-  if (!/^\d+\.\d+\.\d+$/u.test(packageReport.version ?? '')) throw new Error('native SBOM package version is invalid');
-  if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('native SBOM tarball checksum is invalid');
   if (!Array.isArray(packageReport.files) || packageReport.files.length !== 5
-    || packageReport.files.some((file) => !/^[A-Za-z0-9._/-]+$/u.test(file?.path ?? '')
-      || !/^[a-f0-9]{40}$/u.test(file?.sha1 ?? '') || !/^[a-f0-9]{64}$/u.test(file?.sha256 ?? ''))) {
+    || packageReport.files.some((file) => file?.path === undefined)) {
     throw new Error('native SBOM requires checksums for the exact five package files');
   }
-  const files = [...packageReport.files].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  return buildPackageSpdxSbom({
+    packageName: packageReport.packageName,
+    version: packageReport.version,
+    files: packageReport.files,
+    commit,
+    created,
+    tarballSha256,
+    namespaceKey: packageReport.target
+  });
+}
+
+export function buildPackageSpdxSbom({ packageName, version, files: inputFiles, commit, created, tarballSha256, namespaceKey }) {
+  if (!/^(?:@[a-z0-9-]+\/[a-z0-9-]+|[a-z0-9-]+)$/u.test(packageName ?? '')) throw new Error('SBOM package name is invalid');
+  if (!/^\d+\.\d+\.\d+$/u.test(version ?? '')) throw new Error('SBOM package version is invalid');
+  if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('SBOM commit must be a full Git SHA');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(created ?? '') || Number.isNaN(Date.parse(created))) {
+    throw new Error('SBOM creation time must be canonical SPDX ISO-8601');
+  }
+  if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('SBOM tarball checksum is invalid');
+  if (!/^[a-z0-9-]+$/u.test(namespaceKey ?? '')) throw new Error('SBOM namespace key is invalid');
+  if (!Array.isArray(inputFiles) || inputFiles.length === 0 || inputFiles.length > 2_000
+    || inputFiles.some((file) => !/^[A-Za-z0-9._/-]+$/u.test(file?.path ?? '')
+      || path.posix.isAbsolute(file.path) || file.path.split('/').includes('..')
+      || !/^[a-f0-9]{40}$/u.test(file?.sha1 ?? '') || !/^[a-f0-9]{64}$/u.test(file?.sha256 ?? ''))
+    || new Set(inputFiles.map(({ path: filePath }) => filePath)).size !== inputFiles.length) {
+    throw new Error('SBOM package files are invalid');
+  }
+  const files = [...inputFiles].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
   const verificationCode = createHash('sha1').update(files.map(({ sha1 }) => sha1).sort().join('')).digest('hex');
-  const encodedPackageName = packageReport.packageName.replace('@', '%40');
+  const encodedPackageName = packageName.replace('@', '%40');
   return Object.freeze({
     spdxVersion: 'SPDX-2.3',
     dataLicense: 'CC0-1.0',
     SPDXID: 'SPDXRef-DOCUMENT',
-    name: `${packageReport.packageName}@${packageReport.version}`,
-    documentNamespace: `https://github.com/rebel0789/Memory-Recall/sbom/${commit}/${packageReport.target}/${packageReport.version}/${tarballSha256.slice('sha256:'.length)}`,
+    name: `${packageName}@${version}`,
+    documentNamespace: `https://github.com/rebel0789/Memory-Recall/sbom/${commit}/${namespaceKey}/${version}/${tarballSha256.slice('sha256:'.length)}`,
     creationInfo: {
       created,
       creators: ['Tool: memory-recall-native-release']
@@ -85,8 +105,8 @@ export function buildNativeSpdxSbom({ packageReport, commit, created, tarballSha
     })),
     packages: [{
       SPDXID: 'SPDXRef-Package',
-      name: packageReport.packageName,
-      versionInfo: packageReport.version,
+      name: packageName,
+      versionInfo: version,
       downloadLocation: 'NOASSERTION',
       filesAnalyzed: true,
       packageVerificationCode: { packageVerificationCodeValue: verificationCode },
@@ -97,7 +117,7 @@ export function buildNativeSpdxSbom({ packageReport, commit, created, tarballSha
       externalRefs: [{
         referenceCategory: 'PACKAGE-MANAGER',
         referenceType: 'purl',
-        referenceLocator: `pkg:npm/${encodedPackageName}@${packageReport.version}`
+        referenceLocator: `pkg:npm/${encodedPackageName}@${version}`
       }]
     }],
     relationships: files.map((_, index) => ({
