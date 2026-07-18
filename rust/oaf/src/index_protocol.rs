@@ -5,9 +5,10 @@ use crate::code_intelligence::{
 use anyhow::{bail, Context, Result};
 use oaf_index::{
     doctor_index, inspect_index, logical_database_bytes, normalized_generation_fingerprint,
-    repair_index, repository_identity_hash, select_generation_files, CoverageRecord,
-    DiscoveredFile, EdgeDirection, GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth,
-    NodeRecord, QueryBounds, RefreshPlan, SourceIndex, SourceIndexOptions,
+    repair_index, repository_identity_hash, select_generation_files, ActiveGenerationMetadata,
+    CoverageRecord, DiscoveredFile, EdgeDirection, GenerationInput, HealthStatus,
+    IndexDoctorReport, IndexHealth, NodeRecord, QueryBounds, RefreshPlan, SourceIndex,
+    SourceIndexOptions,
 };
 use oaf_ingest::{discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions};
 use serde::Deserialize;
@@ -416,7 +417,7 @@ fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) ->
     match &request.operation {
         Operation::Build(arguments) => {
             let build = build_generation(&root, &request, arguments, engine_version)?;
-            let omitted_count = persisted_omitted_count(&build.generation);
+            let omitted_count = persisted_omitted_count(&build.generation.coverage);
             let mut index = SourceIndex::open(&path, &options)?;
             let summary = index.commit_generation(&build.generation)?;
             drop(index);
@@ -457,7 +458,7 @@ fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) ->
         ),
         Operation::Repair(arguments) => {
             let build = build_generation(&root, &request, arguments, engine_version)?;
-            let omitted_count = persisted_omitted_count(&build.generation);
+            let omitted_count = persisted_omitted_count(&build.generation.coverage);
             let confirmation = arguments
                 .confirm_repair_plan
                 .as_deref()
@@ -571,7 +572,7 @@ fn refresh_index(
             &health,
             None,
             Some(&summary),
-            persisted_omitted_count(&active.input),
+            persisted_omitted_count(&active.input.coverage),
             Vec::new(),
             None,
             Measurements {
@@ -589,7 +590,7 @@ fn refresh_index(
     let current = discovery.files;
     let plan = reader.plan_refresh(&current, None, &oaf_index::RefreshBounds::default())?;
     if plan.no_change {
-        let omitted_count = persisted_omitted_count(&active.input);
+        let omitted_count = persisted_omitted_count(&active.input.coverage);
         let summary = active.summary;
         let health = inspect_index(path, options);
         return Ok(success_frame(
@@ -639,7 +640,7 @@ fn refresh_index(
     let replacement = select_generation_files(&build.generation, &invalidated);
     let summary = writer.commit_incremental(&plan, &replacement)?.summary;
     drop(writer);
-    let omitted_count = persisted_omitted_count(&build.generation);
+    let omitted_count = persisted_omitted_count(&build.generation.coverage);
     let health = inspect_index(path, options);
     Ok(success_frame(
         &request.request_id,
@@ -711,17 +712,11 @@ fn read_index(
             ensure_queryable(health.status)?;
         }
         let index = SourceIndex::open_read_only(path, options)?;
-        if let Some(active) = index.load_active_generation()? {
-            omitted_count = persisted_omitted_count(&active.input);
+        if let Some(active) = index.load_active_generation_metadata()? {
+            omitted_count = persisted_omitted_count(&active.coverage);
             if !doctor && health.status == HealthStatus::Ready {
-                let (source_health, reused, changed, deleted) = verify_source_freshness(
-                    root,
-                    request,
-                    started,
-                    &index,
-                    &active.input,
-                    &health,
-                )?;
+                let (source_health, reused, changed, deleted) =
+                    verify_source_freshness(root, request, started, &index, &active, &health)?;
                 health = source_health;
                 measurements.reused_file_count = reused;
                 measurements.changed_file_count = changed;
@@ -732,7 +727,7 @@ fn read_index(
                     .map(|code| json!({ "code": code, "count": 1 }))
                     .collect();
             }
-            response_diagnostics.extend(persisted_coverage_diagnostics(&active.input));
+            response_diagnostics.extend(persisted_coverage_diagnostics(&active.coverage));
             summary = Some(active.summary);
         }
         if let Some(arguments) = query {
@@ -809,7 +804,7 @@ fn verify_source_freshness(
     request: &ParsedRequest,
     started: Instant,
     index: &SourceIndex,
-    active: &GenerationInput,
+    active: &ActiveGenerationMetadata,
     base_health: &IndexHealth,
 ) -> Result<(IndexHealth, usize, usize, usize)> {
     let scope_all_languages = active
@@ -844,11 +839,11 @@ fn verify_source_freshness(
         languages.extend(active.files.iter().map(|file| file.language.clone()));
     }
     let mut ingest_options = IngestOptions::new(root);
-    ingest_options.max_file_bytes =
-        persisted_max_file_bytes(active).unwrap_or(LEGACY_SOURCE_FRESHNESS_MAX_FILE_BYTES);
+    ingest_options.max_file_bytes = persisted_max_file_bytes(&active.coverage)
+        .unwrap_or(LEGACY_SOURCE_FRESHNESS_MAX_FILE_BYTES);
     ingest_options.prefer_cpp_headers = languages.contains("cpp") && !languages.contains("c");
     let selected_file_limit =
-        (persisted_omitted_file_count(active) > 0).then_some(active.files.len());
+        (persisted_omitted_file_count(&active.coverage) > 0).then_some(active.files.len());
     let deadline = started
         .checked_add(Duration::from_millis(request.deadline_ms))
         .unwrap_or(started);
@@ -1056,9 +1051,8 @@ fn record_max_file_bytes(coverage: &mut Vec<CoverageRecord>, max_file_bytes: u64
     Ok(())
 }
 
-fn persisted_max_file_bytes(input: &GenerationInput) -> Option<u64> {
-    input
-        .coverage
+fn persisted_max_file_bytes(coverage: &[CoverageRecord]) -> Option<u64> {
+    coverage
         .iter()
         .find(|record| {
             record.language == "source-index" && record.capability == SCAN_MAX_FILE_BYTES_CAPABILITY
@@ -1067,9 +1061,8 @@ fn persisted_max_file_bytes(input: &GenerationInput) -> Option<u64> {
         .filter(|value| *value > 0)
 }
 
-fn persisted_omitted_count(input: &GenerationInput) -> u64 {
-    input
-        .coverage
+fn persisted_omitted_count(coverage: &[CoverageRecord]) -> u64 {
+    coverage
         .iter()
         .filter(|record| {
             record.language == "source-index" && record.capability.starts_with("omitted-")
@@ -1078,7 +1071,7 @@ fn persisted_omitted_count(input: &GenerationInput) -> u64 {
         .sum()
 }
 
-fn persisted_coverage_diagnostics(input: &GenerationInput) -> Vec<Value> {
+fn persisted_coverage_diagnostics(coverage: &[CoverageRecord]) -> Vec<Value> {
     [
         ("omitted-files", "source_index_files_omitted"),
         ("omitted-nodes", "source_index_nodes_omitted"),
@@ -1086,8 +1079,7 @@ fn persisted_coverage_diagnostics(input: &GenerationInput) -> Vec<Value> {
     ]
     .into_iter()
     .filter_map(|(capability, code)| {
-        let count = input
-            .coverage
+        let count = coverage
             .iter()
             .filter(|record| record.language == "source-index" && record.capability == capability)
             .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
@@ -1097,9 +1089,8 @@ fn persisted_coverage_diagnostics(input: &GenerationInput) -> Vec<Value> {
     .collect()
 }
 
-fn persisted_omitted_file_count(input: &GenerationInput) -> u64 {
-    input
-        .coverage
+fn persisted_omitted_file_count(coverage: &[CoverageRecord]) -> u64 {
+    coverage
         .iter()
         .filter(|record| record.language == "source-index" && record.capability == "omitted-files")
         .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
@@ -2787,8 +2778,8 @@ mod tests {
         let repository_identity = repository_identity_hash(&canonical_root, "ws_local");
         let options = SourceIndexOptions::new(repository_identity, "1.1.1");
         let index = SourceIndex::open_read_only(&index_path, &options).unwrap();
-        let active = index.load_active_generation().unwrap().unwrap();
-        assert_eq!(persisted_max_file_bytes(&active.input), Some(64));
+        let active = index.load_active_generation_metadata().unwrap().unwrap();
+        assert_eq!(persisted_max_file_bytes(&active.coverage), Some(64));
         drop(index);
 
         fs::write(
@@ -2806,8 +2797,8 @@ mod tests {
         assert_eq!(refresh["result"]["measurements"]["changedFileCount"], 1);
         assert_eq!(refresh["result"]["measurements"]["localFilesWritten"], 1);
         let index = SourceIndex::open_read_only(&index_path, &options).unwrap();
-        let active = index.load_active_generation().unwrap().unwrap();
-        assert_eq!(persisted_max_file_bytes(&active.input), Some(96));
+        let active = index.load_active_generation_metadata().unwrap().unwrap();
+        assert_eq!(persisted_max_file_bytes(&active.coverage), Some(96));
         drop(index);
 
         fs::write(

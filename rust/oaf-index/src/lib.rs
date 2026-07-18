@@ -226,6 +226,13 @@ pub struct IndexHealth {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ActiveGenerationMetadata {
+    pub summary: GenerationSummary,
+    pub files: Vec<FileRecord>,
+    pub coverage: Vec<CoverageRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommunityProjection {
     pub id: String,
@@ -432,12 +439,23 @@ impl SourceIndex {
             .transpose()
     }
 
+    pub fn load_active_generation_metadata(&self) -> Result<Option<ActiveGenerationMetadata>> {
+        self.active_generation()
+            .map(|generation_id| {
+                let summary = load_generation_summary(&self.connection, generation_id)?;
+                let files = load_generation_files(&self.connection, generation_id)?;
+                let coverage = load_generation_coverage(&self.connection, generation_id)?;
+                Ok(ActiveGenerationMetadata {
+                    summary,
+                    files,
+                    coverage,
+                })
+            })
+            .transpose()
+    }
+
     pub fn load_generation(&self, generation_id: i64) -> Result<StoredGeneration> {
-        let summary = self.connection.query_row(
-            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint, ignore_fingerprint FROM index_generations WHERE id = ?1 AND state = 'committed'",
-            [generation_id],
-            row_to_summary,
-        ).context("source_index_generation_not_found")?;
+        let summary = load_generation_summary(&self.connection, generation_id)?;
         let input = load_generation_records(&self.connection, &summary)?;
         Ok(StoredGeneration { summary, input })
     }
@@ -460,7 +478,7 @@ impl SourceIndex {
                 bail!("source_index_refresh_discovery_invalid");
             }
         }
-        let Some(active) = self.load_active_generation()? else {
+        let Some(active) = self.load_active_generation_metadata()? else {
             let added_files = current.keys().cloned().collect::<Vec<_>>();
             return Ok(RefreshPlan {
                 invalidated_files: added_files.clone(),
@@ -476,7 +494,6 @@ impl SourceIndex {
             });
         };
         let previous = active
-            .input
             .files
             .iter()
             .map(|file| (file.locator.clone(), file))
@@ -513,7 +530,8 @@ impl SourceIndex {
             added.remove(&rename.to_locator);
             deleted.remove(&rename.from_locator);
         }
-        let ignore_rules_changed = active.input.ignore_fingerprint.as_deref() != ignore_fingerprint;
+        let ignore_rules_changed =
+            active.summary.ignore_fingerprint.as_deref() != ignore_fingerprint;
         let no_change = added.is_empty()
             && deleted.is_empty()
             && changed.is_empty()
@@ -543,6 +561,7 @@ impl SourceIndex {
         let (mut invalidated, mut truncated) = if ignore_rules_changed {
             (current.keys().cloned().collect::<BTreeSet<_>>(), false)
         } else {
+            let active = self.load_generation(active.summary.id)?;
             invalidation_closure(&active.input, &seed_files, bounds)
         };
         invalidated.extend(added.iter().cloned());
@@ -1621,14 +1640,24 @@ fn insert_generation_records(
     Ok(())
 }
 
-fn load_generation_records(
+fn load_generation_summary(
     connection: &Connection,
-    summary: &GenerationSummary,
-) -> Result<GenerationInput> {
-    let files = collect_rows(
+    generation_id: i64,
+) -> Result<GenerationSummary> {
+    connection
+        .query_row(
+            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint, ignore_fingerprint FROM index_generations WHERE id = ?1 AND state = 'committed'",
+            [generation_id],
+            row_to_summary,
+        )
+        .context("source_index_generation_not_found")
+}
+
+fn load_generation_files(connection: &Connection, generation_id: i64) -> Result<Vec<FileRecord>> {
+    collect_rows(
         connection,
         "SELECT locator, content_hash, byte_size, language, parse_state, diagnostic_count, owner_identity FROM index_files WHERE generation_id = ?1 ORDER BY ordinal",
-        summary.id,
+        generation_id,
         |row| Ok(FileRecord {
             locator: row.get(0)?,
             content_hash: row.get(1)?,
@@ -1638,7 +1667,33 @@ fn load_generation_records(
             diagnostic_count: row.get(5)?,
             owner_identity: row.get(6)?,
         }),
-    )?;
+    )
+}
+
+fn load_generation_coverage(
+    connection: &Connection,
+    generation_id: i64,
+) -> Result<Vec<CoverageRecord>> {
+    collect_rows(
+        connection,
+        "SELECT language, capability, represented_count, omitted_count, failed_count, reason_code FROM index_coverage WHERE generation_id = ?1 ORDER BY ordinal",
+        generation_id,
+        |row| Ok(CoverageRecord {
+            language: row.get(0)?,
+            capability: row.get(1)?,
+            represented_count: row.get(2)?,
+            omitted_count: row.get(3)?,
+            failed_count: row.get(4)?,
+            reason_code: row.get(5)?,
+        }),
+    )
+}
+
+fn load_generation_records(
+    connection: &Connection,
+    summary: &GenerationSummary,
+) -> Result<GenerationInput> {
+    let files = load_generation_files(connection, summary.id)?;
     let nodes = collect_rows(
         connection,
         "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 ORDER BY ordinal",
@@ -1667,19 +1722,7 @@ fn load_generation_records(
             confidence_class: row.get(8)?,
         }),
     )?;
-    let coverage = collect_rows(
-        connection,
-        "SELECT language, capability, represented_count, omitted_count, failed_count, reason_code FROM index_coverage WHERE generation_id = ?1 ORDER BY ordinal",
-        summary.id,
-        |row| Ok(CoverageRecord {
-            language: row.get(0)?,
-            capability: row.get(1)?,
-            represented_count: row.get(2)?,
-            omitted_count: row.get(3)?,
-            failed_count: row.get(4)?,
-            reason_code: row.get(5)?,
-        }),
-    )?;
+    let coverage = load_generation_coverage(connection, summary.id)?;
     let diagnostics = collect_rows(
         connection,
         "SELECT canonical_id, severity, code, locator, start_line, end_line, message_hash FROM index_diagnostics WHERE generation_id = ?1 ORDER BY ordinal",
