@@ -252,7 +252,7 @@ test('release binary resolves one exact Go module across repositories and exclud
     'server',
     '--read-only',
     '--engine',
-    'native-preview',
+    'native',
     '--workspace',
     WORKSPACE_ID,
     '--root',
@@ -343,7 +343,7 @@ test('release binary resolves one exact Go module across repositories and exclud
     'server',
     '--read-only',
     '--engine',
-    'js',
+    'compatibility',
     '--workspace',
     WORKSPACE_ID,
     '--root',
@@ -374,7 +374,7 @@ test('release binary resolves one exact Go module across repositories and exclud
   const jsCrossRepository = jsResponses.find(({ id }) => id === 2).error;
   assert.equal(jsCrossRepository.code, -32008);
   assert.equal(jsCrossRepository.data.code, 'mcp_tool_failed');
-  assert.match(jsCrossRepository.message, /requires --engine native-preview or --engine auto/u);
+  assert.match(jsCrossRepository.message, /requires --engine native/u);
   assert.equal(jsMcp.stdout.includes(fleet), false);
 
   const serialized = JSON.stringify({ resolved, traced, impacted });
@@ -424,7 +424,7 @@ async function assertStoredReceipt(receipt) {
   assert.equal(receipt.packageEvidence.installed, true);
   assert.equal(receipt.packageEvidence.providerSource, 'platform-package');
   assert.equal(receipt.packageEvidence.providerVerified, true);
-  assert.equal(receipt.packageEvidence.mcpEngine, 'native-preview');
+  assert.equal(receipt.packageEvidence.mcpEngine, 'native');
   assert.match(receipt.packageEvidence.rootTarballSha256, /^sha256:[a-f0-9]{64}$/u);
   assert.match(receipt.packageEvidence.nativeTarballSha256, /^sha256:[a-f0-9]{64}$/u);
   assert.match(receipt.implementation.releaseBinarySha256, /^sha256:[a-f0-9]{64}$/u);

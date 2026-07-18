@@ -84,9 +84,11 @@ test('native provider builds and validates one local read-only graph', async (t)
     'code-intelligence.repository.go.trace',
     'code-intelligence.repository.go.impact',
     'code-intelligence.local-read-only',
-    'code-intelligence.native-preview'
+    'code-intelligence.native'
   ]);
-  assert.equal((await instance.health()).status, 'healthy');
+  const health = await instance.health();
+  assert.equal(health.status, 'healthy');
+  assert.equal(health.details.productionDefault, true);
 });
 
 test('native provider fails clearly when the explicit binary is unavailable', async (t) => {

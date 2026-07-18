@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { Readable, Writable } from 'node:stream';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +15,7 @@ let child;
 let base;
 let temp;
 let latestAuth = null;
+const rustBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 
 async function bootstrapIdentity(dataDir) {
   let stderr = '';
@@ -200,10 +201,29 @@ test.before(async () => {
   temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-'));
   await bootstrapIdentity(temp);
   await seedMemory(temp);
+  await mkdir(path.join(temp, 'apps', 'web'), { recursive: true });
+  await mkdir(path.join(temp, 'services', 'control-api', 'src'), { recursive: true });
+  await writeFile(path.join(temp, 'AGENTS.md'), await readFile(path.resolve('AGENTS.md')));
+  await writeFile(path.join(temp, 'apps', 'web', 'app.js'), 'export function renderHome(){ return "home"; }\n');
+  await writeFile(
+    path.join(temp, 'services', 'control-api', 'src', 'server.mjs'),
+    'import { renderHome } from "../../../apps/web/app.js";\nexport function createControlApiServer(){ return renderHome(); }\n'
+  );
+  const indexed = spawnSync(process.execPath, [
+    path.resolve('apps/cli/oaf.mjs'), 'graph', 'index', '--write', '--engine', 'native',
+    '--languages', 'javascript', '--root', temp, '--format', 'json'
+  ], { encoding: 'utf8', env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary } });
+  assert.equal(indexed.status, 0, indexed.stderr);
   const port = 46000 + Math.floor(Math.random() * 1000);
   base = `http://127.0.0.1:${port}`;
   child = spawn(process.execPath, ['services/control-api/src/server.mjs'], {
-    env: { ...process.env, OAF_PORT: String(port), OAF_DATA_DIR: temp },
+    env: {
+      ...process.env,
+      MEMORY_RECALL_NATIVE_BINARY: rustBinary,
+      OAF_PORT: String(port),
+      OAF_DATA_DIR: temp,
+      OAF_WORKSPACE_ROOT: temp
+    },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   for (let i = 0; i < 80; i += 1) {

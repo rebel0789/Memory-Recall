@@ -87,6 +87,20 @@ test('orientation model distinguishes loading, clean, stale, empty, and failure 
   assert.equal(stale.coverage.lastValidSnapshotShown, true);
 });
 
+test('Overview renders the exact native index recovery action', () => {
+  const report = orientationFixture({ groupCount: 0, entryPointCount: 0 });
+  report.support.sourceGraph.status = 'unavailable';
+  report.support.sourceGraph.coverage.status = 'unavailable';
+  report.support.sourceGraph.snapshot.status = 'unavailable';
+  report.support.sourceGraph.snapshot.reason = 'source_graph_unavailable:source_index_build_required';
+  const model = buildOrientationModel({ report });
+  const html = renderOrientation(model);
+  assert.equal(model.index.recoveryCommand, 'recall graph index --write --engine native --root . --format summary');
+  assert.match(html, /Build the local source index/);
+  assert.match(html, /recall graph index --write --engine native --root \. --format summary/);
+  assert.match(html, /data-action="refresh-recall-map"/);
+});
+
 test('group layering collapses cycles and selection keeps the same bounded model', () => {
   const groups = [
     { id: 'a', prefix: 'apps/a' },

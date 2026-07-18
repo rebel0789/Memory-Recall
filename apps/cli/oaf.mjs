@@ -42,7 +42,7 @@ import {
   evaluateMemoryWrite,
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
-import { buildRecallMap } from '../../packages/recall-map/src/index.mjs';
+import { buildRecallMap, buildRecallMapMemorySummary } from '../../packages/recall-map/src/index.mjs';
 import {
   assertSemanticProposalSourcesCurrent,
   assertSemanticSourceBindingsCurrent,
@@ -81,6 +81,7 @@ import {
   buildCodeSearchIntelligence,
   buildCodeTraceIntelligence,
   buildNativeIndexArchitecture,
+  buildNativeIndexSourceGraphPreview,
   buildPersistentSourceGraphIndex,
   buildSourceGraphIntelligence,
   readPersistentSourceGraphIndexStatus,
@@ -3012,7 +3013,7 @@ async function graphRepositoriesCommand(values) {
     const report = compactNativeGraphRepositoriesReport(result);
     console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphRepositoriesSummary(report));
   } catch (error) {
-    console.error(error?.code ?? error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
@@ -3046,19 +3047,20 @@ async function graphIndexCommand(values) {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const engine = option(values, '--engine') ?? 'js';
-  if (!['js', 'native-preview'].includes(engine)) {
-    console.error('graph index --engine must be js or native-preview');
+  const requestedEngine = option(values, '--engine') ?? 'native';
+  if (!['native', 'native-preview', 'compatibility'].includes(requestedEngine)) {
+    console.error('graph index --engine must be native, native-preview, or compatibility');
     process.exitCode = 2;
     return;
   }
+  const engine = requestedEngine === 'native-preview' ? 'native' : requestedEngine;
   const invalidForMode = invalidGraphIndexModeOption(values, modes[0], engine);
   if (invalidForMode) {
     console.error(`graph index ${modes[0]} does not accept ${invalidForMode}`);
     process.exitCode = 2;
     return;
   }
-  if (engine === 'native-preview') {
+  if (engine === 'native') {
     if (option(values, '--out')) {
       console.error('native source index uses the fixed workspace-local index path');
       process.exitCode = 2;
@@ -3067,7 +3069,7 @@ async function graphIndexCommand(values) {
     return nativeGraphIndexCommand(values, { mode: modes[0], root, workspaceId, format, watch });
   }
   if (['--doctor', '--repair', '--query'].includes(modes[0])) {
-    console.error(`${modes[0]} requires --engine native-preview`);
+    console.error(`${modes[0]} requires --engine native`);
     process.exitCode = 2;
     return;
   }
@@ -3151,7 +3153,7 @@ async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format
       return report;
     };
     await execute();
-    if (watch) await watchGraphIndex({ root: path.resolve(root), execute, engine: 'native-preview' });
+    if (watch) await watchGraphIndex({ root: path.resolve(root), execute, engine: 'native' });
   } catch (error) {
     console.error(error?.code ?? error.message);
     process.exitCode = 2;
@@ -3160,7 +3162,7 @@ async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format
 
 function invalidGraphIndexModeOption(values, mode, engine) {
   const base = new Set([mode, '--root', '--workspace', '--format', '--engine']);
-  const allowed = engine === 'js'
+  const allowed = engine === 'compatibility'
     ? new Set([...base, '--out', '--max-files', '--max-file-bytes', ...(mode === '--refresh' ? ['--watch'] : [])])
     : mode === '--status' || mode === '--doctor'
       ? base
@@ -3181,7 +3183,7 @@ function compactNativeGraphIndexReport(result) {
   return {
     schemaVersion: result.responseSchemaVersion,
     command: `graph index ${result.operation.slice('index.'.length)}`,
-    engine: { selection: 'native-preview', implementation: 'memory-recall-native', previewOnly: true, publicDefaultChanged: false },
+    engine: { selection: 'native', implementation: 'memory-recall-native', previewOnly: false, publicDefaultChanged: true },
     status: result.state,
     indexLocator: result.indexLocator,
     activeGeneration: result.activeGeneration,
@@ -3206,7 +3208,7 @@ function compactNativeGraphRepositoriesReport(result) {
   return {
     schemaVersion: result.responseSchemaVersion,
     command: `graph repositories ${result.operation.slice('repository.'.length)}`,
-    engine: { selection: 'native-preview', implementation: 'memory-recall-native', previewOnly: true, publicDefaultChanged: false },
+    engine: { selection: 'native', implementation: 'memory-recall-native', previewOnly: false, publicDefaultChanged: true },
     status: result.state,
     registryLocator: result.registryLocator,
     repositories: result.repositories,
@@ -3290,7 +3292,7 @@ function renderGraphIndexSummary(report) {
   ].join('\n');
 }
 
-async function watchGraphIndex({ root, execute, engine = 'js' }) {
+async function watchGraphIndex({ root, execute, engine = 'compatibility' }) {
   let timer = null;
   let running = false;
   let pending = false;
@@ -3312,7 +3314,7 @@ async function watchGraphIndex({ root, execute, engine = 'js' }) {
   };
   const watcher = watchFs(root, { recursive: true }, (_event, filename) => {
     const relative = String(filename ?? '').replaceAll('\\', '/');
-    const sourcePattern = engine === 'native-preview'
+    const sourcePattern = engine === 'native'
       ? /(?:\.(?:[cm]?[jt]sx?|py|java|kts?|cs|go|rs|php|rb|swift|c|h|cc|cpp|cxx|hpp|dart|lua|sh|bash|sql|m|mm|scala|r|jl|zig)|(?:^|\/)\.gitignore|(?:^|\/)\.recallignore)$/iu
       : /(?:\.(?:[cm]?[jt]sx?)|(?:^|\/)\.gitignore|(?:^|\/)\.recallignore)$/u;
     if (!relative || relative.startsWith('.local/source-graph/') || relative.startsWith('.local/source-index/') || !sourcePattern.test(relative)) return;
@@ -3566,50 +3568,65 @@ async function graphPreviewBackedCommand(values, {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const requestedEngine = option(values, '--engine') ?? 'auto';
-  if (!['js', 'auto', 'native-preview', 'compatibility'].includes(requestedEngine)) {
-    console.error('graph --engine must be js, auto, native-preview, or compatibility');
+  const requestedEngine = option(values, '--engine') ?? 'native';
+  if (!['auto', 'native', 'native-preview', 'compatibility'].includes(requestedEngine)) {
+    console.error('graph --engine must be native, native-preview, auto, or compatibility');
     process.exitCode = 2;
     return;
   }
   try {
     const maxFiles = strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
     const maxFileBytes = strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES);
-    const selected = await selectGraphReadEngine({ requestedEngine, root, workspaceId });
+    const selected = await selectGraphReadEngine({ requestedEngine });
     const engine = selected.selection;
-    let intelligence = null;
-    if (engine !== 'js') {
+    let preview;
+    if (engine === 'native') {
       const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
-      intelligence = await buildSourceGraphIntelligence({
+      const provider = new RustCodeIntelligenceProvider();
+      const status = await provider.indexStatus({ root, workspaceId });
+      if (!nativeIndexReadyForAutomaticRead(status)) {
+        const code = nativeIndexRecoveryCode(status);
+        const error = new Error(code);
+        error.code = code;
+        throw error;
+      }
+      preview = await buildNativeIndexSourceGraphPreview({
+        provider,
+        status,
         root,
         workspaceId,
+        query,
+        startName,
+        changedLocators,
+        locatorPrefix: option(values, '--locator-prefix'),
+        direction,
+        limit: strictIntegerOption(values, '--limit', 20),
+        offset: strictIntegerOption(values, '--offset', 0),
+        depth: strictIntegerOption(values, '--depth', 2),
+        sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
+        clock: fixedNow
+      });
+    } else {
+      preview = await buildSourceGraphPreview({
+        root,
+        workspaceId,
+        query,
+        startName,
+        changedLocators,
+        nodeKinds: option(values, '--node-kinds'),
+        edgeKinds: option(values, '--edge-kinds'),
+        labelPattern: option(values, '--label-pattern'),
+        locatorPrefix: option(values, '--locator-prefix'),
+        direction,
+        limit: strictIntegerOption(values, '--limit', 20),
+        offset: strictIntegerOption(values, '--offset', 0),
+        depth: strictIntegerOption(values, '--depth', 2),
+        sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
         maxFiles,
         maxFileBytes,
-        engine,
-        codeIntelligenceProvider: selected.provider ?? new RustCodeIntelligenceProvider(),
         clock: fixedNow
       });
     }
-    const preview = await buildSourceGraphPreview({
-      root,
-      workspaceId,
-      query,
-      startName,
-      changedLocators,
-      nodeKinds: option(values, '--node-kinds'),
-      edgeKinds: option(values, '--edge-kinds'),
-      labelPattern: option(values, '--label-pattern'),
-      locatorPrefix: option(values, '--locator-prefix'),
-      direction,
-      limit: strictIntegerOption(values, '--limit', 20),
-      offset: strictIntegerOption(values, '--offset', 0),
-      depth: strictIntegerOption(values, '--depth', 2),
-      sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
-      maxFiles,
-      maxFileBytes,
-      sourceGraph: intelligence?.graph ?? null,
-      clock: fixedNow
-    });
     const baseReport = {
       schemaVersion: '1.0.0',
       command: commandName,
@@ -3617,13 +3634,12 @@ async function graphPreviewBackedCommand(values, {
       workspaceId: preview.workspaceId,
       engine: {
         selection: engine,
-        implementation: engine === 'js' ? 'javascript-typescript-compatibility' : 'memory-recall-native',
-        previewOnly: requestedEngine === 'native-preview' || requestedEngine === 'compatibility',
+        implementation: engine === 'compatibility' ? 'javascript-typescript-compatibility' : 'memory-recall-native',
+        previewOnly: false,
         publicDefaultChanged: true,
         requested: requestedEngine,
         reason: selected.reasonCode
       },
-      ...(intelligence?.compatibility ? { compatibility: intelligence.compatibility } : {}),
       graph: compactGraphCommandGraph(preview.graph),
       ...pick(preview),
       safeguards: preview.safeguards
@@ -3632,31 +3648,72 @@ async function graphPreviewBackedCommand(values, {
     console.log(format === 'summary' ? renderSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
     const code = error?.code ?? error.message;
-    console.error(requestedEngine === 'native-preview' && String(code).includes('native_engine')
-      ? `${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`
+    console.error(['auto', 'native', 'native-preview'].includes(requestedEngine)
+      ? strictNativeReadMessage(error)
       : code);
     process.exitCode = 2;
   }
 }
 
-async function selectGraphReadEngine({ requestedEngine, root, workspaceId }) {
-  if (requestedEngine !== 'auto') {
-    return { selection: requestedEngine, provider: null, reasonCode: null };
+async function selectGraphReadEngine({ requestedEngine }) {
+  if (requestedEngine === 'compatibility') {
+    return { selection: 'compatibility', provider: null, reasonCode: 'explicit_compatibility' };
   }
-  try {
-    const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
-    const provider = new RustCodeIntelligenceProvider();
-    const health = await provider.health();
-    if (health.status !== 'healthy') {
-      return { selection: 'js', provider: null, reasonCode: 'native_unavailable' };
-    }
-    const status = await provider.indexStatus({ root, workspaceId });
-    return nativeIndexReadyForAutomaticRead(status)
-      ? { selection: 'native-preview', provider, reasonCode: 'native_index_current' }
-      : { selection: 'js', provider: null, reasonCode: nativeAutomaticFallbackReason(status) };
-  } catch {
-    return { selection: 'js', provider: null, reasonCode: 'native_unavailable' };
+  return {
+    selection: 'native',
+    provider: null,
+    reasonCode: requestedEngine === 'auto' ? 'native_default_compatibility_alias' : null
+  };
+}
+
+function nativeIndexRecoveryCode(status) {
+  switch (status?.health?.status) {
+    case 'absent': return 'source_index_build_required';
+    case 'stale': return 'source_index_refresh_required';
+    case 'interrupted':
+    case 'corrupt': return 'source_index_repair_required';
+    case 'migration-required': return 'source_index_migration_required';
+    case 'wrong-repository': return 'source_index_wrong_repository';
+    case 'unsupported-schema': return 'source_index_schema_newer';
+    default: return 'source_index_query_unavailable';
   }
+}
+
+function strictNativeReadMessage(error) {
+  const code = String(error?.code ?? error?.message ?? 'native_engine_unavailable');
+  if (code === 'source_index_build_required' || code === 'source_index_query_unavailable') {
+    return `${code}: run recall graph index --write --engine native --root . --format summary`;
+  }
+  if (code === 'source_index_refresh_required') {
+    return `${code}: run recall graph index --refresh --engine native --root . --format summary`;
+  }
+  if ([
+    'source_index_corrupt',
+    'source_index_integrity_failed',
+    'source_index_migration_checksum_invalid',
+    'source_index_migration_required',
+    'source_index_repair_required',
+    'source_index_wrong_repository'
+  ].includes(code)) {
+    return `${code}: run recall graph index --doctor --engine native --root . --format summary, then use the exact repair command it reports`;
+  }
+  if (code === 'source_index_schema_newer') {
+    return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;
+  }
+  if (code === 'native_platform_unsupported') {
+    return `${code}: this platform has no supported packaged native engine; use --engine compatibility only for the temporary JS compatibility path`;
+  }
+  if ([
+    'native_engine_checksum_mismatch',
+    'native_engine_manifest_invalid',
+    'native_engine_path_invalid',
+    'native_engine_unavailable',
+    'native_engine_version_mismatch',
+    'native_platform_package_missing'
+  ].includes(code)) {
+    return `${code}: install the matching @memory-recall/native-* package; use --engine compatibility only for the temporary JS compatibility path`;
+  }
+  return code;
 }
 
 function graphCommandMeasurements(previewMeasurements = {}, report = {}) {
@@ -6753,9 +6810,9 @@ async function mcpServerCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const sourceIndexEngine = option(values, '--engine') ?? 'auto';
-  if (!['js', 'auto', 'native-preview'].includes(sourceIndexEngine)) {
-    console.error('mcp server --engine must be js, auto, or native-preview');
+  const sourceIndexEngine = option(values, '--engine') ?? 'native';
+  if (!['auto', 'native', 'native-preview', 'compatibility'].includes(sourceIndexEngine)) {
+    console.error('mcp server --engine must be native, native-preview, auto, or compatibility');
     process.exitCode = 2;
     return;
   }
@@ -6875,7 +6932,10 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
-  const sourceIndexEngine = option(values, '--engine') ?? 'auto';
+  const requestedSourceIndexEngine = option(values, '--engine') ?? 'native';
+  const sourceIndexEngine = ['auto', 'native-preview'].includes(requestedSourceIndexEngine)
+    ? 'native'
+    : requestedSourceIndexEngine;
   let intelligencePromise = null;
   const loadIntelligence = () => {
     intelligencePromise ??= buildSourceGraphIntelligence({
@@ -6883,6 +6943,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       workspaceId,
       maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
       maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+      engine: 'js',
       clock: fixedNow
     });
     return intelligencePromise;
@@ -6893,44 +6954,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       .then(({ RustCodeIntelligenceProvider }) => new RustCodeIntelligenceProvider());
     return nativeProviderPromise;
   };
-  const strictNativeReadMessage = (error) => {
-    const code = String(error?.code ?? error?.message ?? 'native_engine_unavailable');
-    if (code === 'source_index_build_required' || code === 'source_index_query_unavailable') {
-      return `${code}: run recall graph index --write --engine native-preview --root . --format summary`;
-    }
-    if (code === 'source_index_refresh_required') {
-      return `${code}: run recall graph index --refresh --engine native-preview --root . --format summary`;
-    }
-    if ([
-      'source_index_corrupt',
-      'source_index_integrity_failed',
-      'source_index_migration_checksum_invalid',
-      'source_index_migration_required',
-      'source_index_repair_required',
-      'source_index_wrong_repository'
-    ].includes(code)) {
-      return `${code}: run recall graph index --doctor --engine native-preview --root . --format summary, then use the exact repair command it reports`;
-    }
-    if (code === 'source_index_schema_newer') {
-      return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;
-    }
-    if (code === 'native_platform_unsupported') {
-      return `${code}: use --engine auto or --engine js on this platform`;
-    }
-    if ([
-      'native_engine_checksum_mismatch',
-      'native_engine_manifest_invalid',
-      'native_engine_path_invalid',
-      'native_engine_unavailable',
-      'native_engine_version_mismatch',
-      'native_platform_package_missing'
-    ].includes(code)) {
-      return `${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`;
-    }
-    return code;
-  };
   const actionableNativeReadError = (error) => {
-    if (sourceIndexEngine !== 'native-preview') throw error;
+    if (sourceIndexEngine !== 'native') throw error;
     throw new Error(strictNativeReadMessage(error));
   };
   const nativeStatus = async () => {
@@ -6942,8 +6967,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
   };
   let nativeRepositoryProviderPromise = null;
   const requireNativeRepositoryProvider = () => {
-    if (!['native-preview', 'auto'].includes(sourceIndexEngine)) {
-      throw new Error('cross-repository access requires --engine native-preview or --engine auto');
+    if (sourceIndexEngine !== 'native') {
+      throw new Error('cross-repository access requires --engine native');
     }
     nativeRepositoryProviderPromise ??= loadNativeProvider()
       .then(async (provider) => {
@@ -6957,22 +6982,15 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     return nativeRepositoryProviderPromise;
   };
   const selectStructuralEngine = async () => {
-    if (sourceIndexEngine !== 'auto') return { selection: sourceIndexEngine, status: null, reasonCode: null };
-    try {
-      const provider = await loadNativeProvider();
-      const health = await provider.health();
-      if (health.status !== 'healthy') return { selection: 'js', status: null, reasonCode: 'native_unavailable' };
-      const status = await provider.indexStatus({ root, workspaceId });
-      return nativeIndexReadyForAutomaticRead(status)
-        ? { selection: 'native-preview', status, reasonCode: 'native_index_current' }
-        : { selection: 'js', status, reasonCode: nativeAutomaticFallbackReason(status) };
-    } catch {
-      return { selection: 'js', status: null, reasonCode: 'native_unavailable' };
-    }
+    return sourceIndexEngine === 'compatibility'
+      ? { selection: 'compatibility', status: null, reasonCode: 'explicit_compatibility' }
+      : { selection: 'native', status: null, reasonCode: null };
   };
-  const jsFallbackSource = (source, selected) => sourceIndexEngine === 'auto'
-    ? { ...source, engine: 'js', reason: selected.reasonCode }
-    : source;
+  const jsFallbackSource = (source) => ({
+    ...source,
+    engine: 'compatibility',
+    reason: 'explicit_compatibility'
+  });
   const nativeQuery = async (kind, argumentsValue = {}) => {
     try {
       return await (await loadNativeProvider()).queryIndex({
@@ -7087,7 +7105,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           const [communities, processes] = await Promise.all([
             nativeQuery('communities', { limit }),
             nativeQuery('processes', { depth: 4, limit })
@@ -7134,7 +7152,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
         if (input.limit !== undefined) throw new Error('repo.index_status limit requires repository scope');
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           const result = selected.status ?? await nativeStatus();
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
@@ -7148,9 +7166,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           command: 'repo.index_status',
           workspaceId,
           generatedAt: fixedNow(),
-          data: sourceIndexEngine === 'auto'
-            ? { ...data, automaticSelection: { engine: 'js', reason: selected.reasonCode } }
-            : data
+          data
         }));
       }
     },
@@ -7212,7 +7228,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           }));
         }
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available in preview');
           if (offset !== 0 && (nodeKinds?.length || locatorPrefix)) {
@@ -7293,15 +7309,15 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const selectedEngine = await selectStructuralEngine();
         if (constrained) {
-          if (selectedEngine.selection !== 'native-preview') {
-            throw new Error('code.context constraints require a current native index; run recall graph index --write --engine native-preview --root . --format summary');
+          if (selectedEngine.selection !== 'native') {
+            throw new Error('code.context constraints require a current native index; run recall graph index --write --engine native --root . --format summary');
           }
           const status = selectedEngine.status ?? await nativeStatus();
           if (!nativeIndexReadyForAutomaticRead(status)) {
-            throw new Error('code.context constraints require a current native index; refresh it with recall graph index --refresh --engine native-preview --root . --format summary');
+            throw new Error('code.context constraints require a current native index; refresh it with recall graph index --refresh --engine native --root . --format summary');
           }
         }
-        if (selectedEngine.selection === 'native-preview') {
+        if (selectedEngine.selection === 'native') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const [selected, neighborhood] = await Promise.all([
             nativeQuery('exact', { query, limit: 1 }),
@@ -7376,7 +7392,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           }));
         }
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
           const completeness = nativeCompleteness(result);
@@ -7426,7 +7442,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           }));
         }
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query, direction, depth, limit });
           const completeness = nativeCompleteness(result);
@@ -7460,7 +7476,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const query = mcpStructuralString(input.query, 'code.routes query', { required: false, max: 240 });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           const result = await nativeQuery('routes', { limit });
           const routes = result.results
             .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
@@ -7495,7 +7511,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       },
       handler: async ({ arguments: args }) => {
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
           mcpMapClient(input.client);
           const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
@@ -7512,18 +7528,42 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             search: search ? nativeCompleteness(search) : null,
             impact: impact.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor }))
           };
-          return mcpToolJsonResult(mcpStructuralPayload({
+          const memory = await buildRecallMapMemorySummary({
+            root,
+            workspaceId,
+            clock: () => fixedNow(),
+            sqliteLocator: option(values, '--sqlite') ?? '.local/memory.sqlite'
+          });
+          const affectedSymbols = [...new Map(
+            impact.flatMap(({ nodes }) => nodes).map((node) => [node.id, node])
+          ).values()];
+          const payload = mcpStructuralPayload({
             command: 'repo.map', workspaceId, generatedAt: fixedNow(),
             data: {
               sourceIndex: nativeIndexStatusData(status),
               search: search ? search.results.map(nativeStructuralNode) : [],
               impact,
+              architecture: {
+                search: {
+                  query,
+                  results: search ? search.results.map(nativeStructuralNode) : [],
+                  truncated: completeness.search?.truncated ?? false,
+                  nextCursor: completeness.search?.nextCursor ?? null
+                },
+                impact: {
+                  changedLocators,
+                  representedChangedLocators: impact.filter(({ nodes }) => nodes.length > 0).map(({ locator }) => locator),
+                  affectedSymbols
+                }
+              },
               completeness,
               truncated: Boolean(completeness.search?.truncated || completeness.impact.some((item) => item.truncated)),
-              memory: { status: 'use-memory.recall' },
+              memory,
               source: nativeIndexSource(status)
             }
-          }));
+          });
+          payload.data.safeguards = payload.safeguards;
+          return mcpToolJsonResult(payload);
         }
         const payload = await buildMcpRepoMapPayload({
           values,
@@ -7532,9 +7572,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           generatedAt: fixedNow(),
           args
         });
-        return mcpToolJsonResult(sourceIndexEngine === 'auto'
-          ? { ...payload, data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }, selected) } }
-          : payload);
+        return mcpToolJsonResult({
+          ...payload,
+          data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }) }
+        });
       }
     },
     {
@@ -7567,7 +7608,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           }));
         }
         const selected = await selectStructuralEngine();
-        if (selected.selection === 'native-preview') {
+        if (selected.selection === 'native') {
           const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
           const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
           const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
@@ -7589,9 +7630,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           generatedAt: fixedNow(),
           args
         });
-        return mcpToolJsonResult(sourceIndexEngine === 'auto'
-          ? { ...payload, data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }, selected) } }
-          : payload);
+        return mcpToolJsonResult({
+          ...payload,
+          data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }) }
+        });
       }
     },
     {
@@ -8594,13 +8636,6 @@ function nativeCrossRepositoryData(result, crossRepository) {
   };
 }
 
-function nativeAutomaticFallbackReason(result) {
-  if (result?.state === 'absent') return 'native_index_absent';
-  if (result?.state === 'stale') return 'native_index_stale';
-  if (result?.state === 'partial') return 'native_index_partial';
-  return 'native_index_invalid';
-}
-
 function nativeNodeMatchesKinds(item, requestedKinds) {
   if (!requestedKinds?.length) return true;
   const normalized = item.kind === 'file'
@@ -9042,7 +9077,7 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
       'server',
       '--read-only',
       '--engine',
-      'auto',
+      'native',
       '--root',
       realRoot,
       '--sqlite',
@@ -9061,12 +9096,14 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
   const diffOperations = status === 'installed'
     ? []
     : [{
-        op: status === 'absent' ? 'add' : 'conflict',
+        op: status === 'absent' ? 'add' : status === 'upgradeable' ? 'replace' : 'conflict',
         target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
         before: status,
         after: 'read-only-oaf-mcp-stdio',
         summary: status === 'absent'
           ? `add ${setup.server} as read-only OAF MCP stdio token-saver server`
+          : status === 'upgradeable'
+            ? `upgrade ${setup.server} from the owned native alias to the canonical native engine`
           : `refuse to replace drifted ${setup.server} server entry`
       }];
   return {
@@ -9121,7 +9158,9 @@ function isOwnedMcpInstallServer(serverConfig) {
   const args = serverConfig.args;
   return args.length === 13 &&
     args[0] === CLI_PATH &&
-    arraysEqual(args.slice(1, 7), ['mcp', 'server', '--read-only', '--engine', 'auto', '--root']) &&
+    arraysEqual(args.slice(1, 5), ['mcp', 'server', '--read-only', '--engine']) &&
+    ['native', 'auto', 'native-preview'].includes(args[5]) &&
+    args[6] === '--root' &&
     path.isAbsolute(args[7]) &&
     args[8] === '--sqlite' && path.isAbsolute(args[9]) &&
     args[10] === '--stats' && path.isAbsolute(args[11]) &&
@@ -9149,6 +9188,7 @@ function classifyMcpInstallServer({ configState, desiredServer }) {
   const existing = configState.serverConfig;
   if (!existing) return 'absent';
   if (existing.command === desiredServer.command && arraysEqual(existing.args, desiredServer.args)) return 'installed';
+  if (isOwnedMcpInstallServer(existing)) return 'upgradeable';
   return 'drifted';
 }
 
@@ -9224,7 +9264,7 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     config: setup.config,
     status: installPlan.status,
     desiredServer: installPlan.desiredServer,
-    indexBuildCommand: `recall graph index --write --engine native-preview --root ${JSON.stringify(installPlan.workspaceRoot)} --format summary`,
+    indexBuildCommand: `recall graph index --write --engine native --root ${JSON.stringify(installPlan.workspaceRoot)} --format summary`,
     configPreimageFingerprint: installPlan.configPreimageFingerprint,
     manualConfigSnippet: installPlan.manualConfigSnippet,
     reversal: {
@@ -9249,8 +9289,8 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
       : `recall mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
     warnings: [
       'Dry-run is the default; Memory Recall writes home config only with --apply and matching --confirm.',
-      'mcp install configures --engine auto but never builds or refreshes an index. Run indexBuildCommand explicitly; until then structural tools use the labeled bounded JS fallback.',
-      'Auto mode reads a healthy, current native index without writing. The MCP server remains local stdio and read-only.'
+      'mcp install configures the packaged native engine but never builds or refreshes an index. Run indexBuildCommand explicitly before using structural tools.',
+      'Structural tools fail with an actionable build, refresh, or package error instead of silently scanning through the temporary JS compatibility path. The MCP server remains local stdio and read-only.'
     ]
   };
 }

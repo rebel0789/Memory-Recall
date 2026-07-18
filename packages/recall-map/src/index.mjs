@@ -145,6 +145,23 @@ export async function buildRecallMap({
   });
 }
 
+export async function buildRecallMapMemorySummary({
+  root,
+  workspaceId = 'ws_local',
+  clock = () => new Date().toISOString(),
+  sqliteLocator = SQLITE_LOCATOR
+} = {}) {
+  const workspace = await canonicalizeWorkspaceRoot(normalizeRoot(root));
+  const safeWorkspaceId = normalizeWorkspaceId(workspaceId);
+  const generatedAt = normalizeTimestamp(clock());
+  return summarizeMemory({
+    workspace,
+    sqlitePath: resolveSqlitePath(workspace.root, sqliteLocator),
+    workspaceId: safeWorkspaceId,
+    generatedAt
+  });
+}
+
 function normalizeRoot(value) {
   if (typeof value !== 'string' || !value.trim()) throw new Error('recall_map_root_required');
   return path.resolve(value);

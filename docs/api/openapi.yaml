@@ -501,7 +501,7 @@ paths:
             schema: { $ref: '#/components/schemas/ContextGraphPreviewRequest' }
       responses:
         '200':
-          description: Bounded read-only source graph preview from a current native index or the labeled JS/TS fallback.
+          description: Bounded read-only source graph preview from a current native index, or a sanitized unavailable result with the exact native recovery reason.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
           content:

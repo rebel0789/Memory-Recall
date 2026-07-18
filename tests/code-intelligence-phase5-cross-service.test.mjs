@@ -42,7 +42,7 @@ const ORDERS_PREFIX = 'workspace://services/orders/';
 const DECOY_PREFIX = 'workspace://services/zzz-decoy/';
 const MISSING_PREFIX = 'workspace://services/missing/';
 
-test('Phase 5 cross-service evidence stays bounded, source-backed, and honest through native-preview MCP', (t) => {
+test('Phase 5 cross-service evidence stays bounded, source-backed, and honest through native MCP', (t) => {
   assert.equal(existsSync(REPORT_PATH), true, 'run the Phase 5 cross-service evidence gate first');
   assertStoredReport(JSON.parse(readFileSync(REPORT_PATH, 'utf8')));
 
@@ -112,7 +112,7 @@ test('Phase 5 cross-service evidence stays bounded, source-backed, and honest th
     assert.equal(report.safeguards.readOnly, true);
     assert.equal(report.safeguards.localFilesWritten, 0);
     assert.equal(report.safeguards.rawSourceBodiesIncluded, false);
-    assert.equal(report.data.source.kind, 'native-persistent-index-preview');
+    assert.equal(report.data.source.kind, 'native-persistent-index');
   }
 
   assertCrossServiceRelationship(dependencies.data, 'imports');

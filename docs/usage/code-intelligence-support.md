@@ -35,23 +35,20 @@ rows, and full claims without both evidence classes.
 
 ## Current boundary
 
-Node.js remains the production CLI and transport layer. Graph reads now default
-to freshness-gated auto selection; strict `native-preview` supports graph reads
-and the isolated source-index lifecycle. The current registry release does not
-ship that binary. This source checkout now contains five optional platform-package
-templates and a resolver that verifies package identity, target, path
-containment, SHA-256, executable availability, and exact binary version before
-use. The macOS arm64 package path passes an isolated local packed-install gate;
-the other targets, signing, release publication, and published-default promotion
-remain unproven.
-Graph commands, direct MCP startup, and installer-generated MCP startup use
-`--engine auto` when the flag is omitted. The web workbench still uses the Node
-graph path. An MCP server started with both `--read-only` and
-`--engine native-preview` may query a prebuilt SQLite index; it never builds,
-refreshes, or repairs one. Default or explicit MCP `--engine auto` checks that prebuilt
-index before each structural read, uses it only while it is healthy and current,
-and otherwise reports a bounded JS fallback reason. Other languages remain
-experimental and are not promoted as public graph support.
+Node.js remains the production CLI and transport layer. Packaged Rust owns the
+production code-intelligence path. Graph commands, MCP, Control API, and web
+default to a healthy current SQLite index and fail closed with the exact build,
+refresh, repair, schema, target, or package action when native state is not
+usable. `auto` and `native-preview` remain strict native aliases; neither can
+select JS. The temporary JS/TS path requires explicit `compatibility` selection.
+
+The current registry release does not ship the new binary. This source checkout
+contains five optional platform-package templates and a resolver that verifies
+package identity, target, path containment, SHA-256, executable availability,
+and exact binary version before use. The macOS arm64 package path passes an
+isolated local packed-install gate. The other targets, signing, stable
+publication, clean first-run indexing, and published-package proof remain open.
+Unsupported or unmeasured language capabilities remain labeled as such.
 
 This boundary changes only when implementation, fixtures, pinned repository
 results, package verification, and public documentation land together.
@@ -204,13 +201,14 @@ node scripts/code-intelligence-batch-e.mjs --check
 node scripts/code-intelligence-phase2-tier1.mjs --check
 ```
 
-Phase 2 does not bundle a native binary, change the JS public default, move MCP
-or web to Rust, prove multi-repository or million-node behavior, compare a
-competitor, or justify parity or leadership language.
+The Phase 2 receipt itself did not bundle a native binary, move MCP or web to
+Rust, prove multi-repository or million-node behavior, compare a competitor, or
+justify parity or leadership language. Later runtime-default work does not
+retroactively strengthen that evidence.
 
 ## Phase 3 source-index evidence
 
-The native preview stores derived structure in
+The native source index stores derived structure in
 `.local/source-index/index.v1.sqlite`. Builds and refreshes are explicit writer
 operations. Status, doctor, bounded queries, and the explicit MCP preview are
 read-only. Repair requires the fingerprint returned by doctor. Immediate no-op
@@ -317,7 +315,7 @@ Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
 trusted-publisher ownership for the scoped packages, public installation, or a
 cross-platform native release. It proves same-version removal/reinstall
 survivability, not downgrade compatibility with an older release. The explicit
-JS fallback remains frozen until the unified packaged and web gates allow its
+JS compatibility path remains frozen until the packaged native gates allow its
 deletion.
 
 The Rust CI workflow defines native-runner packaging lanes for those five
@@ -339,8 +337,10 @@ The boundary gate passes: all four cases complete, fingerprints are stable, the
 two real repositories match their pinned commits, and no engine network, model,
 memory, or workspace write is reported. The compatibility measurements do not
 pass the published accuracy floor. The real-repository results show unresolved
-native import and call gaps. Therefore `native-preview` remains explicit and
-non-default, benchmark status remains `unmeasured`, and no parity claim is made.
+native import and call gaps. At the time of Phase 1, `native-preview` remained
+explicit and non-default. The current native runtime default does not change
+that historical benchmark result: status remains `unmeasured`, and no parity
+claim is made.
 
 Reproduce the stored evidence from a source checkout with a local release
 binary:

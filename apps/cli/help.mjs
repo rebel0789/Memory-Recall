@@ -65,7 +65,7 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
   oaf graph stats --root . --format summary
-  oaf graph stats --root . --engine native-preview --format summary
+  oaf graph stats --root . --engine native --format summary
   oaf graph search --root . --query "main" --engine compatibility --format json
   oaf graph search --root . --query "route registration hooks" --format summary
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
@@ -73,9 +73,9 @@ Usage:
   oaf graph index --status --root . --format summary
   oaf graph index --write --root . --format json
   oaf graph index --refresh --watch --root . --format summary
-  oaf graph index --write --engine native-preview --root . --format summary
-  oaf graph index --query main --engine native-preview --root . --format json
-  oaf graph index --doctor --engine native-preview --root . --format summary
+  oaf graph index --write --engine native --root . --format summary
+  oaf graph index --query main --engine native --root . --format json
+  oaf graph index --doctor --engine native --root . --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -126,8 +126,8 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
-  oaf mcp server --read-only --engine auto --root . --stdio
-  oaf mcp server --read-only --engine native-preview --root . --stdio
+  oaf mcp server --read-only --engine native --root . --stdio
+  oaf mcp server --read-only --engine compatibility --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
   oaf mcp uninstall --client claude-code --dry-run --format json
@@ -255,24 +255,24 @@ Usage:
   oaf graph index --write --root . --format json
   oaf graph index --refresh --root . --format json
   oaf graph index --refresh --watch --root . --format summary
-  oaf graph index --write --engine native-preview --root . --format summary
-  oaf graph index --refresh --engine native-preview --root . --format summary
-  oaf graph index --query main --kind exact --engine native-preview --root . --format json
-  oaf graph index --doctor --engine native-preview --root . --format summary
-  oaf graph index --repair --confirm <repairPlanFingerprint> --engine native-preview --root . --format summary
+  oaf graph index --write --engine native --root . --format summary
+  oaf graph index --refresh --engine native --root . --format summary
+  oaf graph index --query main --kind exact --engine native --root . --format json
+  oaf graph index --doctor --engine native --root . --format summary
+  oaf graph index --repair --confirm <repairPlanFingerprint> --engine native --root . --format summary
 
 Options for read commands:
-  --engine <auto|js|native-preview|compatibility>  Prefer a current native index, force JS/native, or measure both.
+  --engine <native|native-preview|auto|compatibility>  Use native, a strict native alias, or the temporary JS compatibility path.
 
 Graph read commands return bounded locator-only stats, search, trace, or
-changed-file impact reports. Auto mode is the default: it uses the verified
-packaged Rust engine only when the native index is current and healthy, then
-falls back to labeled bounded JS/TS reads. Strict native preview fails clearly
-when its verified binary is unavailable;
-compatibility mode runs both engines and does not claim parity. Index writes are
-explicit. The default JS index stores structural metadata under .local/source-graph.
-The explicit native preview stores its versioned SQLite index under
-.local/source-index. Both indexes store metadata only; raw source bodies are not included.
+changed-file impact reports. Native is the default and requires the verified
+platform package plus a current local SQLite index. Missing or stale native
+state returns the exact build, refresh, repair, or package action. The former
+auto and native-preview spellings remain strict native aliases and never select
+JS. Compatibility mode runs the temporary JS path or both engines for comparison
+without claiming parity. Index writes are explicit. Native stores its versioned
+SQLite index under .local/source-index; the compatibility index remains under
+.local/source-graph. Both store metadata only; raw source bodies are not included.
 MCP reads the index but never builds or refreshes it.
 No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
@@ -399,8 +399,8 @@ Usage:
   oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp server --read-only --root . --stdio
-  oaf mcp server --read-only --engine auto --root . --stdio
-  oaf mcp server --read-only --engine native-preview --root . --stdio
+  oaf mcp server --read-only --engine native --root . --stdio
+  oaf mcp server --read-only --engine compatibility --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp install --client claude-code --dry-run --format json
@@ -411,13 +411,13 @@ preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install and uninstall remain dry-run unless explicitly confirmed.
 Uninstall removes only an exact Memory Recall-owned entry and preserves .local.
-Direct MCP server commands and mcp install default to auto mode and print
+Direct MCP server commands and mcp install default to native mode and print
 indexBuildCommand; install never builds or
 refreshes an index. Run the explicit writer when wanted:
-  oaf graph index --write --engine native-preview --root . --format summary
-Auto mode reads a current, healthy native index and otherwise labels a bounded
-JS fallback. Native preview reads only a prebuilt
-.local/source-index database and never builds or refreshes it.`],
+  oaf graph index --write --engine native --root . --format summary
+Native mode reads only a current, healthy prebuilt .local/source-index database
+and returns an actionable error otherwise. It never builds, refreshes, or falls
+back to JS. The temporary JS path requires --engine compatibility.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

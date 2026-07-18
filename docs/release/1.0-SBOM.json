@@ -406,7 +406,7 @@
       "id": "provider:native:code-intelligence:rust",
       "category": "code-intelligence",
       "locality": "loopback-process",
-      "enabledByDefault": false,
+      "enabledByDefault": true,
       "contract": "CodeIntelligencePort"
     },
     {

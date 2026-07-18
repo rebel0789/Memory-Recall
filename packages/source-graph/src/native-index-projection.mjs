@@ -26,13 +26,11 @@ export function nativeIndexReadyForAutomaticRead(result) {
 
 export function nativeIndexSource(result) {
   return {
-    kind: 'native-persistent-index-preview',
+    kind: 'native-persistent-index',
     engine: 'memory-recall-native',
     indexLocator: result.indexLocator,
     activeGeneration: result.activeGeneration,
-    freshness: result.freshness,
-    previewOnly: true,
-    publicDefaultChanged: false
+    freshness: result.freshness
   };
 }
 

@@ -16,6 +16,7 @@ import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildNativeIndexSourceGraphPreview,
   buildSourceGraphPreview,
+  buildUnavailableSourceGraphPreview,
   createSourceGraphSnapshotService,
   nativeIndexReadyForAutomaticRead
 } from '../../../packages/source-graph/src/index.mjs';
@@ -71,6 +72,26 @@ const PUBLIC_MESSAGES = Object.freeze({
 
 function transportFingerprint(value) {
   return `sha256:${createHash('sha256').update(String(value ?? ''), 'utf8').digest('hex')}`;
+}
+
+function nativeIndexRecoveryCode(status) {
+  switch (status?.health?.status) {
+    case 'absent':
+      return 'source_index_build_required';
+    case 'stale':
+      return 'source_index_refresh_required';
+    case 'interrupted':
+    case 'corrupt':
+      return 'source_index_repair_required';
+    case 'migration-required':
+      return 'source_index_migration_required';
+    case 'wrong-repository':
+      return 'source_index_wrong_repository';
+    case 'unsupported-schema':
+      return 'source_index_schema_newer';
+    default:
+      return 'native_index_unavailable';
+  }
 }
 
 function promptTransportMetadata({ objective, step }) {
@@ -679,7 +700,7 @@ export function createControlApiServer({
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
   sourceGraphSnapshotService = null,
-  codeIntelligenceProvider = null,
+  codeIntelligenceProvider = undefined,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   recallMapRateLimiter = createLoginRateLimiter({ clock: () => Date.now(), limit: 60 }),
@@ -702,25 +723,33 @@ export function createControlApiServer({
   const streams = new Set();
   const sourceSnapshots = sourceGraphSnapshotService ?? createSourceGraphSnapshotService();
   const ownsSourceSnapshots = !sourceGraphSnapshotService;
+  const nativeCodeIntelligenceProvider = codeIntelligenceProvider === null
+    ? null
+    : codeIntelligenceProvider ?? new RustCodeIntelligenceProvider();
   const buildControlSourceGraphPreview = async (options) => {
-    if (codeIntelligenceProvider) {
-      try {
-        const status = await codeIntelligenceProvider.indexStatus({
-          root: options.root,
-          workspaceId: options.workspaceId
+    if (!nativeCodeIntelligenceProvider) return buildSourceGraphPreview(options);
+    try {
+      const status = await nativeCodeIntelligenceProvider.indexStatus({
+        root: options.root,
+        workspaceId: options.workspaceId
+      });
+      if (nativeIndexReadyForAutomaticRead(status)) {
+        return await buildNativeIndexSourceGraphPreview({
+          ...options,
+          provider: nativeCodeIntelligenceProvider,
+          status
         });
-        if (nativeIndexReadyForAutomaticRead(status)) {
-          return buildNativeIndexSourceGraphPreview({
-            ...options,
-            provider: codeIntelligenceProvider,
-            status
-          });
-        }
-      } catch {
-        // The frozen JS scanner remains the bounded fallback until packaged native coverage is universal.
       }
+      return buildUnavailableSourceGraphPreview({
+        ...options,
+        errorCode: nativeIndexRecoveryCode(status)
+      });
+    } catch (error) {
+      return buildUnavailableSourceGraphPreview({
+        ...options,
+        errorCode: error?.code ?? 'native_index_unavailable'
+      });
     }
-    return buildSourceGraphPreview(options);
   };
 
   const server = http.createServer(async (request, response) => {

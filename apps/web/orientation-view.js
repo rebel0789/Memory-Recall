@@ -13,7 +13,7 @@ export function renderOrientation(model) {
   const coverageLabel = coverageText(model.coverage);
   const architecture = groups.length
     ? `<div class="architecture-board" style="--orientation-layers:${maxLayer + 1}">${groups.map((group) => groupButton(group, model.selectedGroupId)).join('')}${renderRelations(model.relations, groups)}</div>${architectureOutline(groups, model.selectedGroupId)}`
-    : statePanel('empty', 'No supported groups', 'The current index did not return any repository groups inside its bounds.');
+    : renderIndexState(model.index);
 
   return `<section class="orientation-workbench" aria-labelledby="orientation-title">
     <header class="orientation-heading">
@@ -32,6 +32,12 @@ export function renderOrientation(model) {
       </aside>
     </div>
   </section>`;
+}
+
+function renderIndexState(index = {}) {
+  const command = index.recoveryCommand ? `<p>Run <code>${escapeHtml(index.recoveryCommand)}</code></p>` : '';
+  const title = index.recoveryCommand ? (index.label || 'Source index unavailable') : 'No supported groups';
+  return `${statePanel('empty', title, index.copy || 'The current index did not return repository groups inside its bounds.')}${command}<button class="button" data-action="refresh-recall-map" type="button">Reload index</button>`;
 }
 
 export function bindOrientation(root, { onSelectGroup, onRefresh } = {}) {

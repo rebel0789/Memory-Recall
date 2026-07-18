@@ -55,7 +55,7 @@ filtered traversal. Supplying any constraint never falls back to the JS scanner;
 a missing or stale native index returns a refresh instruction. `code.trace`
 follows call edges.
 `code.dependencies` walks imports and related structural edges. `code.routes`
-uses static HTTP-method exports in route-like paths; it does not execute a
+uses static route evidence from the native index; it does not execute a
 framework or claim runtime route coverage.
 
 ### Registered repository mode
@@ -80,7 +80,7 @@ recall graph repositories search --read-only --root . --query Service --reposito
 
 ## Persistent Source Index
 
-The source index is optional and local:
+The source index is local and production code-intelligence reads require it:
 
 ```bash
 recall graph index --status --root . --format summary
@@ -89,47 +89,45 @@ recall graph index --refresh --root . --format json
 recall graph index --refresh --watch --root . --format summary
 ```
 
-The default file is `.local/source-graph/index.v1.json`. It contains hashes,
-locators, symbol metadata, per-file parse shards, and a bounded graph. It does
-not contain source bodies or absolute paths. Writes are atomic and require the
-explicit CLI command. Refresh reparses changed and added files, reuses unchanged
-shards, and removes deleted files.
+The native file is `.local/source-index/index.v1.sqlite`. It contains hashes,
+locators, normalized structural metadata, evidence, and bounded indexes. It does
+not contain source bodies or absolute paths. Writes are atomic and require an
+explicit CLI command. Refresh reparses invalidated scope and reuses unchanged
+files.
 
 MCP checks index freshness but never writes the index. A current index is reused
-across processes. A stale index is reported as stale and structural tools fall
-back to a fresh bounded scan.
+across processes. A stale index returns the explicit refresh command.
 
-### Native preview index
+### Native index
 
-After a local Rust release build, an isolated SQLite index is available only
-when `--engine native-preview` is explicit:
+The packaged Rust engine is the default. Source checkouts may select an explicit
+local release binary for development:
 
 ```bash
-recall graph index --write --engine native-preview --root . --format summary
-recall graph index --query main --kind exact --engine native-preview --root . --format json
-recall graph index --doctor --engine native-preview --root . --format summary
-recall mcp server --read-only --engine native-preview --root . --stdio
+recall graph index --write --engine native --root . --format summary
+recall graph index --query main --kind exact --engine native --root . --format json
+recall graph index --doctor --engine native --root . --format summary
+recall mcp server --read-only --engine native --root . --stdio
 ```
 
-Its fixed path is `.local/source-index/index.v1.sqlite`. The native MCP preview
+Its fixed path is `.local/source-index/index.v1.sqlite`. Native MCP
 queries that prebuilt index and fails clearly if it is unavailable; it never
 builds, refreshes, repairs, or falls back to the JS engine. Direct `mcp server`
-commands without `--engine` use auto selection.
+commands without `--engine` use native selection.
 
-Automatic selection is the default and may also be requested explicitly:
+The former `auto` spelling remains a strict native alias:
 
 ```bash
 recall mcp server --read-only --engine auto --root . --stdio
 ```
 
-Before each structural tool call, auto mode checks the native binary and the
-prebuilt index. It reads native results only when the index is healthy, ready,
-current, and has a committed generation. Absent, stale, partial, invalid, or
-unavailable native state uses the fresh bounded JS scan and reports the reason.
-Auto mode never builds, refreshes, or repairs an index, and a native query error
-after selection is returned instead of silently mixing engines.
+Before each structural tool call, native mode checks the packaged binary and the
+prebuilt index. It reads results only when the index is healthy, ready, current,
+and has a committed generation. Absent, stale, invalid, or unavailable state
+returns an actionable error. It never builds, refreshes, repairs, or silently
+mixes engines. The temporary JS/TS path requires `--engine compatibility`.
 
-In native preview, `repo.architecture` derives groups with
+In native mode, `repo.architecture` derives groups with
 `label-propagation-v1` and entry-to-sink paths with `entry-path-v1`. Each
 process references returned node and relationship IDs. Reads remain capped,
 report truncation, and preserve the index bytes and modification time. These
@@ -159,12 +157,11 @@ recall mcp install --client cursor --dry-run --format json
 recall mcp install --client codex --dry-run --format json
 ```
 
-The installer-generated server uses `--engine auto`. Install preview and apply
+The installer-generated server uses `--engine native`. Install preview and apply
 never build or refresh a graph index. The report prints `indexBuildCommand` as
-the separate explicit write needed to create the native preview index; until
-that command is run successfully, structural tools use the labeled bounded JS
-fallback. A healthy, current native index is then read automatically without
-MCP writes.
+the separate explicit write needed to create the native index. Until that
+command is run successfully, structural tools return the build instruction.
+A healthy, current native index is then read without MCP writes.
 
 Apply only after reviewing the dry-run fingerprint:
 

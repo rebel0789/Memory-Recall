@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase3-source-index-2",
   "phase": 3,
-  "generatedAt": "2026-07-18T19:54:29.488Z",
+  "generatedAt": "2026-07-18T20:44:58.497Z",
   "environment": {
     "platform": "darwin",
     "release": "25.5.0",
@@ -14,12 +14,12 @@
     "engineVersion": "1.1.1"
   },
   "checkout": {
-    "commit": "1457621cfc76d4305cf5d1a7965a1727a05754dd",
+    "commit": "a4e0b3672d857f0cc5670e65cd91d967831a5212",
     "dirtyBeforeRun": false
   },
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
-    "implementationFingerprint": "sha256:ba5ca84c97cc9ac7aa679e6cac0c55a175d7e69d85229f4cde976d31ecceca5f",
+    "implementationFingerprint": "sha256:f1a67b196baa59bf64f1402a081fb17be50353ce24c2648f7b27ed191081978d",
     "bounds": {
       "maxFiles": 5000,
       "maxFileBytes": 524288,
@@ -47,36 +47,36 @@
     "totalOmittedCount": 0,
     "totalDatabaseBytes": 29827072,
     "coldBuildWallMs": {
-      "minimum": 54.039,
-      "p50": 194.258,
-      "p95": 880.573,
-      "maximum": 880.573
+      "minimum": 49.145,
+      "p50": 199.096,
+      "p95": 969.58,
+      "maximum": 969.58
     },
     "warmStatusWallMs": {
-      "minimum": 8.2,
-      "p50": 17.513,
-      "p95": 30.601,
-      "maximum": 30.601
+      "minimum": 8.513,
+      "p50": 19.091,
+      "p95": 30.496,
+      "maximum": 30.496
     },
     "noChangeRefreshWallMs": {
-      "minimum": 8.215,
-      "p50": 18.568,
-      "p95": 38.523,
-      "maximum": 38.523
+      "minimum": 9.211,
+      "p50": 19.492,
+      "p95": 43.366,
+      "maximum": 43.366
     },
     "oneFileRefreshWallMs": {
-      "minimum": 23.212,
-      "p50": 76.682,
-      "p95": 292.158,
-      "maximum": 292.158
+      "minimum": 24.555,
+      "p50": 80.523,
+      "p95": 317.809,
+      "maximum": 317.809
     },
     "dependencyClosureRefreshWallMs": {
-      "minimum": 28.656,
-      "p50": 82.749,
-      "p95": 358.693,
-      "maximum": 358.693
+      "minimum": 30.381,
+      "p50": 85.922,
+      "p95": 388.61,
+      "maximum": 388.61
     },
-    "peakEvaluatorRssKb": 107376
+    "peakEvaluatorRssKb": 107968
   },
   "cases": [
     {
@@ -96,8 +96,8 @@
       },
       "operations": {
         "coldBuild": {
-          "wallMs": 248.455,
-          "engineDurationMs": 219,
+          "wallMs": 252.699,
+          "engineDurationMs": 222,
           "responseBytes": 963,
           "parsedFileCount": 600,
           "reusedFileCount": 0,
@@ -109,7 +109,7 @@
           "freshness": "current"
         },
         "warmStatus": {
-          "wallMs": 30.601,
+          "wallMs": 30.496,
           "engineDurationMs": 22,
           "responseBytes": 1017,
           "parsedFileCount": 0,
@@ -122,8 +122,8 @@
           "freshness": "current"
         },
         "noChangeRefresh": {
-          "wallMs": 31.915,
-          "engineDurationMs": 24,
+          "wallMs": 34.394,
+          "engineDurationMs": 26,
           "responseBytes": 962,
           "parsedFileCount": 0,
           "reusedFileCount": 600,
@@ -135,8 +135,8 @@
           "freshness": "current"
         },
         "oneFileRefresh": {
-          "wallMs": 155.985,
-          "engineDurationMs": 148,
+          "wallMs": 135.382,
+          "engineDurationMs": 128,
           "responseBytes": 964,
           "parsedFileCount": 11,
           "reusedFileCount": 599,
@@ -148,8 +148,8 @@
           "freshness": "current"
         },
         "dependencyClosureRefresh": {
-          "wallMs": 165.354,
-          "engineDurationMs": 158,
+          "wallMs": 169.232,
+          "engineDurationMs": 161,
           "responseBytes": 963,
           "parsedFileCount": 5,
           "reusedFileCount": 599,
@@ -167,16 +167,16 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 27.339,
-            "p50": 27.973,
-            "p95": 29.323,
-            "maximum": 29.323
+            "minimum": 28.973,
+            "p50": 31.291,
+            "p95": 35.291,
+            "maximum": 35.291
           },
           "engineDurationMs": {
-            "minimum": 21,
-            "p50": 21,
-            "p95": 23,
-            "maximum": 23
+            "minimum": 22,
+            "p50": 24,
+            "p95": 28,
+            "maximum": 28
           },
           "responseBytes": {
             "minimum": 1381,
@@ -191,14 +191,14 @@
           "repetitions": 5,
           "resultCount": 11,
           "wallMs": {
-            "minimum": 29.02,
-            "p50": 29.604,
-            "p95": 31.072,
-            "maximum": 31.072
+            "minimum": 28.525,
+            "p50": 28.945,
+            "p95": 31.93,
+            "maximum": 31.93
           },
           "engineDurationMs": {
             "minimum": 22,
-            "p50": 23,
+            "p50": 22,
             "p95": 24,
             "maximum": 24
           },
@@ -215,16 +215,16 @@
           "repetitions": 5,
           "resultCount": 7,
           "wallMs": {
-            "minimum": 27.908,
-            "p50": 28.896,
-            "p95": 30.474,
-            "maximum": 30.474
+            "minimum": 27.861,
+            "p50": 28.243,
+            "p95": 28.854,
+            "maximum": 28.854
           },
           "engineDurationMs": {
             "minimum": 21,
-            "p50": 22,
-            "p95": 24,
-            "maximum": 24
+            "p50": 21,
+            "p95": 22,
+            "maximum": 22
           },
           "responseBytes": {
             "minimum": 4331,
@@ -239,16 +239,16 @@
           "repetitions": 5,
           "resultCount": 0,
           "wallMs": {
-            "minimum": 28.71,
-            "p50": 30.523,
-            "p95": 31.916,
-            "maximum": 31.916
+            "minimum": 28.306,
+            "p50": 28.582,
+            "p95": 28.793,
+            "maximum": 28.793
           },
           "engineDurationMs": {
-            "minimum": 22,
-            "p50": 23,
-            "p95": 24,
-            "maximum": 24
+            "minimum": 21,
+            "p50": 22,
+            "p95": 22,
+            "maximum": 22
           },
           "responseBytes": {
             "minimum": 1035,
@@ -273,8 +273,8 @@
         "finalFreshness": "current"
       },
       "resources": {
-        "evaluatorMaxRssKbBefore": 53968,
-        "evaluatorMaxRssKbAfter": 76400,
+        "evaluatorMaxRssKbBefore": 53808,
+        "evaluatorMaxRssKbAfter": 77520,
         "databaseFileBytes": 6512640
       },
       "diagnostics": [
@@ -312,8 +312,8 @@
       },
       "operations": {
         "coldBuild": {
-          "wallMs": 54.039,
-          "engineDurationMs": 25,
+          "wallMs": 49.145,
+          "engineDurationMs": 24,
           "responseBytes": 956,
           "parsedFileCount": 14,
           "reusedFileCount": 0,
@@ -325,7 +325,7 @@
           "freshness": "current"
         },
         "warmStatus": {
-          "wallMs": 8.2,
+          "wallMs": 8.513,
           "engineDurationMs": 2,
           "responseBytes": 1011,
           "parsedFileCount": 0,
@@ -338,8 +338,8 @@
           "freshness": "current"
         },
         "noChangeRefresh": {
-          "wallMs": 8.215,
-          "engineDurationMs": 2,
+          "wallMs": 9.211,
+          "engineDurationMs": 3,
           "responseBytes": 956,
           "parsedFileCount": 0,
           "reusedFileCount": 14,
@@ -351,8 +351,8 @@
           "freshness": "current"
         },
         "oneFileRefresh": {
-          "wallMs": 23.212,
-          "engineDurationMs": 16,
+          "wallMs": 24.555,
+          "engineDurationMs": 18,
           "responseBytes": 957,
           "parsedFileCount": 3,
           "reusedFileCount": 13,
@@ -364,8 +364,8 @@
           "freshness": "current"
         },
         "dependencyClosureRefresh": {
-          "wallMs": 28.656,
-          "engineDurationMs": 22,
+          "wallMs": 30.381,
+          "engineDurationMs": 23,
           "responseBytes": 957,
           "parsedFileCount": 5,
           "reusedFileCount": 13,
@@ -383,10 +383,10 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 6.996,
-            "p50": 7.729,
-            "p95": 7.945,
-            "maximum": 7.945
+            "minimum": 8.427,
+            "p50": 8.691,
+            "p95": 8.938,
+            "maximum": 8.938
           },
           "engineDurationMs": {
             "minimum": 2,
@@ -407,16 +407,16 @@
           "repetitions": 5,
           "resultCount": 26,
           "wallMs": {
-            "minimum": 8.072,
-            "p50": 8.193,
-            "p95": 9.159,
-            "maximum": 9.159
+            "minimum": 9.956,
+            "p50": 10.093,
+            "p95": 10.484,
+            "maximum": 10.484
           },
           "engineDurationMs": {
-            "minimum": 2,
-            "p50": 2,
-            "p95": 2,
-            "maximum": 2
+            "minimum": 3,
+            "p50": 3,
+            "p95": 3,
+            "maximum": 3
           },
           "responseBytes": {
             "minimum": 22018,
@@ -431,10 +431,10 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 7.081,
-            "p50": 7.775,
-            "p95": 8.046,
-            "maximum": 8.046
+            "minimum": 8.556,
+            "p50": 8.638,
+            "p95": 8.965,
+            "maximum": 8.965
           },
           "engineDurationMs": {
             "minimum": 2,
@@ -455,10 +455,10 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 8.333,
-            "p50": 8.661,
-            "p95": 8.972,
-            "maximum": 8.972
+            "minimum": 9.992,
+            "p50": 10.043,
+            "p95": 10.618,
+            "maximum": 10.618
           },
           "engineDurationMs": {
             "minimum": 3,
@@ -489,8 +489,8 @@
         "finalFreshness": "current"
       },
       "resources": {
-        "evaluatorMaxRssKbBefore": 76448,
-        "evaluatorMaxRssKbAfter": 80064,
+        "evaluatorMaxRssKbBefore": 77600,
+        "evaluatorMaxRssKbAfter": 80192,
         "databaseFileBytes": 823296
       },
       "diagnostics": [
@@ -528,8 +528,8 @@
       },
       "operations": {
         "coldBuild": {
-          "wallMs": 194.258,
-          "engineDurationMs": 167,
+          "wallMs": 199.096,
+          "engineDurationMs": 172,
           "responseBytes": 962,
           "parsedFileCount": 141,
           "reusedFileCount": 0,
@@ -541,8 +541,8 @@
           "freshness": "current"
         },
         "warmStatus": {
-          "wallMs": 17.513,
-          "engineDurationMs": 10,
+          "wallMs": 19.091,
+          "engineDurationMs": 12,
           "responseBytes": 1016,
           "parsedFileCount": 0,
           "reusedFileCount": 141,
@@ -554,7 +554,7 @@
           "freshness": "current"
         },
         "noChangeRefresh": {
-          "wallMs": 18.568,
+          "wallMs": 19.492,
           "engineDurationMs": 12,
           "responseBytes": 961,
           "parsedFileCount": 0,
@@ -567,8 +567,8 @@
           "freshness": "current"
         },
         "oneFileRefresh": {
-          "wallMs": 76.682,
-          "engineDurationMs": 70,
+          "wallMs": 80.523,
+          "engineDurationMs": 74,
           "responseBytes": 961,
           "parsedFileCount": 8,
           "reusedFileCount": 140,
@@ -580,8 +580,8 @@
           "freshness": "current"
         },
         "dependencyClosureRefresh": {
-          "wallMs": 82.749,
-          "engineDurationMs": 75,
+          "wallMs": 85.922,
+          "engineDurationMs": 78,
           "responseBytes": 961,
           "parsedFileCount": 4,
           "reusedFileCount": 140,
@@ -599,10 +599,10 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 15.852,
-            "p50": 15.957,
-            "p95": 16.016,
-            "maximum": 16.016
+            "minimum": 15.891,
+            "p50": 16.241,
+            "p95": 17.328,
+            "maximum": 17.328
           },
           "engineDurationMs": {
             "minimum": 10,
@@ -623,16 +623,16 @@
           "repetitions": 5,
           "resultCount": 8,
           "wallMs": {
-            "minimum": 16.436,
-            "p50": 16.595,
-            "p95": 16.989,
-            "maximum": 16.989
+            "minimum": 17.862,
+            "p50": 19.018,
+            "p95": 19.689,
+            "maximum": 19.689
           },
           "engineDurationMs": {
             "minimum": 11,
-            "p50": 11,
-            "p95": 11,
-            "maximum": 11
+            "p50": 12,
+            "p95": 12,
+            "maximum": 12
           },
           "responseBytes": {
             "minimum": 5279,
@@ -647,16 +647,16 @@
           "repetitions": 5,
           "resultCount": 8,
           "wallMs": {
-            "minimum": 16.37,
-            "p50": 16.541,
-            "p95": 16.94,
-            "maximum": 16.94
+            "minimum": 17.212,
+            "p50": 17.71,
+            "p95": 19.104,
+            "maximum": 19.104
           },
           "engineDurationMs": {
             "minimum": 10,
             "p50": 11,
-            "p95": 11,
-            "maximum": 11
+            "p95": 12,
+            "maximum": 12
           },
           "responseBytes": {
             "minimum": 5279,
@@ -671,16 +671,16 @@
           "repetitions": 5,
           "resultCount": 0,
           "wallMs": {
-            "minimum": 15.928,
-            "p50": 16.151,
-            "p95": 16.311,
-            "maximum": 16.311
+            "minimum": 16.678,
+            "p50": 17.433,
+            "p95": 18.483,
+            "maximum": 18.483
           },
           "engineDurationMs": {
             "minimum": 10,
             "p50": 10,
-            "p95": 10,
-            "maximum": 10
+            "p95": 11,
+            "maximum": 11
           },
           "responseBytes": {
             "minimum": 1034,
@@ -705,8 +705,8 @@
         "finalFreshness": "current"
       },
       "resources": {
-        "evaluatorMaxRssKbBefore": 80080,
-        "evaluatorMaxRssKbAfter": 87008,
+        "evaluatorMaxRssKbBefore": 80224,
+        "evaluatorMaxRssKbAfter": 88320,
         "databaseFileBytes": 3010560
       },
       "diagnostics": [
@@ -744,8 +744,8 @@
       },
       "operations": {
         "coldBuild": {
-          "wallMs": 880.573,
-          "engineDurationMs": 855,
+          "wallMs": 969.58,
+          "engineDurationMs": 943,
           "responseBytes": 997,
           "parsedFileCount": 26,
           "reusedFileCount": 0,
@@ -757,8 +757,8 @@
           "freshness": "current"
         },
         "warmStatus": {
-          "wallMs": 22.126,
-          "engineDurationMs": 15,
+          "wallMs": 23.836,
+          "engineDurationMs": 16,
           "responseBytes": 1016,
           "parsedFileCount": 0,
           "reusedFileCount": 26,
@@ -770,8 +770,8 @@
           "freshness": "current"
         },
         "noChangeRefresh": {
-          "wallMs": 38.523,
-          "engineDurationMs": 30,
+          "wallMs": 43.366,
+          "engineDurationMs": 34,
           "responseBytes": 961,
           "parsedFileCount": 0,
           "reusedFileCount": 26,
@@ -783,8 +783,8 @@
           "freshness": "current"
         },
         "oneFileRefresh": {
-          "wallMs": 292.158,
-          "engineDurationMs": 282,
+          "wallMs": 317.809,
+          "engineDurationMs": 307,
           "responseBytes": 999,
           "parsedFileCount": 3,
           "reusedFileCount": 25,
@@ -796,8 +796,8 @@
           "freshness": "current"
         },
         "dependencyClosureRefresh": {
-          "wallMs": 358.693,
-          "engineDurationMs": 348,
+          "wallMs": 388.61,
+          "engineDurationMs": 377,
           "responseBytes": 999,
           "parsedFileCount": 3,
           "reusedFileCount": 25,
@@ -815,16 +815,16 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 21.662,
-            "p50": 22.246,
-            "p95": 22.649,
-            "maximum": 22.649
+            "minimum": 23.913,
+            "p50": 24.54,
+            "p95": 24.912,
+            "maximum": 24.912
           },
           "engineDurationMs": {
-            "minimum": 15,
-            "p50": 16,
-            "p95": 16,
-            "maximum": 16
+            "minimum": 16,
+            "p50": 17,
+            "p95": 17,
+            "maximum": 17
           },
           "responseBytes": {
             "minimum": 1351,
@@ -839,16 +839,16 @@
           "repetitions": 5,
           "resultCount": 36,
           "wallMs": {
-            "minimum": 27.255,
-            "p50": 27.313,
-            "p95": 27.463,
-            "maximum": 27.463
+            "minimum": 27.958,
+            "p50": 29.246,
+            "p95": 30.233,
+            "maximum": 30.233
           },
           "engineDurationMs": {
             "minimum": 20,
-            "p50": 20,
-            "p95": 20,
-            "maximum": 20
+            "p50": 21,
+            "p95": 22,
+            "maximum": 22
           },
           "responseBytes": {
             "minimum": 20273,
@@ -863,16 +863,16 @@
           "repetitions": 5,
           "resultCount": 2,
           "wallMs": {
-            "minimum": 23.477,
-            "p50": 23.873,
-            "p95": 24.349,
-            "maximum": 24.349
+            "minimum": 24.356,
+            "p50": 25.337,
+            "p95": 26.376,
+            "maximum": 26.376
           },
           "engineDurationMs": {
             "minimum": 17,
-            "p50": 17,
-            "p95": 17,
-            "maximum": 17
+            "p50": 18,
+            "p95": 19,
+            "maximum": 19
           },
           "responseBytes": {
             "minimum": 1695,
@@ -887,16 +887,16 @@
           "repetitions": 5,
           "resultCount": 0,
           "wallMs": {
-            "minimum": 35.322,
-            "p50": 35.862,
-            "p95": 36.147,
-            "maximum": 36.147
+            "minimum": 36.503,
+            "p50": 38.201,
+            "p95": 38.632,
+            "maximum": 38.632
           },
           "engineDurationMs": {
-            "minimum": 28,
-            "p50": 29,
-            "p95": 29,
-            "maximum": 29
+            "minimum": 29,
+            "p50": 30,
+            "p95": 31,
+            "maximum": 31
           },
           "responseBytes": {
             "minimum": 1033,
@@ -921,8 +921,8 @@
         "finalFreshness": "current"
       },
       "resources": {
-        "evaluatorMaxRssKbBefore": 87008,
-        "evaluatorMaxRssKbAfter": 107376,
+        "evaluatorMaxRssKbBefore": 88320,
+        "evaluatorMaxRssKbAfter": 107968,
         "databaseFileBytes": 19480576
       },
       "diagnostics": [
@@ -967,5 +967,5 @@
     "absoluteCheckoutPathsStoredInReport": false,
     "publicDefaultChanged": false
   },
-  "reportFingerprint": "sha256:e1d68d9b739c0e772b595e6ae2c00397043144374297f37a893c66608cfbf18f"
+  "reportFingerprint": "sha256:a56d0a303e4285cd940f3918fc02ba76e33a744e4f92cab744dcd3f83dbdadaa"
 }

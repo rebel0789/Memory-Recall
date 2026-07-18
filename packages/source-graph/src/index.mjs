@@ -137,15 +137,16 @@ export async function buildSourceGraphPreview({
     graph = snapshot.graph;
     publicGraph = assertFacadeSafeSourceGraph(graph);
   } catch (error) {
-    return unavailableSourceGraphPreview({
+    return buildUnavailableSourceGraphPreview({
       workspaceId: safeWorkspaceId,
-      generatedAt,
+      clock: () => generatedAt,
       query,
-      normalizedChangedLocators,
-      normalizedNodeKinds,
-      normalizedEdgeKinds,
+      changedLocators: normalizedChangedLocators,
+      nodeKinds: normalizedNodeKinds,
+      edgeKinds: normalizedEdgeKinds,
       labelPattern,
-      normalizedLocatorPrefix,
+      locatorPrefix: normalizedLocatorPrefix,
+      direction,
       limit: boundedLimit,
       offset: boundedOffset,
       depth: boundedDepth,
@@ -307,6 +308,49 @@ function assertFacadeSafeSourceGraph(graph) {
     || publicOutput.diagnostics.length !== graph.diagnostics.length) throw new Error('source_graph_preview_graph_invalid');
   VALIDATED_PUBLIC_GRAPHS.set(graph, publicOutput);
   return publicOutput;
+}
+
+export function buildUnavailableSourceGraphPreview({
+  workspaceId = 'ws_local',
+  query = '',
+  changedLocators = [],
+  nodeKinds = null,
+  edgeKinds = null,
+  labelPattern = null,
+  locatorPrefix = null,
+  direction = 'outbound',
+  limit = 20,
+  offset = 0,
+  depth = 2,
+  sampleLimit = 12,
+  errorCode = 'native_engine_unavailable',
+  clock = () => new Date().toISOString()
+} = {}) {
+  const safeWorkspaceId = normalizeWorkspaceId(workspaceId);
+  const boundedLimit = boundedInteger(limit, 'source_graph_preview_limit_invalid', 1, 100);
+  const boundedOffset = boundedInteger(offset, 'source_graph_preview_offset_invalid', 0, 10_000);
+  const boundedDepth = boundedInteger(depth, 'source_graph_preview_depth_invalid', 1, 5);
+  const boundedSampleLimit = boundedInteger(sampleLimit, 'source_graph_preview_sample_limit_invalid', 1, 50);
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const normalizedLocatorPrefix = locatorPrefix ? normalizeLocatorPrefix(locatorPrefix) : null;
+  const normalizedNodeKinds = normalizeKinds(nodeKinds, NODE_KINDS, 'source_graph_preview_node_kind_invalid');
+  const normalizedEdgeKinds = normalizeKinds(edgeKinds, EDGE_KINDS, 'source_graph_preview_edge_kind_invalid');
+  if (!TRACE_DIRECTIONS.has(direction)) throw new Error(`source_graph_preview_direction_invalid:${direction}`);
+  return unavailableSourceGraphPreview({
+    workspaceId: safeWorkspaceId,
+    generatedAt: clock(),
+    query,
+    normalizedChangedLocators,
+    normalizedNodeKinds,
+    normalizedEdgeKinds,
+    labelPattern,
+    normalizedLocatorPrefix,
+    limit: boundedLimit,
+    offset: boundedOffset,
+    depth: boundedDepth,
+    sampleLimit: boundedSampleLimit,
+    errorCode: safeSourceGraphErrorCode(errorCode)
+  });
 }
 
 function unavailableSourceGraphPreview({
@@ -519,7 +563,7 @@ function sourceGraphPreviewSafeguards() {
 }
 
 function safeSourceGraphErrorCode(error) {
-  const code = String(error?.message ?? 'source_graph_unavailable')
+  const code = String(typeof error === 'string' ? error : error?.message ?? 'source_graph_unavailable')
     .split(':')[0]
     .replace(/[^A-Za-z0-9_]/gu, '_')
     .replace(/_+/gu, '_')

@@ -28,7 +28,7 @@ const CAPABILITIES = Object.freeze([
   'code-intelligence.repository.go.trace',
   'code-intelligence.repository.go.impact',
   'code-intelligence.local-read-only',
-  'code-intelligence.native-preview'
+  'code-intelligence.native'
 ]);
 const PRIVATE_PATH = /(?:^|[\s"'(])(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u;
 
@@ -68,13 +68,13 @@ export class RustCodeIntelligenceProvider {
           source: selected.source,
           target: selected.target,
           verified: selected.verified,
-          previewOnly: true
+          productionDefault: true
         })
       });
     } catch (error) {
       return Object.freeze({
         status: 'unavailable',
-        details: Object.freeze({ binary: 'unavailable', reason: error?.code ?? 'native_engine_unavailable', previewOnly: true })
+        details: Object.freeze({ binary: 'unavailable', reason: error?.code ?? 'native_engine_unavailable', productionDefault: true })
       });
     }
   }

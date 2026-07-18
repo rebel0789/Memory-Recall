@@ -59,10 +59,10 @@ for preserved legacy names and URIs.
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Auto-selected Rust reads from a verified platform package when a healthy current index exists, with a labeled bounded JS/TS fallback; the installed compiler-free Rust path is proven locally across all 14 Tier 1 fixtures, while full language and cross-platform gates remain open. |
+| Fast local code intelligence | Packaged Rust is the default engine. Reads use the local SQLite index and return an explicit build, refresh, repair, or package action when native state is not ready. The bounded JS/TS engine remains available only through `--engine compatibility`. |
 | Larger repositories | Explicit local index with incremental refresh and watch mode; MCP and the web workbench read it without writing. |
 | Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
-| First look at a repository | The web Recall Map prefers a healthy current Rust index, including source-backed communities and bounded entry-to-sink processes when present; otherwise it labels the bounded JS/TS fallback. Both paths show coverage, entry points, changed impact, and separate memory status without writing. |
+| First look at a repository | The web Recall Map reads a healthy current Rust index, including source-backed communities and bounded entry-to-sink processes. Until first-run indexing is complete, it returns a bounded recovery state instead of silently switching engines. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |
@@ -116,11 +116,11 @@ approval.
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
 command only when the fingerprint matches. That path installs the twelve-tool
-read-only MCP server with `--engine auto`; install never builds or refreshes an
+read-only MCP server with `--engine native`; install never builds or refreshes an
 index, and its `indexBuildCommand` is the separate explicit native-index write.
-Until a healthy, current native index exists, structural tools report a labeled
-bounded JS path. Direct `mcp server` commands without `--engine` use the same
-read-only auto selection. Reverse the install with `recall mcp uninstall --client
+Until a healthy, current native index exists, structural tools return the exact
+native recovery command. The temporary JS/TS path requires the explicit
+`--engine compatibility` option. Reverse the install with `recall mcp uninstall --client
 claude-code --dry-run --format json`, then the printed confirmed command. It
 removes only the exact package-owned entry and preserves neighboring servers.
 `recall connect` is separate: it installs a resource
@@ -190,19 +190,18 @@ cross-product benchmark leaderboard.
 - Read-only `recall mcp server` exposing twelve local tools for governed memory,
   compact context, repository maps, architecture, code search, symbol context,
   call traces, dependencies, routes, changed-file impact, and index status.
-- Auto-selected packaged Rust reads plus an explicit `--engine native-preview` source-index lifecycle with a local SQLite
+- Production-default packaged Rust reads and a local SQLite
   generation store, incremental refresh, doctor/confirm-gated repair, bounded
   queries, and read-only MCP access to a prebuilt index. Native
   `repo.architecture` returns deterministic communities, bounded entry-to-sink
   processes, and their source relationships. Native use requires a verified
   matching binary from a local build, an explicit environment path, or an
   optional platform package. Graph commands, direct MCP startup, and
-  installer-generated MCP config now use freshness-gated auto selection by
-  default. The current-host packed-install gate is green; other targets,
+  installer-generated MCP config select native by default and never silently
+  switch to JS. The current-host packed-install gate is green; other targets,
   signing, registry publication, and full language parity remain unproven.
-- Explicit persistent JS/TS source index with atomic writes, per-file structural
-  shards, incremental refresh, stale detection, and watch mode. MCP can read a
-  current index but never creates or refreshes one.
+- Explicit `--engine compatibility` JS/TS source index retained temporarily for
+  migration checks. Production graph and MCP reads do not select it implicitly.
 - Persisted MCP cursors and `since` deltas so repeated reads send only changed
   current truth, including after restart.
 - Preview-then-confirm install paths for Claude Code, Cursor, and Codex with
@@ -210,16 +209,16 @@ cross-product benchmark leaderboard.
 - Local `/memory` cockpit over the loopback Control API with temporal facts,
   proposal counts, MCP delivery stats, and confirm-gated approvals.
 - Rust paths for local ingest, governed graph/search, wiki, MCP, and static
-  analysis. Read commands use freshness-gated auto selection; source checkouts
+  analysis. Read commands select native by default; source checkouts
   can use a local release build, and installed packages can use a verified
   matching optional platform package.
 - Release-candidate native packaging now has five target-specific optional
   package manifests and a checksum-, version-, target-, and path-verified
   resolver. A local macOS arm64 packed-install gate passes without Cargo or
   Rust and covers all fourteen Tier 1 parsers plus the SQLite lifecycle. These
-  platform packages are not published or signed yet, so installed auto mode
-  normally reaches the labeled JS path unless a verified binary and current
-  prebuilt index are supplied.
+  platform packages are not published or signed yet, so stable publication
+  remains blocked until the five verified packages are available before the
+  root package.
 - Deterministic local benches for temporal correctness, session delta delivery,
   and checkout-derived structured-ingest sufficiency.
 
@@ -246,9 +245,9 @@ for the deeper boundary rules.
 Production PostgreSQL repositories, production authentication, hosted embeddings,
 vector databases, hosted memory sync, write-capable MCP tools, automatic harness
 history import, real social connectors, hardened sandboxes, signed Agent Pack
-distribution, production-default non-JS/TS static analysis, general
+distribution, fully measured Tier 1 language capability, general
 cross-repository analysis beyond the bounded exact Go two-repository path, and
-million-node index support are not claimed.
+cross-platform million-node performance are not claimed.
 
 `PROJECT_STATUS.json` is the machine-readable source for current capability
 status and limitations.
@@ -271,12 +270,12 @@ recall graph trace --root . --symbol runAuthWorkflow --format summary
 recall graph index --status --root . --format summary
 recall graph index --write --root . --format json
 recall graph index --refresh --watch --root . --format summary
-recall graph index --write --engine native-preview --root . --format summary
-recall graph index --query main --kind exact --engine native-preview --root . --format json
-recall graph index --doctor --engine native-preview --root . --format summary
+recall graph index --write --engine native --root . --format summary
+recall graph index --query main --kind exact --engine native --root . --format json
+recall graph index --doctor --engine native --root . --format summary
 recall graph repositories register --write --root . --repository repositories/client --name Client --format json
 recall graph repositories list --read-only --root . --limit 10 --format summary
-recall mcp server --read-only --engine native-preview --root . --stdio
+recall mcp server --read-only --engine native --root . --stdio
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
 ```

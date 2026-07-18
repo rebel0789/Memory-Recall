@@ -74,6 +74,7 @@ export function buildOrientationModel({
   const commands = normalizeCommands(report);
   const recentActivity = normalizeActivity(report.memory);
   const nativeIndex = arrayValue(sourceGraph.languages).length > 2;
+  const indexRecovery = sourceIndexRecovery(snapshot.reason);
   const trust = Object.freeze({
     memory: Object.freeze({
       status: memory.pendingCount > 0 ? 'pending' : memory.staleCount > 0 ? 'stale' : memory.status === 'available' ? 'current' : memory.status,
@@ -110,7 +111,8 @@ export function buildOrientationModel({
       status: safeText(sourceGraph.status || 'unavailable', 32),
       kind: sourceGraph.status === 'implemented' ? 'success' : 'error',
       label: sourceGraph.status === 'implemented' ? (nativeIndex ? 'Native index ready' : 'JS/TS map indexed') : 'Source graph unavailable',
-      copy: sourceGraph.status === 'implemented' ? 'Bounded local metadata only; raw source bodies stay local.' : 'The local source graph could not be read.'
+      copy: sourceGraph.status === 'implemented' ? 'Bounded local metadata only; raw source bodies stay local.' : indexRecovery.copy,
+      recoveryCommand: sourceGraph.status === 'implemented' ? null : indexRecovery.command
     }),
     entryPoints: Object.freeze(arrayValue(architecture.entryPoints).map(normalizeStartItem)),
     hotspots: Object.freeze(arrayValue(architecture.hotspots).map(normalizeStartItem)),
@@ -122,6 +124,26 @@ export function buildOrientationModel({
   };
   model.primaryAction = selectOverviewPrimaryAction(model);
   return Object.freeze(model);
+}
+
+function sourceIndexRecovery(reason) {
+  const code = String(reason ?? '').split(':').at(-1);
+  if (code === 'source_index_build_required') {
+    return Object.freeze({ copy: 'Build the local source index, then refresh this page.', command: 'recall graph index --write --engine native --root . --format summary' });
+  }
+  if (code === 'source_index_refresh_required') {
+    return Object.freeze({ copy: 'Refresh the stale source index, then reload this page.', command: 'recall graph index --refresh --engine native --root . --format summary' });
+  }
+  if (['source_index_repair_required', 'source_index_migration_required', 'source_index_wrong_repository'].includes(code)) {
+    return Object.freeze({ copy: 'Inspect the local source index and apply the exact repair command it reports.', command: 'recall graph index --doctor --engine native --root . --format summary' });
+  }
+  if (code === 'source_index_schema_newer') {
+    return Object.freeze({ copy: 'Use a Memory Recall version compatible with this newer source index.', command: null });
+  }
+  if (['native_platform_package_missing', 'native_engine_unavailable'].includes(code)) {
+    return Object.freeze({ copy: 'Install the matching Memory Recall native package, then reload this page.', command: 'npm install -g memory-recall' });
+  }
+  return Object.freeze({ copy: 'The local source index could not be read. Check it, then reload this page.', command: 'recall graph index --doctor --engine native --root . --format summary' });
 }
 
 export function layerOrientationGroups(inputGroups = [], inputRelations = []) {

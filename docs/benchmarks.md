@@ -71,8 +71,9 @@ variables.
 The Phase 1 gate covers boundary behavior and reproducibility. It passes four
 completed deterministic cases with two pinned real repositories and no engine
 network, model, memory, or workspace writes. It is not an accuracy gate. The
-real-repository dimensions expose native import and call gaps, so the JS engine
-remains the public default and no parity or leadership claim is made.
+real-repository dimensions expose native import and call gaps. The receipt is
+historical compatibility evidence, not a statement about the current runtime
+default; no parity or leadership claim is made.
 
 ## Code-intelligence Phase 2 Tier 1 audit
 

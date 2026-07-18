@@ -1,15 +1,15 @@
 # Rust Code Intelligence
 
 Memory Recall keeps Node.js as the zero-account CLI and transport layer. Graph
-reads now default to `auto`: a verified packaged Rust engine is selected only
-when its explicit local SQLite index is healthy and current. Otherwise the
-result identifies the bounded JS/TS fallback.
+reads default to the verified packaged Rust engine and its local SQLite index.
+Missing, stale, corrupt, or incompatible native state returns a specific build,
+refresh, repair, or package action. It never silently selects the JS engine.
 
 Use this wording publicly:
 
-> Memory Recall prefers verified packaged Rust reads from a healthy current
-> local index, never builds that index from a read path, and labels its bounded
-> JS/TS fallback when native state is unavailable.
+> Memory Recall uses verified packaged Rust for production code intelligence,
+> never builds the index from a read path, and keeps JS/TS analysis behind the
+> explicit `compatibility` option during the migration window.
 
 ## What Rust Does
 
@@ -56,52 +56,53 @@ Point Memory Recall at a local release binary when testing a source checkout:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
-  npm run recall -- graph stats --root . --engine native-preview --format summary
+  npm run recall -- graph stats --root . --engine native --format summary
 ```
 
 Use `--engine compatibility` to receive the native graph plus bounded
 file/symbol/import/call/route comparisons against the existing JS/TS graph.
-Both strict graph-read modes are read-only. A missing or invalid strict native
-binary fails clearly. Commands without `--engine` use auto selection and report
-the selected engine and reason.
+Both modes are read-only. A missing or invalid native binary fails clearly.
+Commands without `--engine` select native. `native-preview` and `auto` remain
+strict native compatibility aliases; neither alias enables JS fallback.
 
-## Build and query the native preview index
+## Build and query the native index
 
 Writer operations stay explicit:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
-  npm run recall -- graph index --write --engine native-preview --root . --format summary
+  npm run recall -- graph index --write --engine native --root . --format summary
 
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
-  npm run recall -- graph index --query main --kind exact --engine native-preview --root . --format json
+  npm run recall -- graph index --query main --kind exact --engine native --root . --format json
 
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
-  npm run recall -- graph index --doctor --engine native-preview --root . --format summary
+  npm run recall -- graph index --doctor --engine native --root . --format summary
 ```
 
 If doctor returns a repair plan, review it and pass its fingerprint to
-`--repair --confirm <fingerprint>`. Native MCP is also opt-in and reads only a
+`--repair --confirm <fingerprint>`. Native MCP reads only a
 prebuilt index:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
-  npm run recall -- mcp server --read-only --engine native-preview --root . --stdio
+  npm run recall -- mcp server --read-only --engine native --root . --stdio
 ```
 
-The native MCP preview never builds, refreshes, repairs, or writes governed
-memory. Normal MCP startup uses the same freshness-gated auto selection.
+Native MCP never builds, refreshes, repairs, or writes governed memory. Normal
+MCP startup uses the same strict native selection.
 
-To request freshness-gated auto selection explicitly:
+The former `auto` spelling remains a strict native alias:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
   npm run recall -- mcp server --read-only --engine auto --root . --stdio
 ```
 
-Auto mode uses the native index only when status is healthy, ready, current,
-and committed. Every other status is labeled and served by the bounded JS scan.
-It does not build, refresh, or repair the index.
+Native reads require a healthy, ready, current committed index. Every other
+status returns an actionable error. Reads do not build, refresh, or repair the
+index. Use `--engine compatibility` only when deliberately testing the temporary
+bounded JS/TS implementation.
 
 ## Verify from a source checkout
 

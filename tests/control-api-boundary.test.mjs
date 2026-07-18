@@ -57,7 +57,7 @@ test('serve source graph root defaults to launched repository cwd with env overr
   assert.equal(resolveServeSourceGraphRoot({ env: { OAF_WORKSPACE_ROOT: '/tmp/other-project' }, cwd: '/tmp/project' }), path.resolve('/tmp/other-project'));
 });
 
-test('cli serve inspects the repository it is launched from', async (t) => {
+test('cli serve defaults to packaged native intelligence without silently scanning JS', async (t) => {
   const sourceRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-root-'));
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-data-'));
   const home = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-home-'));
@@ -145,7 +145,10 @@ test('cli serve inspects the repository it is launched from', async (t) => {
   assert.equal(graph.status, 200, graphText);
   const body = JSON.parse(graphText);
   assert.deepEqual(body.impact.changedLocators, ['workspace://src/web.ts']);
-  assert.deepEqual(body.impact.representedChangedLocators, ['workspace://src/web.ts']);
+  assert.deepEqual(body.impact.representedChangedLocators, []);
+  assert.equal(body.graph.summary.fileCount, 0);
+  assert.equal(body.snapshot.status, 'unavailable');
+  assert.match(body.snapshot.reason, /^source_graph_unavailable:(?:native_platform_package_missing|source_index_build_required)$/u);
 });
 
 test('memory intake previews facts that mention workspace source paths', async (t) => {
@@ -363,7 +366,11 @@ test('Recall Map and source preview share one source snapshot', async (t) => {
     }
   });
   t.after(() => sourceGraphSnapshotService.close());
-  const api = await startServer(t, { sourceGraphRoot, sourceGraphSnapshotService });
+  const api = await startServer(t, {
+    sourceGraphRoot,
+    sourceGraphSnapshotService,
+    codeIntelligenceProvider: null
+  });
   const authHeaders = { cookie: api.auth.cookie, origin: api.base };
 
   const recall = await request(api.base, '/api/recall/map?workspaceId=ws_local', {
@@ -518,6 +525,30 @@ test('Control API Recall Map presents a prebuilt TypeScript and Python native in
   assert.equal(legacyScannerInvocations, 0);
 });
 
+test('Control API returns bounded native recovery when a ready index query fails', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-query-failure-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  const codeIntelligenceProvider = {
+    async indexStatus() {
+      return nativeReaderResult({ operation: 'index.status' });
+    },
+    async queryIndex() {
+      throw Object.assign(new Error('query failed'), { code: 'source_index_repair_required' });
+    }
+  };
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
+  const response = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', query: 'main' })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.snapshot.status, 'unavailable');
+  assert.equal(response.body.snapshot.reason, 'source_graph_unavailable:source_index_repair_required');
+  assert.equal(response.body.graph.summary.nodeCount, 0);
+  assert.equal(response.body.safeguards.localFilesWritten, 0);
+});
+
 const validContextPayload = () => ({
   request: {
     schemaVersion: '1.0.0',
@@ -604,7 +635,7 @@ test('context pack route is protected and does not mutate run state', async (t) 
   const largeMemoryTail = 'API_LARGE_MEMORY_TAIL_SHOULD_NOT_LEAK';
   await writeFile(path.join(sourceGraphRoot, 'notes', 'large-memory.md'), `project:oaf large_context browser_preflight\n${'ctx '.repeat(2_400_000)}${largeMemoryTail}`);
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
   const recallMap = await request(api.base, '/api/recall/map', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -1158,7 +1189,7 @@ test('context graph preview route is protected bounded and does not mutate run s
     '  return service.approveTokenReset(request);',
     '}'
   ].join('\n'));
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
   const denied = await request(api.base, '/api/context/graph/preview', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base },
@@ -1420,7 +1451,7 @@ test('context graph preview route returns sanitized unavailable preview when sou
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-source-graph-missing-'));
   await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
   await writeFile(path.join(sourceGraphRoot, 'src', 'auth.ts'), 'export const vanishedRoot = true;\n');
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
   await rm(sourceGraphRoot, { recursive: true, force: true });
 
   const response = await request(api.base, '/api/context/graph/preview', {

@@ -83,37 +83,12 @@ export async function resolveNativeBinary({
   }
 
   const descriptor = nativePackageForTarget(target);
-  const sourceCheckout = await directoryExists(path.join(packageRoot, 'native-packages'));
-  const packaged = await resolvePlatformPackage({
+  return resolvePlatformPackage({
     descriptor,
     expectedVersion,
     target,
     resolvePackageJson: resolvePackageJson ?? defaultPackageResolver(packageRoot)
-  }).catch(async (error) => {
-    if (error?.code !== 'native_platform_package_missing' && !sourceCheckout) throw error;
-    const checkoutBinary = path.join(
-      packageRoot,
-      'rust',
-      'target',
-      'release',
-      process.platform === 'win32' ? 'oaf.exe' : 'oaf'
-    );
-    try {
-      const resolved = await resolveRegularExecutable(checkoutBinary);
-      await verifyVersion(resolved, expectedVersion, path.dirname(resolved));
-      return Object.freeze({
-        path: resolved,
-        source: 'checkout',
-        target,
-        verified: false,
-        version: expectedVersion
-      });
-    } catch (checkoutError) {
-      if (checkoutError?.code === 'native_engine_version_mismatch') throw checkoutError;
-      throw error;
-    }
   });
-  return packaged;
 }
 
 async function resolvePlatformPackage({ descriptor, expectedVersion, target, resolvePackageJson }) {
@@ -258,14 +233,6 @@ function runtimeGlibcVersion() {
     return process.report?.getReport()?.header?.glibcVersionRuntime ?? null;
   } catch {
     return null;
-  }
-}
-
-async function directoryExists(candidate) {
-  try {
-    return (await stat(candidate)).isDirectory();
-  } catch {
-    return false;
   }
 }
 

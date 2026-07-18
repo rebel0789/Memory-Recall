@@ -63,7 +63,7 @@ test('packaged native binary rejects version mismatch and path escape', async (t
   await assert.rejects(escapeFixture.resolve(), (error) => error.code === 'native_engine_path_invalid');
 });
 
-test('source checkout uses the local build only as an unverified development fallback', async (t) => {
+test('source checkout binary is used only through an explicit development path', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-checkout-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const binary = path.join(root, 'rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
@@ -71,17 +71,19 @@ test('source checkout uses the local build only as an unverified development fal
   await mkdir(path.dirname(binary), { recursive: true });
   await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"1.1.1"}\n');
   await writeExecutable(binary, 'oaf 1.1.1');
-  const selected = await resolveNativeBinary({
+  const options = {
     target: 'darwin-arm64',
     packageRoot: root,
     resolvePackageJson: async () => { throw new Error('not installed'); }
-  });
+  };
+  await assert.rejects(resolveNativeBinary(options), (error) => error.code === 'native_platform_package_missing');
+  const selected = await resolveNativeBinary({ ...options, binaryPath: binary });
   assert.equal(selected.path, await realpath(binary));
-  assert.equal(selected.source, 'checkout');
+  assert.equal(selected.source, 'explicit');
   assert.equal(selected.verified, false);
 });
 
-test('explicit and checkout binaries must report the exact package version', async (t) => {
+test('explicit binaries must report the exact package version', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-version-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const binary = path.join(root, 'rust', 'target', 'release', 'oaf');
@@ -92,14 +94,6 @@ test('explicit and checkout binaries must report the exact package version', asy
 
   await assert.rejects(
     resolveNativeBinary({ binaryPath: binary, target: 'darwin-arm64', packageRoot: root }),
-    (error) => error.code === 'native_engine_version_mismatch'
-  );
-  await assert.rejects(
-    resolveNativeBinary({
-      target: 'darwin-arm64',
-      packageRoot: root,
-      resolvePackageJson: async () => { throw new Error('not installed'); }
-    }),
     (error) => error.code === 'native_engine_version_mismatch'
   );
 });

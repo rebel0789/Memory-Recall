@@ -73,7 +73,7 @@ consumerSmoke: try {
   );
   await mkdir(path.dirname(governedMemory), { recursive: true });
   await writeFile(governedMemory, 'governed-memory-sentinel');
-  await writeFile(path.join(workspace, 'package.json'), `${JSON.stringify({ name: 'native-preview-consumer' }, null, 2)}\n`);
+  await writeFile(path.join(workspace, 'package.json'), `${JSON.stringify({ name: 'native-consumer' }, null, 2)}\n`);
 
   const initialSource = await treeFingerprint(path.join(workspace, 'languages'));
   const initialCliSource = await treeFingerprint(cliWorkspace);
@@ -263,7 +263,7 @@ consumerSmoke: try {
     '--workspace', fleetWorkspaceId, '--format', 'json'
   ]);
   for (const registration of [clientRegistration, serviceRegistration, decoyRegistration]) {
-    must(registration.engine?.selection === 'native-preview', 'installed repository registration uses native preview');
+    must(registration.engine?.selection === 'native', 'installed repository registration uses native intelligence');
     must(registration.safeguards?.readOnly === false && registration.safeguards?.localFilesWritten === 1, 'installed repository registration requires one explicit local write');
   }
   const client = clientRegistration.repositories[0];
@@ -303,7 +303,7 @@ consumerSmoke: try {
     { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'code.impact', arguments: { crossRepository, limit: 10 } } }
   ];
   const installedMcp = run(process.execPath, [installedCli,
-    'mcp', 'server', '--read-only', '--engine', 'native-preview', '--workspace', fleetWorkspaceId,
+    'mcp', 'server', '--read-only', '--engine', 'native', '--workspace', fleetWorkspaceId,
     '--root', fleet, '--stdio'
   ], {
     cwd: fleet,
@@ -384,28 +384,8 @@ consumerSmoke: try {
     });
   }
 
-  const stats = runJson(process.execPath, [installedCli,
-    'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
-  ], { cwd: cliWorkspace, env: isolatedEnvironment });
-  must(stats.engine?.selection === 'native-preview', 'packed CLI selects native preview explicitly');
-  must(stats.engine?.previewOnly === true && stats.engine?.publicDefaultChanged === true, 'packed CLI reports strict native preview under the auto public default');
-  must(stats.graph?.summary?.fileCount >= 1 && stats.graph?.summary?.symbolCount >= 2, 'packed CLI reports native graph coverage');
-
-  const search = runJson(process.execPath, [installedCli,
-    'graph', 'search', '--root', cliWorkspace, '--query', 'launchSmoke', '--engine', 'native-preview', '--format', 'json'
-  ], { cwd: cliWorkspace, env: isolatedEnvironment });
-  must(search.search?.results?.some((item) => item.label === 'launchSmoke'), 'packed CLI native search returns launchSmoke');
-  for (const report of [stats, search]) {
-    must(report.safeguards?.canonicalStateMutated === false, 'native preview does not mutate canonical memory');
-    must(report.safeguards?.localFilesWritten === 0, 'native preview writes no local files');
-    must(report.safeguards?.networkCalls === 0, 'native preview makes no network calls');
-    must(report.safeguards?.modelCalls === 0, 'native preview makes no model calls');
-    must(report.safeguards?.rawBodyIncluded === false, 'native preview omits source bodies');
-    must(!JSON.stringify(report).includes(cliWorkspace), 'native preview report redacts the workspace path');
-  }
-
   const unavailable = runFailure(process.execPath, [installedCli,
-    'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
+    'graph', 'stats', '--root', cliWorkspace, '--engine', 'native', '--format', 'json'
   ], {
     cwd: cliWorkspace,
     env: { ...isolatedEnvironment, MEMORY_RECALL_NATIVE_BINARY: path.join(temp, 'missing-native') }
@@ -413,19 +393,19 @@ consumerSmoke: try {
   must(unavailable.status === 2, 'invalid explicit native override fails closed');
   must(/native_engine_unavailable/u.test(unavailable.stderr), 'invalid explicit native override reports native_engine_unavailable');
 
-  const autoWithoutIndex = runJson(process.execPath, [installedCli, 'graph', 'stats', '--root', cliWorkspace, '--format', 'json'], {
+  const nativeWithoutIndex = runFailure(process.execPath, [installedCli, 'graph', 'stats', '--root', cliWorkspace, '--format', 'json'], {
     cwd: cliWorkspace,
     env: isolatedEnvironment
   });
-  must(autoWithoutIndex.engine?.requested === 'auto' && autoWithoutIndex.engine?.selection === 'js', 'packed CLI defaults to auto and keeps the bounded JS fallback without a native index');
-  must(autoWithoutIndex.engine?.reason === 'native_index_absent' && autoWithoutIndex.engine?.publicDefaultChanged === true, 'packed CLI labels the absent-index auto fallback');
+  must(nativeWithoutIndex.status === 2, 'packed CLI fails closed when the native index is absent');
+  must(/source_index_build_required/u.test(nativeWithoutIndex.stderr), 'packed CLI returns the exact native index build requirement');
 
-  must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'native preview leaves consumer source unchanged');
-  must(await treeFingerprint(cliWorkspace) === initialCliSource, 'native preview leaves CLI consumer source unchanged');
-  must((await readFile(governedMemory)).equals(initialMemory), 'native preview leaves governed memory unchanged');
-  must(await treeFingerprint(home) === initialHome, 'native preview leaves the isolated home and config unchanged');
-  must(await treeFingerprint(packageRoot) === initialPackage, 'native preview leaves the installed package unchanged');
-  must(await treeFingerprint(platformPackageRoot) === initialPlatformPackage, 'native preview leaves the platform package unchanged');
+  must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'native reads leave consumer source unchanged');
+  must(await treeFingerprint(cliWorkspace) === initialCliSource, 'native reads leave CLI consumer source unchanged');
+  must((await readFile(governedMemory)).equals(initialMemory), 'native reads leave governed memory unchanged');
+  must(await treeFingerprint(home) === initialHome, 'native reads leave the isolated home and config unchanged');
+  must(await treeFingerprint(packageRoot) === initialPackage, 'native reads leave the installed package unchanged');
+  must(await treeFingerprint(platformPackageRoot) === initialPlatformPackage, 'native reads leave the platform package unchanged');
 
   const mcpInstallPreview = runJson(process.execPath, [installedCli,
     'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace, '--format', 'json'
@@ -434,7 +414,7 @@ consumerSmoke: try {
   const cliRealRoot = await realpath(cliWorkspace);
   const cliIndexPath = path.join(cliRealRoot, '.local', 'source-index', 'index.v1.sqlite');
   const cliMemoryPath = path.join(cliRealRoot, '.local', 'memory.sqlite');
-  const expectedIndexBuildCommand = `recall graph index --write --engine native-preview --root ${JSON.stringify(cliRealRoot)} --format summary`;
+  const expectedIndexBuildCommand = `recall graph index --write --engine native --root ${JSON.stringify(cliRealRoot)} --format summary`;
   must(mcpInstallPreview.indexBuildCommand === expectedIndexBuildCommand, 'packed CLI preview exposes the exact explicit native index build command');
   const mcpInstall = runJson(process.execPath, [installedCli,
     'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace,
@@ -445,7 +425,7 @@ consumerSmoke: try {
   must(installedMcpConfig.mcpServers?.neighbor?.command === 'neighbor', 'MCP install preserves neighboring servers');
   const installedMcpServer = installedMcpConfig.mcpServers?.oaf;
   must(installedMcpServer?.args?.includes('--read-only'), 'MCP install writes the read-only server entry');
-  must(installedMcpServer.args.some((argument, index) => argument === '--engine' && installedMcpServer.args[index + 1] === 'auto'), 'MCP install persists contiguous --engine auto arguments');
+  must(installedMcpServer.args.some((argument, index) => argument === '--engine' && installedMcpServer.args[index + 1] === 'native'), 'MCP install persists contiguous --engine native arguments');
   const callInstalledStructuralTool = (query) => {
     const requests = [
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
@@ -459,33 +439,47 @@ consumerSmoke: try {
       timeout: 30_000
     });
     const response = result.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
-    must(response && !response.error, 'installed MCP structural tool call succeeds');
-    return JSON.parse(response.result.content[0].text);
+    must(response, 'installed MCP structural tool returns one response');
+    return response.error ? { error: response.error } : JSON.parse(response.result.content[0].text);
   };
 
   must((await fileBundleSnapshot(cliIndexPath)).every((snapshot) => snapshot === null), 'MCP install leaves source-index SQLite, WAL, and SHM absent');
   const absentIndexSearch = callInstalledStructuralTool('launchSmoke');
-  must(absentIndexSearch.data?.source?.engine === 'js', 'installed auto MCP selects the JS engine when the native index is absent');
-  must(absentIndexSearch.data?.source?.reason === 'native_index_absent', 'installed auto MCP labels the JS fallback when the native index is absent');
-  must(absentIndexSearch.data?.results?.some((item) => item.label === 'launchSmoke'), 'installed auto MCP JS fallback returns the requested symbol');
-  must(absentIndexSearch.safeguards?.readOnly === true && absentIndexSearch.safeguards?.localFilesWritten === 0, 'installed auto MCP JS fallback is read-only');
-  must((await fileBundleSnapshot(cliIndexPath)).every((snapshot) => snapshot === null), 'installed auto MCP fallback does not create source-index SQLite, WAL, or SHM');
-  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed auto MCP fallback does not create memory SQLite, WAL, or SHM');
+  must(/source_index_build_required/u.test(absentIndexSearch.error?.message ?? ''), 'installed native MCP fails closed with the exact build requirement');
+  must((await fileBundleSnapshot(cliIndexPath)).every((snapshot) => snapshot === null), 'installed native MCP does not create source-index SQLite, WAL, or SHM');
+  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed native MCP does not create memory SQLite, WAL, or SHM');
 
   const cliIndexBuild = runJson(process.execPath, [installedCli,
-    'graph', 'index', '--write', '--engine', 'native-preview', '--root', cliWorkspace, '--format', 'json'
+    'graph', 'index', '--write', '--engine', 'native', '--root', cliWorkspace, '--format', 'json'
   ], { cwd: cliWorkspace, env: isolatedEnvironment });
   must(cliIndexBuild.command === 'graph index build' && cliIndexBuild.status === 'ready', 'packed CLI builds the native index only after the explicit writer command');
   must(cliIndexBuild.safeguards?.readOnly === false && cliIndexBuild.safeguards?.localFilesWritten === 1 && cliIndexBuild.safeguards?.canonicalMemoryWrites === 0, 'explicit packed CLI writer changes only the native index');
   const cliIndexBeforeNativeMcp = await fileBundleSnapshot(cliIndexPath);
   must(cliIndexBeforeNativeMcp[0] !== null, 'explicit native build creates the source-index SQLite database');
+  const stats = runJson(process.execPath, [installedCli,
+    'graph', 'stats', '--root', cliWorkspace, '--format', 'json'
+  ], { cwd: cliWorkspace, env: isolatedEnvironment });
+  const search = runJson(process.execPath, [installedCli,
+    'graph', 'search', '--root', cliWorkspace, '--query', 'launchSmoke', '--format', 'json'
+  ], { cwd: cliWorkspace, env: isolatedEnvironment });
+  must(stats.engine?.selection === 'native' && stats.engine?.previewOnly === false, 'packed CLI defaults to the persistent native index');
+  must(stats.graph?.summary?.fileCount >= 1 && stats.graph?.summary?.symbolCount >= 2, 'packed CLI reports native graph coverage');
+  must(search.search?.results?.some((item) => item.label === 'launchSmoke'), 'packed CLI native search returns launchSmoke');
+  for (const report of [stats, search]) {
+    must(report.safeguards?.canonicalStateMutated === false, 'native reads do not mutate canonical memory');
+    must(report.safeguards?.localFilesWritten === 0, 'native reads write no local files');
+    must(report.safeguards?.networkCalls === 0, 'native reads make no network calls');
+    must(report.safeguards?.modelCalls === 0, 'native reads make no model calls');
+    must(report.safeguards?.rawBodyIncluded === false, 'native reads omit source bodies');
+    must(!JSON.stringify(report).includes(cliWorkspace), 'native reports redact the workspace path');
+  }
   const nativeIndexSearch = callInstalledStructuralTool('launchSmoke');
-  must(nativeIndexSearch.data?.source?.kind === 'native-persistent-index-preview', 'installed auto MCP selects the current native index');
-  must(nativeIndexSearch.data?.source?.engine === 'memory-recall-native' && nativeIndexSearch.data?.source?.freshness === 'current', 'installed auto MCP reports a current native source');
-  must(nativeIndexSearch.data?.results?.some((item) => item.label === 'launchSmoke'), 'installed auto MCP native query returns the requested symbol');
-  must(nativeIndexSearch.safeguards?.readOnly === true && nativeIndexSearch.safeguards?.localFilesWritten === 0, 'installed auto MCP native query is read-only');
-  must(sameFileBundleSnapshot(await fileBundleSnapshot(cliIndexPath), cliIndexBeforeNativeMcp), 'installed auto MCP native read preserves SQLite bytes and mtime and leaves WAL and SHM unchanged');
-  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed auto MCP native read does not create memory SQLite, WAL, or SHM');
+  must(nativeIndexSearch.data?.source?.kind === 'native-persistent-index', 'installed MCP selects the current native index');
+  must(nativeIndexSearch.data?.source?.engine === 'memory-recall-native' && nativeIndexSearch.data?.source?.freshness === 'current', 'installed MCP reports a current native source');
+  must(nativeIndexSearch.data?.results?.some((item) => item.label === 'launchSmoke'), 'installed MCP native query returns the requested symbol');
+  must(nativeIndexSearch.safeguards?.readOnly === true && nativeIndexSearch.safeguards?.localFilesWritten === 0, 'installed MCP native query is read-only');
+  must(sameFileBundleSnapshot(await fileBundleSnapshot(cliIndexPath), cliIndexBeforeNativeMcp), 'installed MCP native read preserves SQLite bytes and mtime and leaves WAL and SHM unchanged');
+  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed MCP native read does not create memory SQLite, WAL, or SHM');
 
   const mcpUninstallPreview = runJson(process.execPath, [installedCli,
     'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'
@@ -572,11 +566,11 @@ consumerSmoke: try {
 
   console.log(`PASS installed verified native platform package ${target}`);
   console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
-  console.log('PASS automatic native preview stats and search');
+  console.log('PASS native-default persistent stats and search');
   console.log('PASS installed repository CLI and cross-repository MCP');
   console.log('PASS invalid explicit native override fails closed');
   console.log('PASS no source, governed-memory, config, or package mutation');
-  console.log('PASS auto is the public read default with a labeled bounded fallback');
+  console.log('PASS native is the public read default and fails closed without an index');
   console.log('PASS packed MCP install and uninstall preserve neighboring config');
   console.log('PASS uninstall removes packages and preserves workspace-local state');
   console.log('PASS same-version reinstall reopens the existing index without rebuilding');
@@ -804,7 +798,7 @@ async function buildGoCrossRepositoryReceipt({
       installed: true,
       providerSource: health.details.source,
       providerVerified: health.details.verified,
-      mcpEngine: 'native-preview'
+      mcpEngine: 'native'
     },
     fixture: {
       language: 'go',

@@ -6,8 +6,10 @@ import test from 'node:test';
 import sourceGraphSchema from '../packages/protocol/schemas/source-graph.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import {
+  buildUnavailableSourceGraphPreview,
   buildSourceGraphIntelligence,
   compareSourceGraphCompatibility,
+  nativeIndexSource,
   translateCodeIntelligenceGraph
 } from '../packages/source-graph/src/index.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
@@ -313,21 +315,38 @@ test('compatibility resolves a CommonJS member call to the required module', asy
   });
 });
 
-test('source graph intelligence keeps JS default and makes native selection strict', async (t) => {
+test('source graph intelligence defaults to native and keeps JS as explicit compatibility', async (t) => {
   const root = await compatibilityWorkspace(t);
   const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
-  const js = await buildSourceGraphIntelligence({ root, workspaceId: 'ws_local', clock: () => fixedNow });
+  const native = await buildSourceGraphIntelligence({
+    root,
+    workspaceId: 'ws_local',
+    codeIntelligenceProvider: provider,
+    clock: () => fixedNow
+  });
+  assert.equal(native.source.kind, 'native');
+  assert.equal(validateJsonSchema(sourceGraphSchema, native.graph).valid, true);
+
+  const js = await buildSourceGraphIntelligence({ root, workspaceId: 'ws_local', engine: 'js', clock: () => fixedNow });
   assert.equal(js.source.kind, 'bounded-scan');
 
-  const native = await buildSourceGraphIntelligence({
+  const explicitNative = await buildSourceGraphIntelligence({
+    root,
+    workspaceId: 'ws_local',
+    engine: 'native',
+    codeIntelligenceProvider: provider,
+    clock: () => fixedNow
+  });
+  assert.equal(explicitNative.source.kind, 'native');
+
+  const compatibilityAlias = await buildSourceGraphIntelligence({
     root,
     workspaceId: 'ws_local',
     engine: 'native-preview',
     codeIntelligenceProvider: provider,
     clock: () => fixedNow
   });
-  assert.equal(native.source.kind, 'native-preview');
-  assert.equal(validateJsonSchema(sourceGraphSchema, native.graph).valid, true);
+  assert.equal(compatibilityAlias.source.kind, 'native');
 
   const compatibility = await buildSourceGraphIntelligence({
     root,
@@ -336,15 +355,53 @@ test('source graph intelligence keeps JS default and makes native selection stri
     codeIntelligenceProvider: provider,
     clock: () => fixedNow
   });
-  assert.equal(compatibility.source.kind, 'native-preview');
+  assert.equal(compatibility.source.kind, 'native');
   assert.equal(compatibility.compatibility.parityClaimed, false);
 
   await assert.rejects(
-    buildSourceGraphIntelligence({ root, engine: 'native-preview' }),
+    buildSourceGraphIntelligence({ root, engine: 'native' }),
     /source_graph_native_provider_required/u
   );
   await assert.rejects(
     buildSourceGraphIntelligence({ root, engine: 'unknown', codeIntelligenceProvider: provider }),
     /source_graph_engine_invalid/u
+  );
+});
+
+test('native source metadata is canonical and contains no preview-default disclaimers', () => {
+  assert.deepEqual(nativeIndexSource({
+    indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+    activeGeneration: 3,
+    freshness: 'current'
+  }), {
+    kind: 'native-persistent-index',
+    engine: 'memory-recall-native',
+    indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+    activeGeneration: 3,
+    freshness: 'current'
+  });
+});
+
+test('native-unavailable preview is bounded without invoking the JS scanner', () => {
+  const preview = buildUnavailableSourceGraphPreview({
+    workspaceId: 'ws_local',
+    query: 'entry point',
+    changedLocators: ['workspace://src/main.ts'],
+    limit: 7,
+    offset: 4,
+    depth: 3,
+    sampleLimit: 5,
+    errorCode: 'native_platform_package_missing',
+    clock: () => fixedNow
+  });
+  assert.equal(preview.snapshot.status, 'unavailable');
+  assert.equal(preview.search.limit, 7);
+  assert.equal(preview.search.offset, 4);
+  assert.equal(preview.search.total, 0);
+  assert.equal(preview.graph.summary.nodeCount, 0);
+  assert.match(preview.snapshot.reason, /native_platform_package_missing/u);
+  assert.throws(
+    () => buildUnavailableSourceGraphPreview({ limit: 101 }),
+    /source_graph_preview_limit_invalid/u
   );
 });

@@ -8,12 +8,16 @@ import path from 'node:path';
 const cli = path.resolve('apps/cli/oaf.mjs');
 const rustBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 
-test('graph read commands expose strict native preview and compatibility modes', () => {
+test('graph read commands expose strict native and compatibility modes', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-native-preview-'));
   mkdirSync(path.join(root, 'src'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'index.ts'), 'export function main(){ return helper(); }\nexport function helper(){ return 1; }\n');
   const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary, OAF_FIXED_NOW: '2026-07-16T00:00:00.000Z' };
-  const run = (engine) => spawnSync(process.execPath, [
+  const built = spawnSync(process.execPath, [
+    cli, 'graph', 'index', '--write', '--engine', 'native', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(built.status, 0, built.stderr);
+  const run = (engine, runEnv = env) => spawnSync(process.execPath, [
     cli,
     'graph',
     'search',
@@ -21,50 +25,61 @@ test('graph read commands expose strict native preview and compatibility modes',
     '--query', 'main',
     '--engine', engine,
     '--format', 'json'
-  ], { encoding: 'utf8', env });
+  ], { encoding: 'utf8', env: runEnv });
 
   const native = run('native-preview');
   assert.equal(native.status, 0, native.stderr);
   const nativeReport = JSON.parse(native.stdout);
-  assert.equal(nativeReport.engine.selection, 'native-preview');
-  assert.equal(nativeReport.engine.previewOnly, true);
+  assert.equal(nativeReport.engine.selection, 'native');
+  assert.equal(nativeReport.engine.previewOnly, false);
   assert.equal(nativeReport.engine.publicDefaultChanged, true);
   assert(nativeReport.search.results.some((item) => item.label === 'main'));
   assert.equal(JSON.stringify(nativeReport).includes(root), false);
 
-  const compatibility = run('compatibility');
+  const compatibility = run('compatibility', { ...env, MEMORY_RECALL_NATIVE_BINARY: path.join(root, 'missing-native') });
   assert.equal(compatibility.status, 0, compatibility.stderr);
   const compatibilityReport = JSON.parse(compatibility.stdout);
   assert.equal(compatibilityReport.engine.selection, 'compatibility');
-  assert.equal(compatibilityReport.compatibility.parityClaimed, false);
-  assert.deepEqual(compatibilityReport.compatibility.dimensions.map((item) => item.name), ['files', 'symbols', 'imports', 'calls', 'routes']);
+  assert.equal(compatibilityReport.engine.implementation, 'javascript-typescript-compatibility');
+  assert(compatibilityReport.search.results.some((item) => item.label === 'main'));
 
   const invalid = run('unknown');
   assert.equal(invalid.status, 2);
-  assert.match(invalid.stderr, /graph --engine must be js, auto, native-preview, or compatibility/u);
+  assert.match(invalid.stderr, /graph --engine must be native, native-preview, auto, or compatibility/u);
 
   const missing = spawnSync(process.execPath, [
-    cli, 'graph', 'stats', '--root', root, '--engine', 'native-preview', '--format', 'json'
+    cli, 'graph', 'stats', '--root', root, '--engine', 'native', '--format', 'json'
   ], { encoding: 'utf8', env: { ...env, MEMORY_RECALL_NATIVE_BINARY: path.join(root, 'missing-native') } });
   assert.equal(missing.status, 2);
   assert.match(missing.stderr, /native_engine_unavailable/u);
 });
 
-test('graph read commands default to auto and do not build a missing native index', () => {
+test('graph read commands default to the current native persistent index without mutating it', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-auto-default-'));
   writeFileSync(path.join(root, 'index.ts'), 'export function currentDefault(){ return true; }\n');
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary };
+  const built = spawnSync(process.execPath, [cli, 'graph', 'index', '--write', '--root', root, '--format', 'json'], {
+    encoding: 'utf8',
+    env
+  });
+  assert.equal(built.status, 0, built.stderr);
+  const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
+  const before = statSync(indexPath);
   const result = spawnSync(process.execPath, [cli, 'graph', 'stats', '--root', root, '--format', 'json'], {
     encoding: 'utf8',
-    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary }
+    env
   });
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
-  assert.equal(report.engine.requested, 'auto');
-  assert.equal(report.engine.selection, 'js');
-  assert.equal(report.engine.reason, 'native_index_absent');
+  assert.equal(report.engine.requested, 'native');
+  assert.equal(report.engine.selection, 'native');
+  assert.equal(report.engine.reason, null);
   assert.equal(report.engine.previewOnly, false);
   assert.equal(report.engine.publicDefaultChanged, true);
-  assert.equal(existsSync(path.join(root, '.local', 'source-index', 'index.v1.sqlite')), false);
+  assert(report.graph.summary.nodeCount > 0);
+  const after = statSync(indexPath);
+  assert.equal(after.size, before.size);
+  assert.equal(after.mtimeMs, before.mtimeMs);
 });
 
 test('graph index CLI builds, reports, and incrementally refreshes a local persistent index', () => {
@@ -72,7 +87,7 @@ test('graph index CLI builds, reports, and incrementally refreshes a local persi
   mkdirSync(path.join(root, 'src'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'one.ts'), 'export function one() { return 1; }\n');
   writeFileSync(path.join(root, 'src', 'stable.ts'), 'export const stable = true;\n');
-  const run = (...args) => spawnSync(process.execPath, [cli, 'graph', 'index', ...args, '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  const run = (...args) => spawnSync(process.execPath, [cli, 'graph', 'index', ...args, '--engine', 'compatibility', '--root', root, '--format', 'json'], { encoding: 'utf8' });
 
   const missing = run('--status');
   assert.equal(missing.status, 0, missing.stderr);
@@ -115,7 +130,7 @@ test('graph index CLI builds, reports, and incrementally refreshes a local persi
   assert.equal(refreshReport.measurements.reusedFileCount, 1);
   assert.equal(refreshReport.measurements.changedFileCount, 1);
 
-  const unsafe = spawnSync(process.execPath, [cli, 'graph', 'index', '--status', '--root', root, '--out', '../outside.json', '--format', 'json'], { encoding: 'utf8' });
+  const unsafe = spawnSync(process.execPath, [cli, 'graph', 'index', '--status', '--engine', 'compatibility', '--root', root, '--out', '../outside.json', '--format', 'json'], { encoding: 'utf8' });
   assert.equal(unsafe.status, 2);
   assert.equal(unsafe.stderr.includes('../outside.json'), false);
 });
@@ -131,7 +146,7 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
   const memoryBefore = readFileSync(memoryPath);
   const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary };
   const run = (...args) => spawnSync(process.execPath, [
-    cli, 'graph', 'index', ...args, '--engine', 'native-preview', '--root', root, '--format', 'json'
+    cli, 'graph', 'index', ...args, '--engine', 'native', '--root', root, '--format', 'json'
   ], { encoding: 'utf8', env });
 
   const missing = run('--status');
@@ -185,9 +200,9 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
   assert.equal(JSON.parse(repaired.stdout).safeguards.repairPerformed, true);
   assert.deepEqual(readFileSync(memoryPath), memoryBefore);
 
-  const hiddenNativeWrite = spawnSync(process.execPath, [cli, 'graph', 'index', '--doctor', '--root', root, '--format', 'json'], { encoding: 'utf8', env });
+  const hiddenNativeWrite = spawnSync(process.execPath, [cli, 'graph', 'index', '--doctor', '--engine', 'compatibility', '--root', root, '--format', 'json'], { encoding: 'utf8', env });
   assert.equal(hiddenNativeWrite.status, 2);
-  assert.match(hiddenNativeWrite.stderr, /requires --engine native-preview/u);
+  assert.match(hiddenNativeWrite.stderr, /requires --engine native/u);
 
   const invalidBound = run('--write', '--max-nodes', 'nope');
   assert.equal(invalidBound.status, 2);
@@ -195,7 +210,7 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
   assert.doesNotMatch(invalidBound.stderr, /\n\s+at /u);
 
   const missingQuery = spawnSync(process.execPath, [
-    cli, 'graph', 'index', '--query', '--engine', 'native-preview', '--root', root, '--format', 'json'
+    cli, 'graph', 'index', '--query', '--engine', 'native', '--root', root, '--format', 'json'
   ], { encoding: 'utf8', env });
   assert.equal(missingQuery.status, 2);
   assert.match(missingQuery.stderr, /--query requires a query value/u);
@@ -215,7 +230,7 @@ test('graph index native query exposes and consumes an opaque continuation curso
   ].join('\n'));
   const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary };
   const run = (...args) => spawnSync(process.execPath, [
-    cli, 'graph', 'index', ...args, '--engine', 'native-preview', '--root', root
+    cli, 'graph', 'index', ...args, '--engine', 'native', '--root', root
   ], { encoding: 'utf8', env });
 
   const built = run('--write', '--languages', 'typescript', '--format', 'json');
@@ -248,8 +263,8 @@ test('graph help documents the explicit persistent index lifecycle', () => {
   assert.match(result.stdout, /graph index --refresh/u);
   assert.match(result.stdout, /--watch/u);
   assert.match(result.stdout, /MCP reads the index but never builds or refreshes it/u);
-  assert.match(result.stdout, /--engine <auto\|js\|native-preview\|compatibility>/u);
-  assert.match(result.stdout, /graph index --doctor --engine native-preview/u);
+  assert.match(result.stdout, /--engine <native\|native-preview\|auto\|compatibility>/u);
+  assert.match(result.stdout, /graph index --doctor --engine native/u);
   assert.match(result.stdout, /graph index --repair --confirm <repairPlanFingerprint>/u);
   assert.match(result.stdout, /\.local\/source-index/u);
 });
@@ -257,7 +272,7 @@ test('graph help documents the explicit persistent index lifecycle', () => {
 test('graph index watch refreshes after a source file changes and exits cleanly', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-index-watch-'));
   writeFileSync(path.join(root, 'watch.ts'), 'export const watched = 1;\n');
-  const child = spawn(process.execPath, [cli, 'graph', 'index', '--refresh', '--watch', '--root', root, '--format', 'summary'], { encoding: 'utf8' });
+  const child = spawn(process.execPath, [cli, 'graph', 'index', '--refresh', '--watch', '--engine', 'compatibility', '--root', root, '--format', 'summary'], { encoding: 'utf8' });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });

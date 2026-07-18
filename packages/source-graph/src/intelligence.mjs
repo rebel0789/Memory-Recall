@@ -20,11 +20,11 @@ export async function buildSourceGraphIntelligence({
   workspaceId = 'ws_local',
   maxFiles = 1000,
   maxFileBytes = 512 * 1024,
-  engine = 'js',
+  engine = 'native',
   codeIntelligenceProvider = null,
   clock = () => new Date().toISOString()
 } = {}) {
-  if (!['js', 'native-preview', 'compatibility'].includes(engine)) throw new Error('source_graph_engine_invalid');
+  if (!['js', 'native', 'native-preview', 'compatibility'].includes(engine)) throw new Error('source_graph_engine_invalid');
   if (engine !== 'js') {
     if (!codeIntelligenceProvider || typeof codeIntelligenceProvider.buildGraph !== 'function') {
       throw new Error('source_graph_native_provider_required');
@@ -40,12 +40,12 @@ export async function buildSourceGraphIntelligence({
     });
     const graph = translateCodeIntelligenceGraph(nativeGraph);
     const source = Object.freeze({
-      kind: 'native-preview',
+      kind: 'native',
       freshness: nativeGraph.generation.freshness,
       persisted: false,
-      reason: 'explicit_native_preview'
+      reason: 'native_engine'
     });
-    if (engine === 'native-preview') return Object.freeze({ graph, source });
+    if (engine === 'native' || engine === 'native-preview') return Object.freeze({ graph, source });
     const baseline = await buildJsTsSourceGraph({ root, workspaceId, maxFiles, maxFileBytes, clock });
     return Object.freeze({
       graph,

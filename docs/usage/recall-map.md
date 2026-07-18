@@ -1,10 +1,10 @@
 # Recall Map
 
 `recall map` is the first explicit read-only command for understanding a local
-repository. The command uses the bounded JavaScript/TypeScript compatibility
-graph. The local web workbench prefers a healthy current Rust index and uses
-the compatibility graph only when that index is unavailable. Both paths keep
-source metadata separate from the governed local SQLite memory store.
+repository. Production graph and web reads use the packaged Rust engine and a
+healthy current local SQLite index. Missing or stale native state is shown as a
+bounded recovery state; it never silently invokes the temporary JS/TS engine.
+Source metadata stays separate from the governed local SQLite memory store.
 
 Run it from the repository you want to inspect:
 
@@ -75,15 +75,15 @@ it is not presented as current or empty.
 
 The local Control API reads a healthy current Rust index for Recall Map and
 source preview requests without changing its SQLite bytes or timestamps. If no
-current index exists, it reuses one bounded in-process JS/TS snapshot. A POST
-request can set `refresh: true` to reload the map, but it never builds or
-refreshes the Rust index. Index writes remain explicit CLI operations. GET is
-cache-aware and read-only.
+current index exists, it returns the exact build, refresh, repair, or package
+diagnostic. A POST request can set `refresh: true` to reload the view, but it
+never builds or refreshes the Rust index. Index writes remain explicit CLI
+operations. GET is cache-aware and read-only.
 
 When the native index contains enough evidence, Map also lists deterministic
 communities and bounded entry-to-sink processes with source locators,
-confidence, and truncation state. The JS/TS fallback leaves processes empty
-instead of inventing them.
+confidence, and truncation state. An unavailable native index leaves processes
+empty instead of inventing them.
 
 When `.local/memory.sqlite` is absent, the report remains read-only and reports
 the memory store as missing. It never creates a database just to produce a map.
