@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `aac93e8c69aa9a0ddc236e2e2c45943edb7cf002`
+Current evidence commit: `141e7cdd744fbe83d490ad4104b616c49923ae4d`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -26,7 +26,7 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | V-1 | Ship one normal stable release, not a beta, preview, RC, or partial package. | Incomplete | `package.json` says `1.1.1`; `PROJECT_STATUS.json` and release documents still call it a patch candidate/readiness artifact; no release is authorized. The compatibility audit rejects a patch and does not choose a replacement version. | Freeze the implementation, re-run the compatibility audit against the exact root tarball, choose the stable line, and pass every final gate before publication. |
-| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...aac93e8` changes 351 files with 94,012 insertions and 2,459 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
+| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...141e7cd` changes 351 files with 94,024 insertions and 2,460 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
 | V-3 | Preserve the exact original completion criteria. | Proven | This matrix maps the approved polyglot design, the active goal, and the ten stable-release priorities without redefining success. | Keep this ledger current after each slice. |
 
 ## Product target
