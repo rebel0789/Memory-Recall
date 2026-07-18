@@ -56,6 +56,18 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_rust_import_service_not_self",
+      "semanticKey": "edge:imports:src/lib.rs:service-line:not-lib",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "to": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "locator": "workspace://src/lib.rs#L3-L3",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_rust_implements_runner",
       "semanticKey": "edge:implements:src/service.rs:Service:Runner",
       "capability": "heritage",
@@ -139,5 +151,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:9314146ff211bf2839d9ec1749d91ffbee7080c0d5667d5506588bbecce840d6"
+  "truthFingerprint": "sha256:27aa561014ae9a9b78132c6be6ae42fd9903f22137d8367f05c554246b5e1fcc"
 }

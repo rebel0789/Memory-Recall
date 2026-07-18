@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-18T13:12:37.926Z",
+  "generatedAt": "2026-07-18T13:35:03.930Z",
   "languages": [
     {
       "id": "typescript",
@@ -1373,7 +1373,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -1386,10 +1386,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -1576,7 +1588,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 2 capability floors; 9 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1657,7 +1669,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -1670,10 +1682,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/csharp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -1856,7 +1880,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 3 capability floors; 8 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2233,7 +2257,7 @@
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -2246,10 +2270,22 @@
             {
               "class": "fixture",
               "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -2452,7 +2488,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 4 capability floors; 7 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 5 capability floors; 6 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {

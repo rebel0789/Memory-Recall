@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T13:19:01.655Z",
+  "generatedAt": "2026-07-18T13:39:23.873Z",
   "fileCount": 1186,
-  "totalBytes": 9783010,
+  "totalBytes": 9804376,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 32167,
-      "sha256": "47fc53588256b0a39183cf727cf89d36ca88b39f0c2709c1c4c31b22baf54875"
+      "bytes": 32168,
+      "sha256": "e824e5b1dcb72ad15bf5ea29a5dc11a75c5e1a69f88e6c1b1416da77b7ac65c8"
     },
     {
       "path": "CITATION.cff",
@@ -892,8 +892,8 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "bytes": 18919,
-      "sha256": "09b8198ffd13c1483106bf7b838324ba301584d8b4e569203357de8815146cb8"
+      "bytes": 18939,
+      "sha256": "af45c39c8d83dd9727cc463bfe2848f9b5477d049f334efe633a17d2966ba56a"
     },
     {
       "path": "docs/implementation/AGENT_EXECUTION_PLAYBOOK.md",
@@ -912,8 +912,8 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 33633,
-      "sha256": "4780b52feffb32170a8020e70bb442486a4ece46bb2aaa6114e6484cd8684fad"
+      "bytes": 33668,
+      "sha256": "df7ff67f57bbd2c148a14e2cdb049a172584a81b3251d86157d978ce1a41a010"
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
@@ -1158,12 +1158,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "f41a20bb257cd9c2630cc57052ec888ee15e0f783964cb5f594a7f8b0907847e"
+      "sha256": "61498d8e4c2a9cdabcb00760268927673eedf7d8318ee10fd1d94a80dca92e63"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3381,
-      "sha256": "644c2dfde66d7048cd356d39532d7982ccc81a87b1860eca0b8a84493ba3d492"
+      "sha256": "152b71e2b1ed2e1f100984b7f34825100cc7121807921dba974c798d569f1f03"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1173,7 +1173,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "a65cdebed8b04e06c2eaa7453426ff55287ce3d7556daff1034cea60dbec80b8"
+      "sha256": "20ab34d1c0c8dd8c81a1f151bcef43ef04a1153e75a90a329666929d3bf0d4c0"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1262,8 +1262,8 @@
     },
     {
       "path": "docs/usage/code-intelligence-support.md",
-      "bytes": 17620,
-      "sha256": "60378b5b91b531cbd72387714a9438692f2feab44cd42a02db1adaf94610ee19"
+      "bytes": 17930,
+      "sha256": "cec414409bc383bf714830963aa03ed93c571ef3f2c9011427b2bd6704e16949"
     },
     {
       "path": "docs/usage/codex-setup.md",
@@ -1392,8 +1392,8 @@
     },
     {
       "path": "evals/code-intelligence/capability-matrix.v1.json",
-      "bytes": 216200,
-      "sha256": "ad1c3fcd2d882245cfbe631d9b61e9f10c7b45fb7cc39125755ddff50bd8b24d"
+      "bytes": 217749,
+      "sha256": "0cd651df02a2e0cdc9a6a0330a01a6b7ceee71a137dc15b2cc604af22d929914"
     },
     {
       "path": "evals/code-intelligence/corpus-candidates.v1.json",
@@ -1672,13 +1672,13 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-b.json",
-      "bytes": 84866,
-      "sha256": "0a7296e7f5d669bf016aaff37d2a8cfe99d2e453cbc80cdc8ab3ab2fe612a40f"
+      "bytes": 84853,
+      "sha256": "1f3bf15748559ab4c8c14fe9f8a4c51ee1702556e306cce95336feeef13bcf64"
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-c.json",
-      "bytes": 69865,
-      "sha256": "c8cd18aad4e27ae3a3cc2cc4f31a963bc1a9701827c8e5c2c1794fdf5c0c5962"
+      "bytes": 69870,
+      "sha256": "f379223a2793c21f5adb66a7b80c2a65b8e3bbde81f7aec5304a012c586f13c5"
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-d.json",
@@ -1692,8 +1692,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-tier1-summary.json",
-      "bytes": 397635,
-      "sha256": "c393c16938f4d535bec10ba378ce1f5af11b187ae0d84980432d0a9cbe884993"
+      "bytes": 397566,
+      "sha256": "b4b9e5a908df1bfb3f000c3881c6c4df6992dcb8831f38d3ae40b82ac0f670e1"
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
@@ -1727,8 +1727,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/csharp.json",
-      "bytes": 8953,
-      "sha256": "9dc9e9f3c3eaa66d14643858de1ec897e31aa7c5173869990270c443d28f5ab7"
+      "bytes": 9466,
+      "sha256": "03562f8c6be5824791d1626344b398718bf7e3d8aad09e1804db18a073e42a23"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/dart.json",
@@ -1752,8 +1752,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/kotlin.json",
-      "bytes": 8755,
-      "sha256": "62c75dc9af9e9f01079e29968e667954b41afce415577ae5a80aec632d2ab474"
+      "bytes": 9350,
+      "sha256": "c2c84e5f173eb843c6897a7d9f86e0b7b1989738d8e14d833fa4877d545df3c8"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/php.json",
@@ -1772,8 +1772,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/rust.json",
-      "bytes": 9160,
-      "sha256": "a6ed43e2e09b940d7f77356f33b442977d0d673d12384a1c70d65a056995f4d4"
+      "bytes": 9762,
+      "sha256": "a45ea232f2c10411a5447c0bb635bb38b9e981b2b3d0e3971fb771071e0a3061"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/swift.json",
@@ -1822,18 +1822,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json",
-      "bytes": 3317,
-      "sha256": "468946075534f6fa90dcea06161a89604ff5f942baf486ebc331a3dbdc894081"
+      "bytes": 4593,
+      "sha256": "35dd7b14e1b954eb38ec141a494b35390e787bc9cef5662aad13e74442f8e404"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json",
-      "bytes": 3023,
-      "sha256": "8bef289fedec8a9575753bd87482e12fc4b4f921635baa4abc4fafe60d564cd7"
+      "bytes": 4459,
+      "sha256": "73a93f5e08ffa01f67e60f2d92b3b19cf16c2e65dade351a3f50a0b1f8362eff"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json",
-      "bytes": 2870,
-      "sha256": "def11e1ad256307fa319fe3670370d49ab7f0c099ebee52a0a783c36852f99ae"
+      "bytes": 4159,
+      "sha256": "bd2f4cef23922b1e93888a7baab633b8ae772ba29f92c3f14f4ab014cc6146c1"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json",
@@ -1897,18 +1897,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json",
-      "bytes": 3786,
-      "sha256": "a7593602a31d9d949b078a7c60f2de8aa5bdb34e00774fb5a5b53511c52bb3ee"
+      "bytes": 5875,
+      "sha256": "d68167559a57e3af9fefd318f3f3455e997b446f60232e7a6db974f4601a3f91"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json",
-      "bytes": 3098,
-      "sha256": "74be59c285dfec1518b7024974cedf38cba1e6f9dacd13f91593c7083cadd87a"
+      "bytes": 4378,
+      "sha256": "b68fc4455791af8e13aa89ec339671d0914b47e99d61d31967ce619d31194814"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json",
-      "bytes": 3260,
-      "sha256": "78a470c975b602fcd539c67782d28ec871f9432cedc9022b7a3fef504fcf757e"
+      "bytes": 4578,
+      "sha256": "4f8e7fea4cc7ade0d3cb5b4007a75886bb61da7f1599a73bbf0ed6de1603a4b6"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json",
@@ -1972,18 +1972,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
-      "bytes": 4109,
-      "sha256": "e5cc4f2e7ed23ef2f9e351b96e049fc066b395fd2fbe623e51bcf7f216660ad2"
+      "bytes": 5265,
+      "sha256": "ab104d5bd312906298dd4e2c101a1c80d518654d98a4649f098aaec908c8f392"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
-      "bytes": 3500,
-      "sha256": "36bb8f068265960bd0bc2a6a8a00f5a9e9ee0a1ebf46f6d65ec875a7b5cfe7d7"
+      "bytes": 4770,
+      "sha256": "506cfa729f3bc35e3c3752d3addd68b0ec893da59021d5e5ce58cd9a16778b94"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
-      "bytes": 4589,
-      "sha256": "1d8b15aafe77e59e199374a41615fc4a78b8de6b3deda55f287286d845868ed5"
+      "bytes": 6002,
+      "sha256": "b4ccc9f3b0449e3b725e9d5ace7ff60293c3d6f1494b79bf38669b72690cf8ae"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json",
@@ -4407,8 +4407,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 72611,
-      "sha256": "12eb16d6ebbb70118e7f79fa3ccb4ed8cae5a429d973a5d71b119a43245676b8"
+      "bytes": 72679,
+      "sha256": "547e1bac349456fdaf9181283031d24e5c22f592faa4ab0071393a0b35e3ecc0"
     },
     {
       "path": "providers/AGENTS.md",
@@ -4747,13 +4747,13 @@
     },
     {
       "path": "rust/oaf-ingest/src/lib.rs",
-      "bytes": 240911,
-      "sha256": "84ccee66c976a2a45fa6192f2fc256e9c1ef91dddf1b4dd6ed5fa8e7abf6f34e"
+      "bytes": 241407,
+      "sha256": "2a90e3f9cd07bc88e91a666db70f91551bcc92716f8a5bc8425cd61833f36888"
     },
     {
       "path": "rust/oaf-ingest/test-support/lib_unit.rs",
-      "bytes": 70844,
-      "sha256": "efe94de86f715ce07434ba43b2f86107cbae08b0af05995527a450087f6dc9e9"
+      "bytes": 74043,
+      "sha256": "42562bdf42e425a66398128d9348483ffe3752d8f17844d842e92b8a16977281"
     },
     {
       "path": "rust/oaf-store/Cargo.toml",
@@ -4782,8 +4782,8 @@
     },
     {
       "path": "rust/oaf/src/index_protocol.rs",
-      "bytes": 98802,
-      "sha256": "430efb81ebcf26b83438124fcffd9f96e9ecbe7f6c8714555bd10e0b91e7dc40"
+      "bytes": 99810,
+      "sha256": "ed1786ecfb7213b458a52d5d121e159463f145c92f6da88f334ed3cacbeb3b34"
     },
     {
       "path": "rust/oaf/src/main.rs",
@@ -5427,8 +5427,8 @@
     },
     {
       "path": "tests/code-intelligence-tier1.test.mjs",
-      "bytes": 6538,
-      "sha256": "6982badb8fd0abc4e8a0c8b3335f96cad2928675588a5da0d1de486a93d7bcd3"
+      "bytes": 7058,
+      "sha256": "eff5147d7710173befc31c72caba2035d8780d9b38d537c7da57c4901976ff55"
     },
     {
       "path": "tests/content-intelligence.test.mjs",

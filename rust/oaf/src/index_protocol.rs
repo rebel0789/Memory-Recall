@@ -1941,6 +1941,10 @@ fn safe_label(value: &str) -> String {
 fn result_label(node: &NodeRecord) -> String {
     let concise = if node.kind == "file" {
         node.qualified_name.as_str()
+    } else if node.kind == "module" {
+        node.qualified_name
+            .split_once("::")
+            .map_or(node.qualified_name.as_str(), |(_, coordinate)| coordinate)
     } else {
         node.qualified_name
             .rsplit("::")
@@ -2070,6 +2074,29 @@ mod tests {
             "maxEdges": 10000,
             "languages": ["typescript"],
         })
+    }
+
+    #[test]
+    fn module_result_labels_keep_full_coordinates_without_expanding_symbols() {
+        let module = NodeRecord {
+            canonical_id: "cinode_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            kind: "module".into(),
+            language_kind: "module".into(),
+            qualified_name: "src/lib.rs::core::hint".into(),
+            locator: "workspace://src/lib.rs#L4-L4".into(),
+            start_line: 4,
+            end_line: 4,
+            content_hash: None,
+            visibility: "unknown".into(),
+        };
+        let function = NodeRecord {
+            kind: "function".into(),
+            qualified_name: "src/lib.rs::service::run".into(),
+            ..module.clone()
+        };
+
+        assert_eq!(result_label(&module), "core::hint");
+        assert_eq!(result_label(&function), "run");
     }
 
     #[test]

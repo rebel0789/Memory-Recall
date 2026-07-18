@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "partial",
     "types": "partial",
@@ -111,7 +111,31 @@
       "to": { "kind": "function", "name": "write", "qualifiedName": "lib.rs::write", "locator": "workspace://lib.rs#L108-L108" },
       "locator": "workspace://lib.rs#L108-L108",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_itoa_import_core_hint",
+      "semanticKey": "edge:imports:lib.rs:core-hint",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "lib", "qualifiedName": "lib.rs::lib", "locator": "workspace://lib.rs#L1-L467" },
+      "to": { "kind": "module", "name": "core::hint", "qualifiedName": "lib.rs::core::hint", "locator": "workspace://lib.rs#L56-L56" },
+      "locator": "workspace://lib.rs#L56-L56",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_itoa_import_core_hint_not_str",
+      "semanticKey": "edge:imports:lib.rs:core-hint-line:not-core-str",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "lib", "qualifiedName": "lib.rs::lib", "locator": "workspace://lib.rs#L1-L467" },
+      "to": { "kind": "module", "name": "core::str", "qualifiedName": "lib.rs::core::str", "locator": "workspace://lib.rs#L58-L58" },
+      "locator": "workspace://lib.rs#L56-L56",
+      "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:05eb58a137427b4a5d68054baf084efcd6a352f4c9676e5b4eb8982e69d71223"
+  "truthFingerprint": "sha256:993c98ab7cb9cb126358a68e302ea44ce28c8338c276ec9fd72ebc7b2e5abc8d"
 }

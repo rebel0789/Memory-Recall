@@ -87,9 +87,9 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 49,892 nodes, 111,857 edges, 78,630,461 serialized
-graph bytes, 21,944.868 ms summed first-run wall time, 21,504.373 ms summed
-second-run wall time, and 232,976 KiB peak evaluator RSS on the recorded macOS
+The stored audit records 50,096 nodes, 111,907 edges, 78,738,420 serialized
+graph bytes, 21,987.904 ms summed first-run wall time, 21,514.54 ms summed
+second-run wall time, and 231,456 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
 
@@ -99,13 +99,14 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 57 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 96 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 61 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 92 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
-overall `unmeasured`. Java imports now has exact reviewed evidence from its
-fixture plus pinned Gson, Guava, and Spring Petclinic scopes. Python has exact
+overall `unmeasured`. Java, Go, Rust, Kotlin, and C# imports now have exact
+reviewed evidence from their fixtures plus three pinned repositories per
+language. Python has exact
 framework-route evidence from narrow
 FastAPI, Flask, and Django application scopes. The broader FastAPI and Flask
 implementation scopes and the Requests client remain in the corpus for their

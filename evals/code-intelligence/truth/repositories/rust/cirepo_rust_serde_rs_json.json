@@ -21,7 +21,7 @@
   "capabilityClaims": {
     "parse": "partial",
     "structure": "partial",
-    "imports": "unmeasured",
+    "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
     "types": "partial",
@@ -99,7 +99,31 @@
       "to": { "kind": "function", "name": "clear", "qualifiedName": "map.rs::clear", "locator": "workspace://map.rs#L65-L65" },
       "locator": "workspace://map.rs#L65-L65",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_import_core_ops",
+      "semanticKey": "edge:imports:value/index.rs:core-ops",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "value_index", "qualifiedName": "value/index.rs::value_index", "locator": "workspace://value/index.rs#L1-L259" },
+      "to": { "kind": "module", "name": "core::ops", "qualifiedName": "lexical/num.rs::core::ops", "locator": "workspace://lexical/num.rs#L5-L5" },
+      "locator": "workspace://value/index.rs#L6-L6",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_import_core_ops_not_fmt",
+      "semanticKey": "edge:imports:value/index.rs:core-ops-line:not-core-fmt",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "value_index", "qualifiedName": "value/index.rs::value_index", "locator": "workspace://value/index.rs#L1-L259" },
+      "to": { "kind": "module", "name": "core::fmt", "qualifiedName": "error.rs::core::fmt", "locator": "workspace://error.rs#L6-L6" },
+      "locator": "workspace://value/index.rs#L6-L6",
+      "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:3983b38c5400ce9da7ab2daae12af77293f20448d8d5cfe21b1f04d02e6a177c"
+  "truthFingerprint": "sha256:ac19bd5b5a6625195ff183ffdbcc4a77bd7fde60b9e47ead3fd2d0251fb91439"
 }

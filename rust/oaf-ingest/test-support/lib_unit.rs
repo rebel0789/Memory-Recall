@@ -3,6 +3,111 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rust_kotlin_and_csharp_imports_preserve_full_external_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-full-external-import-targets-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("external.rs"),
+            [
+                "use core::hint;",
+                "use core::mem::{self, MaybeUninit};",
+                "use core::str;",
+                "fn main() {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("External.kt"),
+            [
+                "import io.ktor.server.application.Application",
+                "import io.ktor.server.response.respond",
+                "fun main() {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("External.cs"),
+            [
+                "using System.Diagnostics;",
+                "using System.Text;",
+                "class External {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let imports = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "IMPORTS")
+            .map(|fact| {
+                (
+                    fact.object,
+                    fact.source,
+                    fact.span.start_line,
+                    fact.span.end_line,
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            imports,
+            BTreeSet::from([
+                (
+                    "module:System.Diagnostics".to_string(),
+                    "workspace://External.cs".to_string(),
+                    1,
+                    1,
+                ),
+                (
+                    "module:System.Text".to_string(),
+                    "workspace://External.cs".to_string(),
+                    2,
+                    2,
+                ),
+                (
+                    "module:io.ktor.server.application.Application".to_string(),
+                    "workspace://External.kt".to_string(),
+                    1,
+                    1,
+                ),
+                (
+                    "module:io.ktor.server.response.respond".to_string(),
+                    "workspace://External.kt".to_string(),
+                    2,
+                    2,
+                ),
+                (
+                    "module:core::hint".to_string(),
+                    "workspace://external.rs".to_string(),
+                    1,
+                    1,
+                ),
+                (
+                    "module:core::mem".to_string(),
+                    "workspace://external.rs".to_string(),
+                    2,
+                    2,
+                ),
+                (
+                    "module:core::str".to_string(),
+                    "workspace://external.rs".to_string(),
+                    3,
+                    3,
+                ),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn java_imports_preserve_full_regular_and_static_targets() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-java-import-targets-{}",

@@ -6458,7 +6458,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("use ")
-                    .and_then(import_target_from_raw)
+                    .and_then(rust_import_target_from_raw)
                 {
                     out.push(raw);
                 }
@@ -6477,7 +6477,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 if let Some(raw) = cleaned
                     .strip_prefix("using ")
                     .map(|value| value.split_once('=').map_or(value, |(_, target)| target))
-                    .and_then(import_target_from_raw)
+                    .and_then(full_import_target_from_raw)
                 {
                     out.push(raw);
                 }
@@ -6491,11 +6491,16 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                     out.push(raw);
                 }
             }
-            LangKind::Kotlin
-            | LangKind::Swift
-            | LangKind::Scala
-            | LangKind::Dart
-            | LangKind::Julia => {
+            LangKind::Kotlin => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(full_import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Swift | LangKind::Scala | LangKind::Dart | LangKind::Julia => {
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
@@ -6613,6 +6618,14 @@ fn full_import_target_from_raw(value: &str) -> Option<ImportTarget> {
         fallback: format!("module:{raw}"),
         raw,
     })
+}
+
+fn rust_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let coordinate = raw
+        .split_once("::{")
+        .map_or(raw.as_str(), |(prefix, _)| prefix);
+    full_import_target_from_raw(coordinate)
 }
 
 fn clean_import_raw(value: &str) -> Option<String> {
