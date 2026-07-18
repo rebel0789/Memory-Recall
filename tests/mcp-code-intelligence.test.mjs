@@ -383,7 +383,8 @@ test('default graph and MCP reads select a current native index and preserve it'
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'autoNativeEntry', changed: ['main.ts'] } } },
     { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['main.ts'] } } },
     { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'auto_python_entry' } } },
-    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'AutoGoEntry' } } }
+    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'AutoGoEntry' } } },
+    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'context.pack', arguments: { objective: 'autoNativeEntry', step: 'autoNativeEntry', budget: 1024 } } }
   ].map((message) => JSON.stringify(message)).join('\n');
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'
@@ -397,6 +398,12 @@ test('default graph and MCP reads select a current native index and preserve it'
   assert(payload(3).data.results.some((item) => item.label === 'autoNativeEntry'));
   assert(payload(11).data.results.some((item) => item.label === 'auto_python_entry'));
   assert(payload(12).data.results.some((item) => item.label === 'AutoGoEntry'));
+  const nativeContextPack = responses.find((entry) => entry.id === 13);
+  assert.equal(nativeContextPack.error, undefined, JSON.stringify(nativeContextPack.error));
+  const nativeContextPackPayload = JSON.parse(nativeContextPack.result.content[0].text);
+  assert(nativeContextPackPayload.data.sourceGraph.results.some((item) => (
+    item.label === 'autoNativeEntry' && item.reasonCodes.includes('native_index_match')
+  )));
   for (let id = 4; id <= 10; id += 1) {
     assert.equal(payload(id).data.source.kind, 'native-persistent-index', `tool response ${id}`);
   }

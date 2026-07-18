@@ -46,8 +46,10 @@ The current registry release does not ship the new binary. This source checkout
 contains five optional platform-package templates and a resolver that verifies
 package identity, target, path containment, SHA-256, executable availability,
 and exact binary version before use. The macOS arm64 package path passes an
-isolated local packed-install gate. The other targets, signing, stable
-publication, clean first-run indexing, and published-package proof remain open.
+isolated local packed-install gate, including explicit first-run indexing and
+all twelve MCP tools while the legacy JS graph builder is instrumented to fail
+if invoked. The other targets, signing, stable publication, and
+published-package proof remain open.
 Unsupported or unmeasured language capabilities remain labeled as such.
 
 This boundary changes only when implementation, fixtures, pinned repository

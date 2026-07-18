@@ -7528,11 +7528,17 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             search: search ? nativeCompleteness(search) : null,
             impact: impact.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor }))
           };
+          const sqlitePath = await resolveWorkspaceSqlitePath(
+            root,
+            option(values, '--sqlite') ?? '.local/memory.sqlite',
+            'mcp server',
+            { mustExist: false }
+          );
           const memory = await buildRecallMapMemorySummary({
             root,
             workspaceId,
             clock: () => fixedNow(),
-            sqliteLocator: option(values, '--sqlite') ?? '.local/memory.sqlite'
+            sqliteLocator: sqlitePath.relative
           });
           const affectedSymbols = [...new Map(
             impact.flatMap(({ nodes }) => nodes).map((node) => [node.id, node])
@@ -7726,12 +7732,31 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolTextResult(await buildMcpContextPackToolText({
-        root,
-        workspaceId,
-        generatedAt,
-        args
-      }))
+      handler: async ({ arguments: args }) => {
+        let sourceGraphPreview = null;
+        if (sourceIndexEngine === 'native') {
+          const objective = mcpRequiredString(args.objective, 'objective', 500);
+          const step = mcpRequiredString(args.step, 'step', 500);
+          const [provider, status] = await Promise.all([loadNativeProvider(), nativeStatus()]);
+          sourceGraphPreview = await buildNativeIndexSourceGraphPreview({
+            provider,
+            status,
+            root,
+            workspaceId,
+            query: `${objective} ${step}`,
+            limit: 12,
+            sampleLimit: 1,
+            clock: () => generatedAt
+          });
+        }
+        return mcpToolTextResult(await buildMcpContextPackToolText({
+          root,
+          workspaceId,
+          generatedAt,
+          args,
+          sourceGraphPreview
+        }));
+      }
     }
   ];
 }
@@ -8202,7 +8227,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
   return payload;
 }
 
-async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args }) {
+async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args, sourceGraphPreview = null }) {
   const objective = mcpRequiredString(args.objective, 'objective', 500);
   const step = mcpRequiredString(args.step, 'step', 500);
   const toolValues = [
@@ -8213,7 +8238,7 @@ async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, arg
     '--target', mcpSanitizeString(args.target ?? 'generic', 80),
     '--token-budget', String(mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 }))
   ];
-  const currentContextPack = await buildMcpContextPackResource(toolValues, { root, workspaceId });
+  const currentContextPack = await buildMcpContextPackResource(toolValues, { root, workspaceId, sourceGraphPreview });
   const resources = buildOafReadOnlyResourceCatalog({
     state: {},
     projectStatus: {},
@@ -10062,7 +10087,7 @@ async function loadMcpContextPackRegistryStatus(values, { root, workspaceId }) {
   return report.registry.exists || report.currentPointer.exists ? report : null;
 }
 
-async function buildMcpContextPackResource(values, { root, workspaceId }) {
+async function buildMcpContextPackResource(values, { root, workspaceId, sourceGraphPreview = null }) {
   if (!values.includes('--context-pack')) return null;
   const contextPackFd = option(values, '--context-pack-fd');
   if (contextPackFd !== null) {
@@ -10100,6 +10125,7 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: fixedNow
   });
   return {

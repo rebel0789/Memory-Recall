@@ -2200,14 +2200,15 @@ async function buildContextPackSourceGraph({
   step,
   changedLocators,
   maxFileBytes = DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES,
-  createdAt
+  createdAt,
+  sourceGraphPreview = null
 }) {
   const query = sourceGraphPackQuery({ objective, step });
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const queryFingerprint = hashRef(stableStringify({ query, changedLocators: normalizedChangedLocators, limit: 12, offset: 0 }));
   const graphMaxFileBytes = boundedSourceGraphMaxFileBytes(maxFileBytes);
   try {
-    const preview = await buildSourceGraphPreview({
+    const preview = sourceGraphPreview ?? await buildSourceGraphPreview({
       root,
       workspaceId,
       query,
@@ -3572,6 +3573,7 @@ export async function buildContextPack({
   tokenBudget = 4096,
   maxBytes = DEFAULT_MAX_BYTES,
   sourceGraphMaxFileBytes = Math.max(DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES, Number.isInteger(maxBytes) ? maxBytes : DEFAULT_MAX_BYTES),
+  sourceGraphPreview = null,
   clock = () => new Date().toISOString()
 } = {}) {
   const normalizedTarget = normalizeTargetHarness(targetHarness);
@@ -3607,7 +3609,8 @@ export async function buildContextPack({
     step,
     changedLocators: normalizedChangedLocators,
     maxFileBytes: sourceGraphMaxFileBytes,
-    createdAt: preview.createdAt
+    createdAt: preview.createdAt,
+    sourceGraphPreview
   });
   const changedLocatorMetadata = await inspectChangedLocators({
     root,

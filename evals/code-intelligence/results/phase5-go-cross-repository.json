@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "receiptVersion": "memory-recall-phase5-go-cross-repository-1",
   "phase": 5,
-  "generatedAt": "2026-07-18T20:43:07.689Z",
+  "generatedAt": "2026-07-18T21:10:33.980Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -21,12 +21,12 @@
       "rust/oaf/src/repository_protocol.rs",
       "scripts/native-code-intelligence-consumer-smoke.mjs"
     ],
-    "fingerprint": "sha256:fddb269867157e71b6dfda7f25071e1a5597e6b681e6bb2b46bf9708532cb48a",
+    "fingerprint": "sha256:246bfcd42cf2365d54d195bebe014d96bd1dabb8a18547683e49eb2c3e95a8ee",
     "releaseBinarySha256": "sha256:887377a8529ad51fc616f87228819b7222723c75485331d157eef2cf8d869d9d"
   },
   "packageEvidence": {
     "rootPackage": "memory-recall@1.1.1",
-    "rootTarballSha256": "sha256:9f66c2a6deb6b82925661ee347324483e82e6416a9bc139ca0314c2219cf2a5a",
+    "rootTarballSha256": "sha256:05b978330137a439a59c2e0b1dab3563cbc30b18694edf8bd4b64f47ebdb0ef4",
     "nativePackage": "@memory-recall/native-darwin-arm64@1.1.1",
     "nativeTarballSha256": "sha256:75348a0a15b9f1cd85d1781a70ec2398412c1cc9226a2c3d42a60d971db3fde2",
     "installed": true,
@@ -61,7 +61,7 @@
     "sqliteBundlesPreserved": true,
     "relationshipEvidence": [
       {
-        "id": "mrrel_64b9480e2e8047d162a8c39c03270c48",
+        "id": "mrrel_1aa98145c98e2da3b57be5e91af057a5",
         "kind": "imports",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L7-L7",
@@ -70,7 +70,7 @@
         ]
       },
       {
-        "id": "mrrel_eec15d0cfb675e683f992bf612e00183",
+        "id": "mrrel_29713b085b587547871330ddc01723bc",
         "kind": "constructs",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L18-L18",
@@ -81,8 +81,8 @@
       }
     ],
     "traceRelationshipIds": [
-      "mrrel_64b9480e2e8047d162a8c39c03270c48",
-      "mrrel_eec15d0cfb675e683f992bf612e00183"
+      "mrrel_1aa98145c98e2da3b57be5e91af057a5",
+      "mrrel_29713b085b587547871330ddc01723bc"
     ],
     "impactNativeNodeIds": [
       "cinode_f01e41d6ce66dade402cd8760c3b235e"
@@ -103,5 +103,5 @@
     "competitorParity": false,
     "productionPublishReady": false
   },
-  "receiptFingerprint": "sha256:843857122ec50f782f1bbdbd6c8fe21ad9c269f2c0f1af8c498eafc5c0464678"
+  "receiptFingerprint": "sha256:8dfebe99565d4bd6fe1ea5a18be19add86fc62d8e307d4520254948adba94864"
 }

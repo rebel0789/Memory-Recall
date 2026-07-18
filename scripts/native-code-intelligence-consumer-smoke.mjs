@@ -34,6 +34,20 @@ const languages = Object.freeze([
   'typescript', 'javascript', 'python', 'java', 'kotlin', 'csharp', 'go', 'rust',
   'php', 'ruby', 'swift', 'c', 'cpp', 'dart'
 ]);
+const mcpToolNames = Object.freeze([
+  'code.context',
+  'code.dependencies',
+  'code.impact',
+  'code.routes',
+  'code.search',
+  'code.trace',
+  'context.pack',
+  'context.profile',
+  'memory.recall',
+  'repo.architecture',
+  'repo.index_status',
+  'repo.map'
+]);
 const rawSourceSentinel = 'RAW_SOURCE_SENTINEL_INSTALLED_CONSUMER_9f47c2';
 const governedMemory = path.join(workspace, '.local', 'memory.sqlite');
 const smokeArguments = process.argv.slice(2);
@@ -481,6 +495,117 @@ consumerSmoke: try {
   must(sameFileBundleSnapshot(await fileBundleSnapshot(cliIndexPath), cliIndexBeforeNativeMcp), 'installed MCP native read preserves SQLite bytes and mtime and leaves WAL and SHM unchanged');
   must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed MCP native read does not create memory SQLite, WAL, or SHM');
 
+  const packedMcpRequests = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 10 } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'launchSmoke', limit: 10 } } },
+    { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'launchSmoke', limit: 10 } } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'launchSmoke', direction: 'outbound', depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'src/index.ts', direction: 'outbound', depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'code.routes', arguments: { limit: 10 } } },
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'launchSmoke', changed: ['src/index.ts'], limit: 10 } } },
+    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'launchSmoke', limit: 8 } } },
+    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'Understand launchSmoke', step: 'Inspect the packed native MCP proof', budget: 1024, limit: 10 } } },
+    { jsonrpc: '2.0', id: 14, method: 'tools/call', params: { name: 'context.pack', arguments: { objective: 'launchSmoke', step: 'launchSmoke', budget: 1024 } } }
+  ];
+  const legacyGraphBuilder = path.join(
+    packageRoot,
+    'providers',
+    'native',
+    'context-candidate-ast-code',
+    'src',
+    'index.mjs'
+  );
+  const legacyGraphBuilderBody = await readFile(legacyGraphBuilder, 'utf8');
+  const legacyGraphBuilderSignature = 'export async function buildJsTsSourceGraph(options = {}) {';
+  must(legacyGraphBuilderBody.includes(legacyGraphBuilderSignature), 'packed package contains the legacy graph builder instrumentation point');
+  await writeFile(
+    legacyGraphBuilder,
+    legacyGraphBuilderBody.replace(
+      legacyGraphBuilderSignature,
+      `${legacyGraphBuilderSignature}\n  throw new Error('legacy_js_intelligence_invoked');`
+    )
+  );
+  let packedMcpRun;
+  try {
+    packedMcpRun = run(installedMcpServer.command, installedMcpServer.args, {
+      cwd: cliWorkspace,
+      env: isolatedEnvironment,
+      input: packedMcpRequests.map((request) => JSON.stringify(request)).join('\n'),
+      maxBuffer: 4 * 1024 * 1024,
+      timeout: 60_000
+    });
+  } finally {
+    await writeFile(legacyGraphBuilder, legacyGraphBuilderBody);
+  }
+  const packedMcpResponses = packedMcpRun.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
+  const listedPackedTools = packedMcpResponses.find((entry) => entry.id === 2)?.result?.tools ?? [];
+  must(listedPackedTools.length === mcpToolNames.length, 'packed native MCP exposes exactly twelve tools');
+  must(
+    JSON.stringify(listedPackedTools.map((tool) => tool.name).sort()) === JSON.stringify([...mcpToolNames].sort()),
+    'packed native MCP exposes the exact public tool set'
+  );
+  must(
+    listedPackedTools.every((tool) => tool.annotations?.sideEffectClass === 'read-only'),
+    'packed native MCP declares every public tool read-only'
+  );
+  const failedPackedTools = packedMcpRequests.slice(2).flatMap((request) => {
+    const response = packedMcpResponses.find((entry) => entry.id === request.id);
+    return response && !response.error ? [] : [{ tool: request.params.name, error: response?.error ?? null }];
+  });
+  must(failedPackedTools.length === 0, `all packed native MCP tools succeed: ${JSON.stringify(failedPackedTools)}`);
+  const packedToolPayloads = new Map();
+  for (const request of packedMcpRequests.slice(2)) {
+    const response = packedMcpResponses.find((entry) => entry.id === request.id);
+    const text = response.result?.content?.[0]?.text;
+    must(typeof text === 'string' && text.length > 0, `packed native MCP tool ${request.params.name} returns bounded text`);
+    packedToolPayloads.set(request.params.name, JSON.parse(text));
+  }
+  for (const toolName of mcpToolNames.filter((name) => name !== 'context.pack')) {
+    const payload = packedToolPayloads.get(toolName);
+    must(payload?.safeguards?.readOnly === true, `packed native MCP tool ${toolName} is read-only`);
+    must(payload.safeguards.localFilesWritten !== null && payload.safeguards.localFilesWritten !== undefined
+      ? payload.safeguards.localFilesWritten === 0
+      : payload.safeguards.canonicalStateMutated === false, `packed native MCP tool ${toolName} reports no state mutation`);
+    must(payload.safeguards.rawSourceBodiesIncluded !== true, `packed native MCP tool ${toolName} omits raw source bodies`);
+  }
+  for (const toolName of [
+    'repo.architecture', 'repo.index_status', 'code.search', 'code.context', 'code.trace',
+    'code.dependencies', 'code.routes', 'repo.map', 'code.impact'
+  ]) {
+    const payload = packedToolPayloads.get(toolName);
+    const source = payload.data?.source ?? payload.data?.sourceIndex?.source;
+    must(source?.kind === 'native-persistent-index', `packed MCP tool ${toolName} uses only the native persistent index`);
+    must(source.engine === 'memory-recall-native', `packed MCP tool ${toolName} reports the native engine`);
+    must(source.freshness === 'current', `packed MCP tool ${toolName} requires a current native index`);
+  }
+  must(
+    packedToolPayloads.get('code.search').data?.results?.some((item) => item.label === 'launchSmoke'),
+    'packed all-tool MCP proof resolves the indexed symbol'
+  );
+  must(
+    packedToolPayloads.get('context.pack').data?.sourceGraph?.results?.some((item) => (
+      item.label === 'launchSmoke' && item.reasonCodes?.includes('native_index_match')
+    )),
+    'packed context.pack consumes the native projection while the legacy JS graph builder is poisoned'
+  );
+  must(
+    !packedMcpRun.stdout.includes(cliWorkspace) && !packedMcpRun.stdout.includes('javascript-typescript-compatibility'),
+    'packed all-tool MCP proof redacts the workspace and never reports the JS compatibility engine'
+  );
+  must(
+    sameFileBundleSnapshot(await fileBundleSnapshot(cliIndexPath), cliIndexBeforeNativeMcp),
+    'all twelve packed MCP reads preserve SQLite bytes and mtime and leave WAL and SHM unchanged'
+  );
+  must(
+    (await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null),
+    'all twelve packed MCP reads do not create memory SQLite, WAL, or SHM'
+  );
+  must(await treeFingerprint(packageRoot) === initialPackage, 'legacy graph instrumentation restores the installed package bytes');
+
   const mcpUninstallPreview = runJson(process.execPath, [installedCli,
     'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'
   ], { cwd: temp, env: isolatedEnvironment });
@@ -572,6 +697,7 @@ consumerSmoke: try {
   console.log('PASS no source, governed-memory, config, or package mutation');
   console.log('PASS native is the public read default and fails closed without an index');
   console.log('PASS packed MCP install and uninstall preserve neighboring config');
+  console.log('PASS all twelve packed MCP tools use the current native index without read-side writes');
   console.log('PASS uninstall removes packages and preserves workspace-local state');
   console.log('PASS same-version reinstall reopens the existing index without rebuilding');
 } finally {
