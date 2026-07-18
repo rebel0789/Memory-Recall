@@ -24,15 +24,19 @@ external writes.
 public npm package. It is manual-only (`workflow_dispatch`), requires the exact
 `publish memory-recall@VERSION` confirmation text and the run ID of a successful
 `Rust` workflow for the same commit. The Rust run must produce all five native
-packages, signed GitHub provenance for every tarball and receipt, and one exact
+packages, deterministic file-complete SPDX 2.3 SBOMs, signed GitHub provenance
+for every tarball and receipt, and one exact
 aggregate artifact. The protected `npm-release` job authenticates that run and
-the signer workflow, verifies the complete release set and its checksums, then
+the signer workflow, verifies the complete release set, checksums, and signed
+SBOM predicates, then
 publishes the five native packages in fixed order. It verifies every native
-version and npm integrity before it can dry-run or publish the root package.
+version, npm integrity, and exact publish/SLSA attestation bundle before it can
+dry-run or publish the root package.
 
 The validation job runs CI, native smoke, consumer smoke, release-readiness
 verification, and a root-package dry run. Both jobs use Node 22.14.0 and npm
-11.5.1 so validation and publication do not drift with `npm@latest`.
+11.18.0 so validation, JSON attestation verification, and publication do not
+drift with `npm@latest`.
 
 Prefer npm Trusted Publishing. Configure npm with GitHub Actions as the trusted
 publisher for repository `rebel0789/Memory-Recall` and workflow filename
@@ -45,7 +49,7 @@ release, set the repository secret `NPM_TOKEN` and run the same workflow with
 
 The workflows do not create tags, submit marketplace manifests, publish from
 pull requests, or publish without the protected environment. GitHub provenance
-attestation is implemented, but the remote five-runner result, native SBOM
-binding, npm provenance verification, and stable publication remain unproven.
+attestation, native SBOM binding, and npm provenance verification are implemented
+locally, but the remote five-runner result and stable publication remain unproven.
 Marketplace or plugin-registry submission remains blocked until target registry
 requirements are known and a maintainer approves the submission.

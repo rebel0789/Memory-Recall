@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { buildNativeDistributionReceipt, buildNativeManifest, buildPublishedPackageJson, NATIVE_TARGETS, spawnNpmSync } from '../scripts/package-native-platform.mjs';
+import { buildNativeDistributionReceipt, buildNativeManifest, buildNativeSpdxSbom, buildPublishedPackageJson, NATIVE_TARGETS, spawnNpmSync } from '../scripts/package-native-platform.mjs';
 
 const rootPackage = JSON.parse(await readFile('package.json', 'utf8'));
 const packageLock = JSON.parse(await readFile('package-lock.json', 'utf8'));
@@ -58,13 +58,35 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
     binarySha256: `sha256:${'a'.repeat(64)}`,
     entryCount: 5,
     size: 1024,
-    unpackedSize: 4096
+    unpackedSize: 4096,
+    files: ['LICENSE', 'NOTICE', 'bin/oaf', 'native-manifest.json', 'package.json'].map((file, index) => ({
+      path: file,
+      size: index + 1,
+      sha1: String(index + 1).repeat(40),
+      sha256: String(index + 1).repeat(64)
+    }))
   };
+  const sbomReport = {
+    name: 'native-package-linux-x64-gnu.spdx.json',
+    sha256: `sha256:${'d'.repeat(64)}`
+  };
+  const sbom = buildNativeSpdxSbom({
+    packageReport,
+    commit: 'b'.repeat(40),
+    created: '2026-07-18T00:00:00Z',
+    tarballSha256: `sha256:${'c'.repeat(64)}`
+  });
+  assert.equal(sbom.spdxVersion, 'SPDX-2.3');
+  assert.equal(sbom.documentNamespace, `https://github.com/rebel0789/Memory-Recall/sbom/${'b'.repeat(40)}/linux-x64-gnu/1.1.1/${'c'.repeat(64)}`);
+  assert.equal(sbom.packages[0].checksums[0].checksumValue, 'c'.repeat(64));
+  assert.equal(sbom.files.length, 5);
+  assert.equal(sbom.packages[0].filesAnalyzed, true);
   const receipt = buildNativeDistributionReceipt({
     packageReport,
     commit: 'b'.repeat(40),
     runner: 'ubuntu-22.04',
     tarballSha256: `sha256:${'c'.repeat(64)}`,
+    sbomReport,
     consumerGateResult: 'pass'
   });
   assert.deepEqual(receipt, {
@@ -80,6 +102,8 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
       tarball: 'memory-recall-native-linux-x64-gnu-1.1.1.tgz',
       binarySha256: `sha256:${'a'.repeat(64)}`,
       tarballSha256: `sha256:${'c'.repeat(64)}`,
+      sbom: sbomReport.name,
+      sbomSha256: sbomReport.sha256,
       entryCount: 5,
       size: 1024,
       unpackedSize: 4096
@@ -96,6 +120,7 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
     commit: 'b'.repeat(40),
     runner: 'ubuntu-22.04',
     tarballSha256: `sha256:${'c'.repeat(64)}`,
+    sbomReport,
     consumerGateResult: 'pass',
     packageAttestation: {
       id: '12345',
@@ -112,7 +137,7 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
     }
   });
   assert.throws(
-    () => buildNativeDistributionReceipt({ packageReport, commit: 'b'.repeat(40), runner: 'ubuntu-22.04', tarballSha256: `sha256:${'c'.repeat(64)}`, consumerGateResult: 'fail' }),
+    () => buildNativeDistributionReceipt({ packageReport, commit: 'b'.repeat(40), runner: 'ubuntu-22.04', tarballSha256: `sha256:${'c'.repeat(64)}`, sbomReport, consumerGateResult: 'fail' }),
     /requires a passing consumer gate/u
   );
 
@@ -120,12 +145,17 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
   const consumerStep = workflow.indexOf('Verify exact artifact in installed consumer');
   const receiptStep = workflow.indexOf('Record sanitized native package receipt');
   const packageAttestationStep = workflow.indexOf('Attest native package provenance');
+  const sbomAttestationStep = workflow.indexOf('Attest native package SBOM');
   const receiptAttestationStep = workflow.indexOf('Attest native receipt provenance');
   const uploadStep = workflow.indexOf('Upload native package and receipt');
-  assert(consumerStep >= 0 && consumerStep < packageAttestationStep && packageAttestationStep < receiptStep);
+  assert(consumerStep >= 0 && consumerStep < packageAttestationStep && packageAttestationStep < sbomAttestationStep);
+  assert(sbomAttestationStep < receiptStep);
   assert(receiptStep < receiptAttestationStep && receiptAttestationStep < uploadStep);
   assert.match(workflow, /buildNativeDistributionReceipt/u);
+  assert.match(workflow, /report\.files\.map/u);
+  assert.match(workflow, /createHash\('sha1'\)/u);
   assert.match(workflow, /consumerGateResult: 'pass'/u);
   assert.match(workflow, /uses: actions\/attest@v4/u);
+  assert.match(workflow, /sbom-path: output\/native-package-\$\{\{ matrix\.target \}\}\.spdx\.json/u);
   assert.match(workflow, /output\/native-package-\*-receipt\.json/u);
 });

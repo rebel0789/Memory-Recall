@@ -149,6 +149,15 @@ jobs:
           assert.deepEqual(files.sort(), [
             'LICENSE', 'NOTICE', manifest.binary, 'native-manifest.json', 'package.json'
           ].sort());
+          const expectedFiles = new Map(report.files.map((file) => [file.path, file]));
+          assert.equal(expectedFiles.size, files.length);
+          for (const file of files) {
+            const bytes = readFileSync(path.join(packageRoot, file));
+            const expected = expectedFiles.get(file);
+            assert(expected, `missing package report checksum for ${file}`);
+            assert.equal(createHash('sha1').update(bytes).digest('hex'), expected.sha1);
+            assert.equal(createHash('sha256').update(bytes).digest('hex'), expected.sha256);
+          }
           NODE
       - name: Record Linux ABI baseline
         if: ${{ matrix.platform == 'linux' }}
@@ -161,12 +170,39 @@ jobs:
         run: |
           export MEMORY_RECALL_NATIVE_PACKAGE_TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('output/native-package-report.json', 'utf8')).tarball")"
           node scripts/native-code-intelligence-consumer-smoke.mjs
+      - name: Generate deterministic native SPDX SBOM
+        shell: bash
+        env:
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          export SOURCE_CREATED="$(git show -s --format=%cI "$GIT_COMMIT")"
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { buildNativeSpdxSbom } from './scripts/package-native-platform.mjs';
+
+          const packageReport = JSON.parse(readFileSync('output/native-package-report.json', 'utf8'));
+          const tarballSha256 = `sha256:${createHash('sha256').update(readFileSync(packageReport.tarball)).digest('hex')}`;
+          const sbom = buildNativeSpdxSbom({
+            packageReport,
+            commit: process.env.GIT_COMMIT,
+            created: new Date(process.env.SOURCE_CREATED).toISOString().replace('.000Z', 'Z'),
+            tarballSha256
+          });
+          writeFileSync(`output/native-package-${packageReport.target}.spdx.json`, `${JSON.stringify(sbom, null, 2)}\n`);
+          NODE
       - name: Attest native package provenance
         if: ${{ github.event_name != 'pull_request' }}
         id: attest-package
         uses: actions/attest@v4
         with:
           subject-path: output/native-packages/*.tgz
+      - name: Attest native package SBOM
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: output/native-packages/*.tgz
+          sbom-path: output/native-package-${{ matrix.target }}.spdx.json
       - name: Record sanitized native package receipt
         shell: bash
         env:
@@ -184,11 +220,16 @@ jobs:
           const packageReport = JSON.parse(readFileSync('output/native-package-report.json', 'utf8'));
           if (packageReport.target !== process.env.EXPECTED_TARGET) throw new Error('native package report target mismatch');
           const tarballSha256 = `sha256:${createHash('sha256').update(readFileSync(packageReport.tarball)).digest('hex')}`;
+          const sbom = `output/native-package-${packageReport.target}.spdx.json`;
           const receipt = buildNativeDistributionReceipt({
             packageReport,
             commit: process.env.GIT_COMMIT,
             runner: process.env.EXPECTED_RUNNER,
             tarballSha256,
+            sbomReport: {
+              name: `native-package-${packageReport.target}.spdx.json`,
+              sha256: `sha256:${createHash('sha256').update(readFileSync(sbom)).digest('hex')}`
+            },
             consumerGateResult: 'pass',
             packageAttestation: process.env.PACKAGE_ATTESTATION_ID ? {
               id: process.env.PACKAGE_ATTESTATION_ID,
@@ -209,6 +250,7 @@ jobs:
           path: |
             output/native-packages/*.tgz
             output/native-package-*-receipt.json
+            output/native-package-*.spdx.json
           if-no-files-found: error
           retention-days: 14
 
@@ -244,6 +286,20 @@ jobs:
               --source-digest "$GITHUB_SHA" \
               --deny-self-hosted-runners
           done < <(find output/native-release -type f \( -name '*.tgz' -o -name 'native-package-*-receipt.json' \) -print0)
+      - name: Verify native SBOM signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          while IFS= read -r -d '' artifact; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/rust.yml" \
+              --signer-digest "$GITHUB_SHA" \
+              --source-digest "$GITHUB_SHA" \
+              --predicate-type https://spdx.dev/Document/v2.3 \
+              --deny-self-hosted-runners
+          done < <(find output/native-release -type f -name '*.tgz' -print0)
       - name: Upload exact native release set
         uses: actions/upload-artifact@v6
         with:

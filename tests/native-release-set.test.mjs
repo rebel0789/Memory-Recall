@@ -6,11 +6,13 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  auditRegistrySignatures,
   NATIVE_RELEASE_ORDER,
   publishNativePackages,
   validateNativeReleaseSet,
   verifyRegistryRecord
 } from '../scripts/native-release-set.mjs';
+import { buildNativeSpdxSbom, NATIVE_TARGETS } from '../scripts/package-native-platform.mjs';
 
 test('stable npm release requires a signed exact native set before the root package', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-release-'));
@@ -26,7 +28,27 @@ test('stable npm release requires a signed exact native set before the root pack
     await mkdir(directory, { recursive: true });
     const tarball = `memory-recall-native-${target}-${version}.tgz`;
     const bytes = Buffer.from(`verified-${target}`);
+    const tarballSha256 = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+    const sbomName = `native-package-${target}.spdx.json`;
+    const packageReport = {
+      target,
+      packageName,
+      version,
+      files: ['LICENSE', 'NOTICE', NATIVE_TARGETS[target].binary, 'native-manifest.json', 'package.json']
+        .map((file, index) => ({
+          path: file,
+          sha1: String(index + 1).repeat(40),
+          sha256: String(index + 1).repeat(64)
+        }))
+    };
+    const sbom = `${JSON.stringify(buildNativeSpdxSbom({
+      packageReport,
+      commit,
+      created: '2026-07-18T00:00:00Z',
+      tarballSha256
+    }), null, 2)}\n`;
     await writeFile(path.join(directory, tarball), bytes);
+    await writeFile(path.join(directory, sbomName), sbom);
     await writeFile(path.join(directory, `native-package-${target}-receipt.json`), `${JSON.stringify({
       schemaVersion: '1.0.0',
       receiptVersion: 'memory-recall-native-distribution-1',
@@ -39,7 +61,9 @@ test('stable npm release requires a signed exact native set before the root pack
         version,
         tarball,
         binarySha256: `sha256:${'b'.repeat(64)}`,
-        tarballSha256: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+        tarballSha256,
+        sbom: sbomName,
+        sbomSha256: `sha256:${createHash('sha256').update(sbom).digest('hex')}`,
         entryCount: 5,
         size: bytes.length,
         unpackedSize: bytes.length * 2
@@ -72,7 +96,8 @@ test('stable npm release requires a signed exact native set before the root pack
   assert(releaseSet.artifacts.every(({ signed, tarballIntegrity }) => signed && /^sha512-/u.test(tarballIntegrity)));
   verifyRegistryRecord(releaseSet.artifacts[0], {
     version,
-    integrity: releaseSet.artifacts[0].tarballIntegrity
+    integrity: releaseSet.artifacts[0].tarballIntegrity,
+    attestations: npmAttestations(releaseSet.artifacts[0].packageName, version)
   });
   assert.throws(
     () => verifyRegistryRecord(releaseSet.artifacts[0], { version, integrity: 'sha512-wrong' }),
@@ -85,7 +110,8 @@ test('stable npm release requires a signed exact native set before the root pack
   const tarballs = Object.fromEntries(releaseSet.artifacts.map((artifact) => [path.basename(artifact.tarball), {
     packageName: artifact.packageName,
     version: artifact.version,
-    integrity: artifact.tarballIntegrity
+    integrity: artifact.tarballIntegrity,
+    attestations: npmAttestations(artifact.packageName, artifact.version)
   }]));
   await writeFile(fakeState, `${JSON.stringify({ records: {}, tarballs })}\n`);
   await writeFile(fakeLog, '');
@@ -101,7 +127,7 @@ test('stable npm release requires a signed exact native set before the root pack
         process.stderr.write('npm error code E404\\n');
         process.exitCode = 1;
       } else {
-        process.stdout.write(JSON.stringify({ version: record.version, 'dist.integrity': record.integrity }));
+        process.stdout.write(JSON.stringify({ version: record.version, 'dist.integrity': record.integrity, 'dist.attestations': record.attestations }));
       }
     } else if (command === 'publish') {
       const artifact = state.tarballs[path.basename(args[0])];
@@ -109,6 +135,19 @@ test('stable npm release requires a signed exact native set before the root pack
       state.records[artifact.packageName + '@' + artifact.version] = artifact;
       writeFileSync(process.env.FAKE_NPM_STATE, JSON.stringify(state));
       process.stdout.write(JSON.stringify({ id: artifact.packageName + '@' + artifact.version }));
+    } else if (command === 'install') {
+      process.stdout.write('lock created');
+    } else if (command === 'audit') {
+      const dependencies = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')).dependencies;
+      const verified = Object.entries(dependencies).map(([name, version]) => ({
+        name,
+        version,
+        attestationBundles: [
+          { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' },
+          ...(process.env.FAKE_NPM_AUDIT_MODE === 'incomplete' ? [] : [{ predicateType: 'https://slsa.dev/provenance/v1' }])
+        ]
+      }));
+      process.stdout.write(JSON.stringify({ invalid: [], missing: [], verified }));
     } else {
       throw new Error('unexpected npm command ' + command);
     }
@@ -116,7 +155,8 @@ test('stable npm release requires a signed exact native set before the root pack
   const previousEnvironment = {
     npm_execpath: process.env.npm_execpath,
     FAKE_NPM_STATE: process.env.FAKE_NPM_STATE,
-    FAKE_NPM_LOG: process.env.FAKE_NPM_LOG
+    FAKE_NPM_LOG: process.env.FAKE_NPM_LOG,
+    FAKE_NPM_AUDIT_MODE: process.env.FAKE_NPM_AUDIT_MODE
   };
   Object.assign(process.env, { npm_execpath: fakeNpm, FAKE_NPM_STATE: fakeState, FAKE_NPM_LOG: fakeLog });
   try {
@@ -132,15 +172,29 @@ test('stable npm release requires a signed exact native set before the root pack
     assert.deepEqual(trustedPublishes.map(({ args }) => tarballs[path.basename(args[0])].packageName), releaseSet.publishOrder);
     assert(trustedPublishes.every(({ args }) => !args.includes('--provenance')));
     await publishNativePackages({ releaseSet, artifactsDirectory: root, authMode: 'trusted-publishing' });
+    const auditProof = await auditRegistrySignatures(releaseSet.artifacts.map(({ packageName, version: artifactVersion }) => ({
+      packageName,
+      version: artifactVersion
+    })));
+    assert.equal(auditProof.verified.length, 5);
+    assert.equal(auditProof.requiredPredicates.length, 2);
     const finalLog = (await readFile(fakeLog, 'utf8')).trim().split('\n').map(JSON.parse);
     assert.equal(finalLog.filter(({ command }) => command === 'publish').length, 10);
+    assert.deepEqual(finalLog.slice(-2).map(({ command }) => command), ['install', 'audit']);
+    process.env.FAKE_NPM_AUDIT_MODE = 'incomplete';
+    await assert.rejects(
+      auditRegistrySignatures([{ packageName: releaseSet.artifacts[0].packageName, version }]),
+      /attestation bundle is incomplete/u
+    );
+    delete process.env.FAKE_NPM_AUDIT_MODE;
     const firstArtifact = releaseSet.artifacts[0];
     await writeFile(fakeState, `${JSON.stringify({
       records: {
         [`${firstArtifact.packageName}@${firstArtifact.version}`]: {
           packageName: firstArtifact.packageName,
           version: firstArtifact.version,
-          integrity: 'sha512-wrong'
+          integrity: 'sha512-wrong',
+          attestations: npmAttestations(firstArtifact.packageName, firstArtifact.version)
         }
       },
       tarballs
@@ -185,23 +239,33 @@ test('stable npm release requires a signed exact native set before the root pack
   const verifyRun = workflow.indexOf('Verify exact successful Rust workflow run');
   const validate = workflow.indexOf('Validate complete signed native release set');
   const verifyAttestations = workflow.indexOf('Verify native provenance signatures');
+  const verifySbomAttestations = workflow.indexOf('Verify native SBOM signatures');
   const publishNative = workflow.indexOf('Publish native packages');
   const verifyNative = workflow.indexOf('Verify native packages on npm');
   const dryRunRoot = workflow.indexOf('Dry-run root package after native registry verification');
   const publishRoot = workflow.indexOf('Publish with npm Trusted Publishing');
   assert(verifyRun >= 0 && verifyRun < download && download < validate);
-  assert(validate < verifyAttestations && verifyAttestations < publishNative && publishNative < verifyNative);
+  assert(validate < verifyAttestations && verifyAttestations < verifySbomAttestations);
+  assert(verifySbomAttestations < publishNative && publishNative < verifyNative);
   assert(verifyNative < dryRunRoot && dryRunRoot < publishRoot);
   assert.match(workflow, /native_run_id:/u);
   assert.match(workflow, /name: memory-recall-native-release-set-\$\{\{ github\.sha \}\}/u);
   assert.match(workflow, /run\.path !== expected\.workflow/u);
   assert.match(workflow, /gh attestation verify/u);
   assert.match(workflow, /--signer-workflow/u);
-  assert.match(workflow, /npm@11\.5\.1/u);
+  assert.match(workflow, /--predicate-type https:\/\/spdx\.dev\/Document\/v2\.3/u);
+  assert.match(workflow, /npm@11\.18\.0/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs validate/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs publish-native/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs verify-registry/u);
 });
+
+function npmAttestations(packageName, version) {
+  return {
+    url: `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(packageName)}@${version}`,
+    provenance: { predicateType: 'https://slsa.dev/provenance/v1' }
+  };
+}
 
 function expectedAbi(target) {
   if (target === 'darwin-arm64') return { platform: 'darwin', arch: 'arm64', libc: null };

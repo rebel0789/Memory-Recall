@@ -37,7 +37,7 @@ jobs:
           node-version: 22.14.0
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install -g npm@11.5.1
+      - run: npm install -g npm@11.18.0
       - name: Validate manual confirmation
         env:
           INPUT_VERSION: ${{ inputs.version }}
@@ -77,7 +77,7 @@ jobs:
           node-version: 22.14.0
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install -g npm@11.5.1
+      - run: npm install -g npm@11.18.0
       - name: Verify exact successful Rust workflow run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,6 +123,20 @@ jobs:
               --source-digest "$GITHUB_SHA" \
               --deny-self-hosted-runners
           done < <(find output/native-release -type f \( -name '*.tgz' -o -name 'native-package-*-receipt.json' \) -print0)
+      - name: Verify native SBOM signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          while IFS= read -r -d '' artifact; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/rust.yml" \
+              --signer-digest "$GITHUB_SHA" \
+              --source-digest "$GITHUB_SHA" \
+              --predicate-type https://spdx.dev/Document/v2.3 \
+              --deny-self-hosted-runners
+          done < <(find output/native-release -type f -name '*.tgz' -print0)
       - name: Publish native packages
         env:
           RELEASE_VERSION: ${{ inputs.version }}

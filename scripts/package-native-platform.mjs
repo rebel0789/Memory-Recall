@@ -44,7 +44,71 @@ export function buildPublishedPackageJson(template, target) {
   });
 }
 
-export function buildNativeDistributionReceipt({ packageReport, commit, runner, tarballSha256, consumerGateResult, packageAttestation = null }) {
+export function buildNativeSpdxSbom({ packageReport, commit, created, tarballSha256 }) {
+  const expected = NATIVE_TARGETS[packageReport?.target];
+  if (!expected) throw new Error('native SBOM target is unsupported');
+  if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('native SBOM commit must be a full Git SHA');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(created ?? '') || Number.isNaN(Date.parse(created))) {
+    throw new Error('native SBOM creation time must be canonical SPDX ISO-8601');
+  }
+  if (packageReport.packageName !== `@memory-recall/native-${packageReport.target}`) throw new Error('native SBOM package name is invalid');
+  if (!/^\d+\.\d+\.\d+$/u.test(packageReport.version ?? '')) throw new Error('native SBOM package version is invalid');
+  if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('native SBOM tarball checksum is invalid');
+  if (!Array.isArray(packageReport.files) || packageReport.files.length !== 5
+    || packageReport.files.some((file) => !/^[A-Za-z0-9._/-]+$/u.test(file?.path ?? '')
+      || !/^[a-f0-9]{40}$/u.test(file?.sha1 ?? '') || !/^[a-f0-9]{64}$/u.test(file?.sha256 ?? ''))) {
+    throw new Error('native SBOM requires checksums for the exact five package files');
+  }
+  const files = [...packageReport.files].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  const verificationCode = createHash('sha1').update(files.map(({ sha1 }) => sha1).sort().join('')).digest('hex');
+  const encodedPackageName = packageReport.packageName.replace('@', '%40');
+  return Object.freeze({
+    spdxVersion: 'SPDX-2.3',
+    dataLicense: 'CC0-1.0',
+    SPDXID: 'SPDXRef-DOCUMENT',
+    name: `${packageReport.packageName}@${packageReport.version}`,
+    documentNamespace: `https://github.com/rebel0789/Memory-Recall/sbom/${commit}/${packageReport.target}/${packageReport.version}/${tarballSha256.slice('sha256:'.length)}`,
+    creationInfo: {
+      created,
+      creators: ['Tool: memory-recall-native-release']
+    },
+    documentDescribes: ['SPDXRef-Package'],
+    files: files.map((file, index) => ({
+      SPDXID: `SPDXRef-File-${index + 1}`,
+      fileName: `./${file.path}`,
+      checksums: [
+        { algorithm: 'SHA1', checksumValue: file.sha1 },
+        { algorithm: 'SHA256', checksumValue: file.sha256 }
+      ],
+      licenseConcluded: 'NOASSERTION',
+      copyrightText: 'NOASSERTION'
+    })),
+    packages: [{
+      SPDXID: 'SPDXRef-Package',
+      name: packageReport.packageName,
+      versionInfo: packageReport.version,
+      downloadLocation: 'NOASSERTION',
+      filesAnalyzed: true,
+      packageVerificationCode: { packageVerificationCodeValue: verificationCode },
+      licenseConcluded: 'Apache-2.0',
+      licenseDeclared: 'Apache-2.0',
+      copyrightText: 'NOASSERTION',
+      checksums: [{ algorithm: 'SHA256', checksumValue: tarballSha256.slice('sha256:'.length) }],
+      externalRefs: [{
+        referenceCategory: 'PACKAGE-MANAGER',
+        referenceType: 'purl',
+        referenceLocator: `pkg:npm/${encodedPackageName}@${packageReport.version}`
+      }]
+    }],
+    relationships: files.map((_, index) => ({
+      spdxElementId: 'SPDXRef-Package',
+      relationshipType: 'CONTAINS',
+      relatedSpdxElement: `SPDXRef-File-${index + 1}`
+    }))
+  });
+}
+
+export function buildNativeDistributionReceipt({ packageReport, commit, runner, tarballSha256, sbomReport, consumerGateResult, packageAttestation = null }) {
   const expected = NATIVE_TARGETS[packageReport?.target];
   if (!expected) throw new Error('native distribution receipt target is unsupported');
   if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('native distribution receipt commit must be a full Git SHA');
@@ -53,6 +117,10 @@ export function buildNativeDistributionReceipt({ packageReport, commit, runner, 
   if (!/^\d+\.\d+\.\d+$/u.test(packageReport.version ?? '')) throw new Error('native distribution receipt package version is invalid');
   if (!/^sha256:[a-f0-9]{64}$/u.test(packageReport?.binarySha256 ?? '')) throw new Error('native distribution receipt binary checksum is invalid');
   if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('native distribution receipt tarball checksum is invalid');
+  if (sbomReport?.name !== `native-package-${packageReport.target}.spdx.json`
+    || !/^sha256:[a-f0-9]{64}$/u.test(sbomReport?.sha256 ?? '')) {
+    throw new Error('native distribution receipt SBOM report is invalid');
+  }
   if (consumerGateResult !== 'pass') throw new Error('native distribution receipt requires a passing consumer gate');
   if (packageAttestation !== null) {
     if (!/^[1-9][0-9]*$/u.test(packageAttestation.id ?? '')) throw new Error('native package attestation ID is invalid');
@@ -83,6 +151,8 @@ export function buildNativeDistributionReceipt({ packageReport, commit, runner, 
       tarball,
       binarySha256: packageReport.binarySha256,
       tarballSha256,
+      sbom: sbomReport.name,
+      sbomSha256: sbomReport.sha256,
       entryCount: packageReport.entryCount,
       size: packageReport.size,
       unpackedSize: packageReport.unpackedSize
@@ -163,6 +233,21 @@ export async function packageNativePlatform({
     }
     const tarball = path.resolve(outDirectory, result.filename);
     if (!(await stat(tarball)).isFile()) throw new Error('npm pack did not create the reported tarball');
+    const files = await Promise.all([
+      'LICENSE',
+      'NOTICE',
+      expected.binary,
+      'native-manifest.json',
+      'package.json'
+    ].sort().map(async (relativePath) => {
+      const bytes = await readFile(path.join(stage, relativePath));
+      return Object.freeze({
+        path: relativePath,
+        size: bytes.length,
+        sha1: createHash('sha1').update(bytes).digest('hex'),
+        sha256: createHash('sha256').update(bytes).digest('hex')
+      });
+    }));
     return Object.freeze({
       target,
       packageName: template.name,
@@ -171,7 +256,8 @@ export async function packageNativePlatform({
       binarySha256: manifest.sha256,
       entryCount: result.entryCount,
       size: result.size,
-      unpackedSize: result.unpackedSize
+      unpackedSize: result.unpackedSize,
+      files
     });
   } finally {
     await rm(stage, { recursive: true, force: true });

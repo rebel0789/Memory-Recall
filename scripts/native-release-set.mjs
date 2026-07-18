@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -52,6 +53,19 @@ export async function validateNativeReleaseSet({
     const tarballBytes = await readFile(tarballFiles[0]);
     const sha256 = `sha256:${createHash('sha256').update(tarballBytes).digest('hex')}`;
     if (sha256 !== receipt.package.tarballSha256) throw new Error(`${target} tarball checksum does not match its receipt`);
+
+    const sbomFiles = files.filter((file) => path.basename(file) === receipt.package.sbom);
+    if (sbomFiles.length !== 1) throw new Error(`release set requires exactly one ${receipt.package.sbom}`);
+    const sbomBytes = await readFile(sbomFiles[0]);
+    const sbomSha256 = `sha256:${createHash('sha256').update(sbomBytes).digest('hex')}`;
+    if (sbomSha256 !== receipt.package.sbomSha256) throw new Error(`${target} SBOM checksum does not match its receipt`);
+    validateNativeSbom({
+      sbom: JSON.parse(sbomBytes),
+      target,
+      expectedVersion,
+      expectedCommit,
+      tarballSha256: sha256
+    });
     receipts.push(Object.freeze({
       target,
       packageName: receipt.package.name,
@@ -59,6 +73,9 @@ export async function validateNativeReleaseSet({
       tarball: path.relative(artifactsRoot, tarballFiles[0]).split(path.sep).join('/'),
       tarballSha256: sha256,
       tarballIntegrity: `sha512-${createHash('sha512').update(tarballBytes).digest('base64')}`,
+      sbom: path.relative(artifactsRoot, sbomFiles[0]).split(path.sep).join('/'),
+      sbomSha256,
+      sbomPredicateType: 'https://spdx.dev/Document/v2.3',
       binarySha256: receipt.package.binarySha256,
       runner: receipt.runner,
       signed: receipt.artifactState.signed
@@ -80,6 +97,7 @@ export function verifyRegistryRecord(artifact, record) {
   if (record.integrity !== artifact.tarballIntegrity) {
     throw new Error(`${artifact.packageName}@${artifact.version} npm integrity does not match the verified tarball`);
   }
+  verifyRegistryProvenance(artifact.packageName, artifact.version, record.attestations);
 }
 
 export async function publishNativePackages({ releaseSet, artifactsDirectory, authMode }) {
@@ -101,6 +119,7 @@ async function verifyNativeRegistry(releaseSet) {
   for (const artifact of releaseSet.artifacts) {
     verifyRegistryRecord(artifact, registryRecord(artifact.packageName, artifact.version));
   }
+  await auditRegistrySignatures(releaseSet.artifacts.map(({ packageName, version }) => ({ packageName, version })));
 }
 
 function validateReceipt({ receipt, target, expectedVersion, expectedCommit, requireSigned }) {
@@ -121,6 +140,10 @@ function validateReceipt({ receipt, target, expectedVersion, expectedCommit, req
   for (const [name, value] of [['binary', receipt.package?.binarySha256], ['tarball', receipt.package?.tarballSha256]]) {
     if (!/^sha256:[a-f0-9]{64}$/u.test(value ?? '')) throw new Error(`${target} ${name} checksum is invalid`);
   }
+  if (receipt.package?.sbom !== `native-package-${target}.spdx.json`
+    || !/^sha256:[a-f0-9]{64}$/u.test(receipt.package?.sbomSha256 ?? '')) {
+    throw new Error(`${target} receipt SBOM metadata is invalid`);
+  }
   if (receipt.consumerGate?.command !== 'node scripts/native-code-intelligence-consumer-smoke.mjs'
     || receipt.consumerGate?.result !== 'pass') {
     throw new Error(`${target} receipt does not contain a passing consumer gate`);
@@ -134,8 +157,114 @@ function validateReceipt({ receipt, target, expectedVersion, expectedCommit, req
   }
 }
 
+function validateNativeSbom({ sbom, target, expectedVersion, expectedCommit, tarballSha256 }) {
+  const packageName = `@memory-recall/native-${target}`;
+  const described = sbom?.packages?.[0];
+  const expectedFiles = ['LICENSE', 'NOTICE', NATIVE_TARGETS[target].binary, 'native-manifest.json', 'package.json']
+    .sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  const files = Array.isArray(sbom?.files) ? [...sbom.files]
+    .sort((left, right) => left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0) : [];
+  if (sbom?.spdxVersion !== 'SPDX-2.3' || sbom?.dataLicense !== 'CC0-1.0'
+    || sbom?.SPDXID !== 'SPDXRef-DOCUMENT' || sbom?.name !== `${packageName}@${expectedVersion}`
+    || sbom?.documentNamespace !== `https://github.com/rebel0789/Memory-Recall/sbom/${expectedCommit}/${target}/${expectedVersion}/${tarballSha256.slice('sha256:'.length)}`
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(sbom?.creationInfo?.created ?? '')
+    || !sbom?.creationInfo?.creators?.includes('Tool: memory-recall-native-release')
+    || !sbom?.documentDescribes?.includes('SPDXRef-Package')) {
+    throw new Error(`${target} SPDX document metadata is invalid`);
+  }
+  if (files.length !== 5 || files.map(({ fileName }) => fileName).some((fileName, index) => fileName !== `./${expectedFiles[index]}`)
+    || files.some((file, index) => file.SPDXID !== `SPDXRef-File-${index + 1}`
+      || file.licenseConcluded !== 'NOASSERTION' || file.copyrightText !== 'NOASSERTION'
+      || file.checksums?.length !== 2 || file.checksums[0]?.algorithm !== 'SHA1'
+      || !/^[a-f0-9]{40}$/u.test(file.checksums[0]?.checksumValue ?? '')
+      || file.checksums[1]?.algorithm !== 'SHA256' || !/^[a-f0-9]{64}$/u.test(file.checksums[1]?.checksumValue ?? ''))) {
+    throw new Error(`${target} SPDX file evidence is invalid`);
+  }
+  const verificationCode = createHash('sha1')
+    .update(files.map((file) => file.checksums[0].checksumValue).sort().join(''))
+    .digest('hex');
+  if (described?.SPDXID !== 'SPDXRef-Package' || described?.name !== packageName
+    || described?.versionInfo !== expectedVersion || described?.filesAnalyzed !== true
+    || described?.packageVerificationCode?.packageVerificationCodeValue !== verificationCode
+    || described?.licenseConcluded !== 'Apache-2.0' || described?.licenseDeclared !== 'Apache-2.0'
+    || described?.checksums?.length !== 1 || described.checksums[0]?.algorithm !== 'SHA256'
+    || described.checksums[0]?.checksumValue !== tarballSha256.slice('sha256:'.length)) {
+    throw new Error(`${target} SPDX package evidence is invalid`);
+  }
+  if (!Array.isArray(sbom?.relationships) || sbom.relationships.length !== 5
+    || sbom.relationships.some((relationship, index) => relationship.spdxElementId !== 'SPDXRef-Package'
+      || relationship.relationshipType !== 'CONTAINS'
+      || relationship.relatedSpdxElement !== `SPDXRef-File-${index + 1}`)) {
+    throw new Error(`${target} SPDX package relationships are invalid`);
+  }
+}
+
+function verifyRegistryProvenance(packageName, version, attestations) {
+  if (attestations?.provenance?.predicateType !== 'https://slsa.dev/provenance/v1') {
+    throw new Error(`${packageName}@${version} npm provenance is missing`);
+  }
+  let attestationUrl;
+  try {
+    attestationUrl = new URL(attestations.url);
+  } catch {
+    throw new Error(`${packageName}@${version} npm attestation URL is invalid`);
+  }
+  if (attestationUrl.protocol !== 'https:' || attestationUrl.hostname !== 'registry.npmjs.org'
+    || !attestationUrl.pathname.startsWith('/-/npm/v1/attestations/')) {
+    throw new Error(`${packageName}@${version} npm attestation URL is invalid`);
+  }
+}
+
+export async function auditRegistrySignatures(packages) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-npm-provenance-'));
+  try {
+    await writeFile(path.join(directory, 'package.json'), `${JSON.stringify({
+      name: 'memory-recall-npm-provenance-verification',
+      version: '0.0.0',
+      private: true,
+      dependencies: Object.fromEntries(packages.map(({ packageName, version }) => [packageName, version]))
+    }, null, 2)}\n`);
+    const installed = spawnNpmSync([
+      'install', '--force', '--ignore-scripts', '--no-audit', '--no-fund'
+    ], { cwd: directory, encoding: 'utf8', env: process.env });
+    if (installed.status !== 0) throw new Error(`npm provenance lock failed: ${installed.stderr || installed.stdout || installed.error?.message || 'unknown error'}`);
+    const audited = spawnNpmSync([
+      'audit', 'signatures', '--json', '--include-attestations'
+    ], { cwd: directory, encoding: 'utf8', env: process.env });
+    if (audited.status !== 0) throw new Error(`npm signature audit failed: ${audited.stderr || audited.stdout || audited.error?.message || 'unknown error'}`);
+    let report;
+    try {
+      report = JSON.parse(audited.stdout);
+    } catch {
+      throw new Error('npm signature audit did not return JSON evidence');
+    }
+    if (!Array.isArray(report.invalid) || report.invalid.length !== 0
+      || !Array.isArray(report.missing) || report.missing.length !== 0
+      || !Array.isArray(report.verified)) {
+      throw new Error('npm signature audit reported invalid or missing signatures');
+    }
+    const requiredPredicates = new Set([
+      'https://github.com/npm/attestation/tree/main/specs/publish/v0.1',
+      'https://slsa.dev/provenance/v1'
+    ]);
+    for (const { packageName, version } of packages) {
+      const verified = report.verified.find((entry) => entry?.name === packageName && entry?.version === version);
+      const predicates = new Set((verified?.attestationBundles ?? []).map(({ predicateType }) => predicateType));
+      if (!verified || [...requiredPredicates].some((predicate) => !predicates.has(predicate))) {
+        throw new Error(`${packageName}@${version} npm attestation bundle is incomplete`);
+      }
+    }
+    return Object.freeze({
+      verified: packages.map(({ packageName, version }) => `${packageName}@${version}`),
+      requiredPredicates: [...requiredPredicates]
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 function registryRecord(packageName, version, { allowMissing = false } = {}) {
-  const result = spawnNpmSync(['view', `${packageName}@${version}`, 'version', 'dist.integrity', '--json'], {
+  const result = spawnNpmSync(['view', `${packageName}@${version}`, 'version', 'dist.integrity', 'dist.attestations', '--json'], {
     cwd: ROOT,
     encoding: 'utf8',
     env: process.env
@@ -147,7 +276,8 @@ function registryRecord(packageName, version, { allowMissing = false } = {}) {
   const parsed = JSON.parse(result.stdout);
   return {
     version: parsed.version,
-    integrity: parsed['dist.integrity'] ?? parsed.dist?.integrity
+    integrity: parsed['dist.integrity'] ?? parsed.dist?.integrity,
+    attestations: parsed['dist.attestations'] ?? parsed.dist?.attestations
   };
 }
 
