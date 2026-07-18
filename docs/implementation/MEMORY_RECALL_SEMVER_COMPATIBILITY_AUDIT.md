@@ -4,7 +4,7 @@ Audit date: 2026-07-18
 
 Published baseline: `memory-recall@1.1.0` at commit `06a947fb52b5c23544a6e1b18ed8e28bd0735fb2`
 
-Audited worktree: `codex/memory-recall-orientation-workbench` at commit `141e7cdd744fbe83d490ad4104b616c49923ae4d`
+Audited worktree: `codex/memory-recall-orientation-workbench` at commit `d2e289c38f9d30a0325648e584b8fec25d41600f`
 
 ## Decision
 
@@ -17,13 +17,14 @@ until implementation is frozen and the final compatibility and release gates
 pass.
 
 The size of the change is supporting context, not the reason for the decision:
-`main...141e7cd` changes 351 files with 94,024 additions and 2,460 deletions. The
+`main...d2e289c` changes 351 files with 94,666 additions and 2,559 deletions. The
 major-line conclusion comes from observed public contract breaks.
 
-Commits through `141e7cd` add pagination, bounded exact-repository intelligence
-gates, explicit Tier 1 applicability, and qualifying import evidence for all
-fourteen Tier 1 languages. They do not restore or dual-serve any breaking
-boundary recorded below, so the SemVer conclusion is unchanged.
+Commits through `d2e289c` add pagination, bounded exact-repository intelligence
+gates, explicit Tier 1 applicability, qualifying import evidence for all
+fourteen Tier 1 languages, and qualifying Go and Rust export evidence. They do
+not restore or dual-serve any breaking boundary recorded below, so the SemVer
+conclusion is unchanged.
 
 ## Evidence snapshot
 

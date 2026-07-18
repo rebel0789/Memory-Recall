@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-18T14:31:39.167Z",
+  "generatedAt": "2026-07-18T15:23:53.358Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:1e93ee1c7f409a1cde8a4bbac3d9aad434d3d43ccefc2112af4c9394f543e1c0",
+    "implementationFingerprint": "sha256:cda85b5697e65a792f0f2fba6a3cd3cfa8066a2d613d4a83812260667583aaf4",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:e715c7b27b31a5315b728e8618bde642b259b639f6ff05b2d8ec53510dcfb884",
+    "repositoryIdentityHash": "sha256:a6c6063170fa2784ff57e87b3b837b44d84e48ef683ce1adfd00bc844f0c1d2e",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:327feac4baa2043bf97159422d3ed36570611783aba4592ace966e8235af6127",
+    "deterministicFingerprint": "sha256:da58053bccef31f73b976da13df930ea6c475a8d3cd75d031fd970f20bd53216",
     "queryWallMs": {
-      "minimum": 6.69,
-      "p50": 8.477,
-      "p95": 11.695,
-      "maximum": 11.695
+      "minimum": 7.831,
+      "p50": 9.612,
+      "p95": 15.446,
+      "maximum": 15.446
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:9ee79f4cdb57b96fc92e1f088cdd2333a0089392fd5c5bb6ad03eaac17e0a805"
+  "reportFingerprint": "sha256:d721f3d7ea6464a1bbf7eaa2d77b4cf1a546b880c25eed6df11cc5a8f0305827"
 }

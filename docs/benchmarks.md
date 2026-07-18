@@ -87,8 +87,8 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
 repositories at their exact commits and bounded scopes. Each graph is built
 twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
-The stored audit records 50,346 nodes, 113,190 edges, 79,482,816 serialized
-graph bytes, 23,374.2 ms summed first-run wall time, 23,140.872 ms summed
+The stored audit records 50,583 nodes, 113,988 edges, 79,978,321 serialized
+graph bytes, 23,394.749 ms summed first-run wall time, 23,201.339 ms summed
 second-run wall time, and 256,192 KiB peak evaluator RSS on the recorded macOS
 arm64 run. These machine-specific resource values are evidence receipts, not
 performance promises.
@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 66 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 87 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 68 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 85 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -109,6 +109,11 @@ imports now have reviewed evidence from their fixtures plus three pinned
 repositories per language. PHP evidence covers dotted namespace coordinates and
 exact local-module resolution, Ruby preserves full `require` paths, Swift
 preserves scoped coordinates, and C/C++ preserve angle-bracket header paths.
+Go and Rust exports also meet the sampled floor across one fixture and three
+pinned repositories each. Go export evidence omits exported fields and interface
+methods. Rust exact evidence covers unrestricted top-level `pub` items and
+simple-symbol `pub use`; grouped and glob re-exports remain outside the passing
+sample.
 Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
 unmeasured; they were not counted in the passing sample. Python has exact
 framework-route evidence from narrow

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T14:46:30.387Z",
+  "generatedAt": "2026-07-18T15:45:49.504Z",
   "fileCount": 1186,
-  "totalBytes": 9832707,
+  "totalBytes": 9856478,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 32237,
-      "sha256": "85d6fdfc6c5308151cae884adf7cce5c9744808d9fc2e1580f49e426270cab73"
+      "bytes": 32380,
+      "sha256": "3f3fbe682a7ebd0e8fbcb9b3c4ff2806513198ada51d38cbdcd938f96519b661"
     },
     {
       "path": "CITATION.cff",
@@ -892,8 +892,8 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "bytes": 19292,
-      "sha256": "8c34e7c4ebceb2f3991cfbd8fbc2b7612c4a26afb82972034b70e00af42fd5b1"
+      "bytes": 19615,
+      "sha256": "ee5e0ae18acbd54934dc5f4fd371d7547fc42193b87284bd49851a6ae891937a"
     },
     {
       "path": "docs/implementation/AGENT_EXECUTION_PLAYBOOK.md",
@@ -912,13 +912,13 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 33544,
-      "sha256": "6f6d0c56cff0dcd9135c56527d0fb562a20fa6dce51eeeb4fd948278b28ea171"
+      "bytes": 33523,
+      "sha256": "f3a90b98fabfffe667bbf81478c1e86e1ceeee26ce6a93d985875d949d75c23d"
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
-      "bytes": 8380,
-      "sha256": "eaa09162d898755229f9f23750c6374219862d23bf257328b8c289fce94eb82e"
+      "bytes": 8420,
+      "sha256": "7b57aab4bf44620bfa78f5572a38322d465d692a84953827703922abb270e021"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",
@@ -1158,12 +1158,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "ab76c33ee404fc620b55e066c837d280d1f825882a9d615c6afa1281aaf089e1"
+      "sha256": "0c71568b54204a7ea8e98d1e7562e2a7849dc99b376ca23ecb71b803624b3db6"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3381,
-      "sha256": "cf71df465f449f3da1f0104f3a115c721eb09aa4630e2dad2bb13ebad9e20fec"
+      "sha256": "a852d86de708be6ab5509cbd9f1a2c5b2567b1766eba792ba3f9fde43ff2bbac"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1173,7 +1173,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "32a5b9150baca8b25192a8d7edba57f4ccc70ce1ced88bd032c749dfd58430c7"
+      "sha256": "7026803f31a49dfb2dfdb1dc806f1807ec1f86d7e81dde0ba4b34eb2331012f9"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1262,8 +1262,8 @@
     },
     {
       "path": "docs/usage/code-intelligence-support.md",
-      "bytes": 18354,
-      "sha256": "483133ede019a6a28571e22b2c7a7fb223e442fddbe0808a7e2c43aa506607bc"
+      "bytes": 18777,
+      "sha256": "2f0ebf9191ac222def2dabd6e794d185968650e4a5b090782a9cdf9a606d4c11"
     },
     {
       "path": "docs/usage/codex-setup.md",
@@ -1392,8 +1392,8 @@
     },
     {
       "path": "evals/code-intelligence/capability-matrix.v1.json",
-      "bytes": 219842,
-      "sha256": "cdc78fbe18eacdecb88ea9c3d87774e8ef7e21c3f3af0b1b0b724034aaaa28ed"
+      "bytes": 221102,
+      "sha256": "5256adbd3ed72ff3bee17f19afa787e4c416eab3acb4c8a38cd3545314010ad6"
     },
     {
       "path": "evals/code-intelligence/corpus-candidates.v1.json",
@@ -1672,8 +1672,8 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-b.json",
-      "bytes": 84853,
-      "sha256": "1f3bf15748559ab4c8c14fe9f8a4c51ee1702556e306cce95336feeef13bcf64"
+      "bytes": 84841,
+      "sha256": "ede329b4da50d8966ca3e10aa2c0b8c23f729de0b91394032d6088a9f48e1a33"
     },
     {
       "path": "evals/code-intelligence/results/phase2-batch-c.json",
@@ -1692,23 +1692,23 @@
     },
     {
       "path": "evals/code-intelligence/results/phase2-tier1-summary.json",
-      "bytes": 397439,
-      "sha256": "1d4a73021e0542b8fafdaa01239080b1ba64fc9b922c58c702c1713fb05b5c8c"
+      "bytes": 397383,
+      "sha256": "785177c0b937cbeb086a6af2b782c1a1ca31ba0039f129fd9abf99524c41194a"
     },
     {
       "path": "evals/code-intelligence/results/phase3-source-index.json",
-      "bytes": 27390,
-      "sha256": "64469d72d6f055fcf41b2aca1b39bbb3b260292ada139f50f9fad27de34f562b"
+      "bytes": 27401,
+      "sha256": "cc8da9b604ae2b10831dc4256fe2caf20cd5bd6f2b32dafa6df7b08e2854fe33"
     },
     {
       "path": "evals/code-intelligence/results/phase4-intelligence.json",
-      "bytes": 33115,
-      "sha256": "a680f8148eef20dee4d60dea8d7fcc9ca6605bb930ff954a4e22a048377f93e2"
+      "bytes": 33118,
+      "sha256": "dc1cc0c603e43c9f51155f79dee4e9f5f9ca59ccc6559853b9b6eac31b9fa8be"
     },
     {
       "path": "evals/code-intelligence/results/phase5-cross-service.json",
-      "bytes": 2837,
-      "sha256": "0799ec34382298f4dc2cd712c78369ee73560ec59b5db5d5ddfc6c91efb11128"
+      "bytes": 2838,
+      "sha256": "5836caf24e4116307be2fff7b992cd095a6ee3a5c865a9ded452890938fb1b9f"
     },
     {
       "path": "evals/code-intelligence/results/phase5-go-cross-repository.json",
@@ -1737,8 +1737,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/go.json",
-      "bytes": 7896,
-      "sha256": "2204d73dd2d021f2eeedd10d3642333287023b017fa9bac2213ebe80c1b09bc7"
+      "bytes": 9130,
+      "sha256": "854b6f11d94d4e7f1af5561deec4ef15da34b672666be33e9b60a17dbdd94d9a"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/java.json",
@@ -1772,8 +1772,8 @@
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/rust.json",
-      "bytes": 9762,
-      "sha256": "a45ea232f2c10411a5447c0bb635bb38b9e981b2b3d0e3971fb771071e0a3061"
+      "bytes": 10969,
+      "sha256": "a2464a9a7fae8568d18b260a9123e3ce31e9daab4c21b35a2cd1f7bfed650271"
     },
     {
       "path": "evals/code-intelligence/truth/fixtures/swift.json",
@@ -1852,18 +1852,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
-      "bytes": 4632,
-      "sha256": "1689a86ab9c1fc5e9eb2f138ba724bfbb2d09df60813d0a63a42de916a457577"
+      "bytes": 5801,
+      "sha256": "e323bca450f9e253fc36914604a021a0ff895caccbcc9af113a4d8a16a60b793"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
-      "bytes": 5430,
-      "sha256": "1a71f5bfc4704faf8823886c48924516c82142a163ada84929df1b9c2c9169dc"
+      "bytes": 6722,
+      "sha256": "164fe6a7662020f5b65937675a29b173eb6ffab5d075012feb67135eed342281"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
-      "bytes": 4259,
-      "sha256": "a1dd60f0d046412e2a6857c3ce9d213e48b6d35095cae454fdc4b49d06fad64f"
+      "bytes": 5462,
+      "sha256": "4bc360f9e088ba81faa0788d75fcccbebbce6b22e4986e53be9d7eff161df0be"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
@@ -1972,18 +1972,18 @@
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
-      "bytes": 5265,
-      "sha256": "ab104d5bd312906298dd4e2c101a1c80d518654d98a4649f098aaec908c8f392"
+      "bytes": 6398,
+      "sha256": "c6a88c358e29eb9ac1a6ccd82cb3e7b6ddb440bee763290bcc59cb3352dac83d"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
-      "bytes": 4770,
-      "sha256": "506cfa729f3bc35e3c3752d3addd68b0ec893da59021d5e5ce58cd9a16778b94"
+      "bytes": 5913,
+      "sha256": "eef637f38d62d58cc62f5c746b635ace5947f30bfec06cdd57cff52228feda12"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
-      "bytes": 6002,
-      "sha256": "b4ccc9f3b0449e3b725e9d5ace7ff60293c3d6f1494b79bf38669b72690cf8ae"
+      "bytes": 7268,
+      "sha256": "4457c6248a9f5be16178f5858155290b2475ccc443ab36f5004c79987dd0e1ca"
     },
     {
       "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json",
@@ -4407,8 +4407,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 72989,
-      "sha256": "46e328c0aaa429ee7ddaa931cb028e1231fbee6c08656f72ffec6577632bf258"
+      "bytes": 73317,
+      "sha256": "3b1fdd2c1f661f3d237354a61c4cda4f03ef2ec0d07e15e23d2d8cb8c2e9f665"
     },
     {
       "path": "providers/AGENTS.md",
@@ -4747,13 +4747,13 @@
     },
     {
       "path": "rust/oaf-ingest/src/lib.rs",
-      "bytes": 243564,
-      "sha256": "5f0d48bd1398f5fcb1c344277c625e04ee8b5c6001be6816ca9e8c7aef38bcd4"
+      "bytes": 248881,
+      "sha256": "f4aef053fe3adde317dd523d996d79e2aeaf7cce9b4663538e4e6ba82ab4db14"
     },
     {
       "path": "rust/oaf-ingest/test-support/lib_unit.rs",
-      "bytes": 79323,
-      "sha256": "c37094db0e15c351b18d0fc15fb57edf58bd029c2cd357e1d2c19e414d2b0d7b"
+      "bytes": 84986,
+      "sha256": "9107be1c25a87e1d996f6c34f52053bebbfaf62b79752ac16f14246a90ffdbe4"
     },
     {
       "path": "rust/oaf-store/Cargo.toml",
@@ -5422,13 +5422,13 @@
     },
     {
       "path": "tests/code-intelligence-phase8-gitnexus.test.mjs",
-      "bytes": 6998,
-      "sha256": "57286f74fa9039edf06f65b964c2b7c1d39e954961d03f458258e6ed3caf2168"
+      "bytes": 7193,
+      "sha256": "93881fb2adba73bbfa7e68c883455f6ff34123f29991c081d6ee97f1788f6a0d"
     },
     {
       "path": "tests/code-intelligence-tier1.test.mjs",
-      "bytes": 7996,
-      "sha256": "a07f9e24a4387de0540782c16b659698b1669105140d1e43fbf62704fa533a8a"
+      "bytes": 8502,
+      "sha256": "ca7527409ace0b1e4fac768b34ab6b82cd6a3b459f90cf4da2b97ad60fbc728d"
     },
     {
       "path": "tests/content-intelligence.test.mjs",

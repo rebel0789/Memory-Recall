@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `141e7cdd744fbe83d490ad4104b616c49923ae4d`
+Current evidence commit: `d2e289c38f9d30a0325648e584b8fec25d41600f`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -26,7 +26,7 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | V-1 | Ship one normal stable release, not a beta, preview, RC, or partial package. | Incomplete | `package.json` says `1.1.1`; `PROJECT_STATUS.json` and release documents still call it a patch candidate/readiness artifact; no release is authorized. The compatibility audit rejects a patch and does not choose a replacement version. | Freeze the implementation, re-run the compatibility audit against the exact root tarball, choose the stable line, and pass every final gate before publication. |
-| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...141e7cd` changes 351 files with 94,024 insertions and 2,460 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
+| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...d2e289c` changes 351 files with 94,666 insertions and 2,559 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
 | V-3 | Preserve the exact original completion criteria. | Proven | This matrix maps the approved polyglot design, the active goal, and the ten stable-release priorities without redefining success. | Keep this ledger current after each slice. |
 
 ## Product target
@@ -34,7 +34,7 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | T-1 | Replace GitNexus for developer and coding-agent workflows. | Missing | `evals/code-intelligence/results/phase2-tier1-summary.json` explicitly denies parity; the Phase 8 test uses a fake GitNexus executable and one Go fixture. | Run identical pinned-corpus task and performance comparisons against the real permitted GitNexus artifact and file baselines. |
-| T-2 | Meet or beat GitNexus across the fourteen Tier 1 languages. | Incomplete | Phase 2 has 14 fixtures and 43 repositories. Of 154 capability rows, 66 meet the sampled floor, 87 applicable rows are unmeasured, and one row is explicitly not applicable. | Resolve every applicable row with fixture and capability-specific evidence from at least three pinned repositories per language. |
+| T-2 | Meet or beat GitNexus across the fourteen Tier 1 languages. | Incomplete | Phase 2 has 14 fixtures and 43 repositories. Of 154 capability rows, 68 meet the sampled floor, 85 applicable rows are unmeasured, and one row is explicitly not applicable. | Resolve every applicable row with fixture and capability-specific evidence from at least three pinned repositories per language. |
 | T-3 | Promote extra languages only after equal gates. | Proven | `PROJECT_STATUS.json` and `docs/usage/code-intelligence-support.md` keep Lua, Bash, SQL, Objective-C, Scala, R, Julia, and Zig experimental. | Do not promote them until the Tier 1 gate is closed and equivalent evidence exists. |
 | T-4 | Keep installation to `npm install -g memory-recall` without Cargo or rustc. | Incomplete | `scripts/native-code-intelligence-consumer-smoke.mjs` proves the packed root plus native tarball on darwin-arm64; the other four platforms and registry install are unproven. | Pass clean packed and registry-shaped installs on all five targets with Cargo/rustc absent. |
 
@@ -69,13 +69,13 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 
 ## Fourteen-language support gate
 
-Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows, and one explicit `not-applicable` row. No row is recorded as `does-not-meet-floor`, which means missing proof must not be relabeled as support.
+Phase 2 currently reports 68 `meets-floor` rows, 85 applicable `unmeasured` rows, and one explicit `not-applicable` row. No row is recorded as `does-not-meet-floor`, which means missing proof must not be relabeled as support.
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | L-1 | At least three pinned repositories exist for every Tier 1 language. | Proven | `evals/code-intelligence/corpus.v1.json` contains 43 pinned repositories; the corpus gate passes for all fourteen languages. | Preserve exact commits and source hashes in final comparison runs. |
 | L-2 | Declarations and structural symbols meet recall floors. | Incomplete | All languages have sampled declaration evidence, but capability coverage remains uneven and partial scopes exist. | Expand reviewed declarations per capability and keep recall at or above 95% for every language. |
-| L-3 | Packages, modules, imports, exports, and bindings resolve exactly. | Incomplete | All fourteen Tier 1 import rows now meet the sampled floor using one fixture and at least three pinned repositories per language. The evidence preserves language-appropriate import coordinates, including modules, namespaces, packages, headers, and file targets. Export and binding rows remain unmeasured. | Add fixture plus three-repository truth for every remaining applicable package/export/binding row. |
+| L-3 | Packages, modules, imports, exports, and bindings resolve exactly. | Incomplete | All fourteen Tier 1 import rows meet the sampled floor. Go exports now preserve specification-defined public identifiers, and Rust exports preserve public visibility and re-export targets across each fixture and three pinned repositories. Ten export rows and broader binding behavior remain unmeasured. | Add fixture plus three-repository truth for every remaining applicable package/export/binding row. |
 | L-4 | Cross-file resolution is exact and source-backed. | Incomplete | Selected language fixtures and Phase 3 dependency cases pass; no all-language capability gate exists. | Prove cross-file positive, negative, same-name decoy, and unresolved diagnostics per language. |
 | L-5 | Heritage, interfaces, traits, and protocols resolve. | Incomplete | Python and selected languages have sampled heritage; most heritage rows are unmeasured. | Add reviewed heritage truth for every applicable language and explicit not-applicable decisions where the language lacks the construct. |
 | L-6 | Type and receiver inference resolves calls correctly. | Incomplete | TS and Python have reviewed inference evidence; several language type/call rows remain unmeasured. | Prove same-name receiver disambiguation and confidence for every applicable Tier 1 language. |
@@ -85,8 +85,8 @@ Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows
 | L-10 | Configuration resources and build/package manifests are modeled. | Incomplete | Python config is measured; most config rows are unmeasured. | Define per-language applicability and add reviewed manifest/config truth. |
 | L-11 | Impact is correct for each language. | Incomplete | Phase 4 now runs bounded impact probes on exact pinned JavaScript, TypeScript, and Go repositories, and Phase 5 proves one Go path. These are evidence-bearing probes, not reviewed impact truth across fourteen languages; Phase 2 impact rows remain unmeasured. | Prove forward/reverse impact with evidence and decoys on three repositories per applicable language. |
 | L-12 | Search, context, trace, dependencies, and processes work for each language. | Incomplete | Native provider and MCP contracts exist. Phase 4 runs the workflow families on exact pinned Express, Nest cats-sample, and Gin scopes in addition to the four-file fixture. Eleven languages and task-level truth remain open, and three repositories total do not satisfy the per-language corpus gate. | Run the full workflow set on the per-language pinned corpus with bounded outputs and task-level truth. |
-| L-13 | Results are deterministic and contain no duplicate canonical symbols. | Incomplete | Phase 2 sampled graphs are deterministic with zero recorded duplicates; five repository scopes report omissions and 87 applicable capability rows remain unmeasured. | Re-run determinism/duplicate checks for every completed capability and final packaged binaries. |
-| L-14 | Partial, unsupported, and not-applicable behavior is explicit. | Incomplete | Tier 1 applicability is now independent of evidence presence. All applicable unsupported or missing rows remain non-green; C heritage is the sole explicit not-applicable row with a language-semantic rationale. Eighty-seven applicable rows remain unmeasured. | Prove or explicitly fail every remaining applicable row without converting missing evidence into not-applicable support. |
+| L-13 | Results are deterministic and contain no duplicate canonical symbols. | Incomplete | Phase 2 sampled graphs are deterministic with zero recorded duplicates; five repository scopes report omissions and 85 applicable capability rows remain unmeasured. | Re-run determinism/duplicate checks for every completed capability and final packaged binaries. |
+| L-14 | Partial, unsupported, and not-applicable behavior is explicit. | Incomplete | Tier 1 applicability is now independent of evidence presence. All applicable unsupported or missing rows remain non-green; C heritage is the sole explicit not-applicable row with a language-semantic rationale. Eighty-five applicable rows remain unmeasured. | Prove or explicitly fail every remaining applicable row without converting missing evidence into not-applicable support. |
 
 ### Current unmeasured rows
 
@@ -98,8 +98,8 @@ Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows
 | Java | 7 | exports, heritage, types, config, frameworks, impact, processes |
 | Kotlin | 8 | exports, heritage, types, calls, config, frameworks, impact, processes |
 | C# | 7 | exports, heritage, types, config, frameworks, impact, processes |
-| Go | 7 | exports, heritage, types, config, frameworks, impact, processes |
-| Rust | 6 | exports, heritage, config, frameworks, impact, processes |
+| Go | 6 | heritage, types, config, frameworks, impact, processes |
+| Rust | 5 | heritage, config, frameworks, impact, processes |
 | PHP | 6 | exports, types, config, frameworks, impact, processes |
 | Ruby | 7 | exports, heritage, types, config, frameworks, impact, processes |
 | Swift | 6 | exports, calls, config, frameworks, impact, processes |
@@ -161,7 +161,7 @@ Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows
 | H-1 | Run identical pinned commits through Memory Recall, GitNexus, and file baselines. | Missing | The Phase 8 runner covers one Go fixture and the automated test substitutes a fake GitNexus executable. | Use the real permitted GitNexus artifact and the full pinned Tier 1 corpus with immutable versions/hashes. |
 | H-2 | Measure structural, search, and task accuracy. | Missing | Memory Recall truth exists; there is no complete identical-product comparison report. | Define identical reviewed questions and compute recall, precision, MRR, task success, and unsupported cases. |
 | H-3 | Measure indexing, latency, RSS, disk, MCP calls, and delivered tokens. | Missing | Separate local Memory Recall receipts exist; competitor/file measurements are absent. | Capture all metrics under identical limits and hardware, including warm/cold behavior and confidence intervals. |
-| H-4 | Meet floors: symbol recall at least 95%, resolved-call precision at least 90%, zero duplicate symbols, determinism, explicit unsupported states, and real-repository proof. | Incomplete | Sampled Memory Recall rows meet floors where measured; 87 applicable rows and competitor runs are missing. | Close all applicability rows and execute the full comparison. |
+| H-4 | Meet floors: symbol recall at least 95%, resolved-call precision at least 90%, zero duplicate symbols, determinism, explicit unsupported states, and real-repository proof. | Incomplete | Sampled Memory Recall rows meet floors where measured; 85 applicable rows and competitor runs are missing. | Close all applicability rows and execute the full comparison. |
 | H-5 | Claim parity or leadership only from proven results. | Proven | Current receipts explicitly set parity and leadership false. | Keep claims false until H-1 through H-4 pass. |
 
 ## Phase status
@@ -170,7 +170,7 @@ Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows
 | --- | --- | --- | --- |
 | 0 | Matrix, ADR, schema, baseline. | Proven | ADR 0023, provider-neutral schemas, corpus, gates, and six-command baseline pass. |
 | 1 | Unify Node and Rust. | Incomplete | Protocol/provider bridge exists; production still has duplicate JS intelligence and divergent defaults. |
-| 2 | Pass fourteen Tier 1 languages. | Incomplete | 66/154 rows meet floor; 87 applicable rows remain unmeasured and one row is not applicable. All fourteen language-level statuses remain unmeasured. |
+| 2 | Pass fourteen Tier 1 languages. | Incomplete | 68/154 rows meet floor; 85 applicable rows remain unmeasured and one row is not applicable. All fourteen language-level statuses remain unmeasured. |
 | 3 | Scalable index, watcher, and recovery. | Incomplete | Core SQLite lifecycle passes; cross-platform packaged migration/recovery and million-node scale do not. |
 | 4 | Search, communities, processes, routes, impact, query, and MCP. | Incomplete | The deterministic fixture and exact pinned Express, Nest cats-sample, and Gin slices pass, including evidence-backed relationship traversal, community/process pagination, all required query families, delivery estimates, and deadlines. The receipt explicitly keeps `phase4IntelligenceProven: false`; reviewed correctness, representative language breadth, large repositories, exact token budgets, cancellation, and full pagination remain missing. |
 | 5 | Multi-repository and cross-service. | Incomplete | One Go cross-repo path and one monorepo fixture are insufficient. |
@@ -195,7 +195,7 @@ Phase 2 currently reports 66 `meets-floor` rows, 87 applicable `unmeasured` rows
 ## Fastest dependency order
 
 1. Keep the local root-plus-five-native artifact chain guarded; defer its remote five-platform run until the implementation is frozen.
-2. Close the 87 applicable language rows without weakening gates.
+2. Close the 85 applicable language rows without weakening gates.
 3. Finish reviewed Phase 4 correctness on real repositories, then general Phase 5.
 4. Profile and fix the million-node cold build within the existing timeout.
 5. Promote packaged Rust across CLI/MCP/API/web; delete JS intelligence only after proof.
