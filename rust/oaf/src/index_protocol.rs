@@ -377,7 +377,6 @@ fn validate_query_shape(arguments: &QueryArguments) -> Result<()> {
         "processes" => {
             seeds == 0
                 && arguments.direction.is_none()
-                && arguments.cursor.is_none()
                 && arguments.depth.unwrap_or(4) >= 1
                 && arguments.edge_kinds.is_none()
         }
@@ -1447,6 +1446,7 @@ fn execute_query(
                 results,
                 relationships,
                 communities: Some(communities),
+                next_cursor: projection.next_cursor.as_deref().and_then(node_cursor),
                 ..QueryOutput::default()
             })
         }
@@ -1459,6 +1459,7 @@ fn execute_query(
                 results,
                 relationships,
                 processes: Some(processes),
+                next_cursor: projection.next_cursor.as_deref().and_then(node_cursor),
                 ..QueryOutput::default()
             })
         }

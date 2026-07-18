@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-5",
   "phase": 4,
-  "generatedAt": "2026-07-17T20:14:48.032Z",
+  "generatedAt": "2026-07-18T11:24:44.206Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,10 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:af154c4a9074ac46477b7415d9e0ac1cde6c9c857d354b955161c0365244af8f",
-    "implementationFingerprint": "sha256:5886a771816d8acf5bcb1089571d31d23434471e1dfde495e59180610677bb3f",
+    "pinnedRepositories": [
+      "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#."
+    ],
+    "implementationFingerprint": "sha256:d89d9ea70e9d52c7da66918b0f68da308980b28497a62bf71f72f66a2ac76c3e",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000,
@@ -42,40 +45,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 9.308,
-      "p50": 9.664,
-      "p95": 9.741,
-      "maximum": 9.741
+      "minimum": 10.487,
+      "p50": 10.71,
+      "p95": 11.589,
+      "maximum": 11.589
     },
     "processQueryWallMs": {
-      "minimum": 8.445,
-      "p50": 8.811,
-      "p95": 9.057,
-      "maximum": 9.057
+      "minimum": 9.819,
+      "p50": 9.932,
+      "p95": 10.732,
+      "maximum": 10.732
     },
     "routeQueryWallMs": {
-      "minimum": 7.802,
-      "p50": 7.89,
-      "p95": 7.971,
-      "maximum": 7.971
+      "minimum": 8.46,
+      "p50": 9.057,
+      "p95": 9.602,
+      "maximum": 9.602
     },
     "impactQueryWallMs": {
-      "minimum": 7.9,
-      "p50": 8.104,
-      "p95": 8.284,
-      "maximum": 8.284
+      "minimum": 8.351,
+      "p50": 9.015,
+      "p95": 9.913,
+      "maximum": 9.913
     },
     "searchQueryWallMs": {
-      "minimum": 7.789,
-      "p50": 8.503,
-      "p95": 8.841,
-      "maximum": 8.841
+      "minimum": 8.471,
+      "p50": 9.189,
+      "p95": 9.257,
+      "maximum": 9.257
     },
     "constrainedQueryWallMs": {
-      "minimum": 6.748,
-      "p50": 7.915,
-      "p95": 8.179,
-      "maximum": 8.179
+      "minimum": 8.721,
+      "p50": 9.324,
+      "p95": 10.557,
+      "maximum": 10.557
     },
     "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
@@ -217,7 +220,206 @@
       "processMinimumConfidence": 0.75,
       "processReportedConfidence": 0.75,
       "processUsesMinimumRelationshipConfidence": true
-    }
+    },
+    "realRepositories": [
+      {
+        "repositoryId": "cirepo_javascript_expressjs_express",
+        "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
+        "language": "javascript",
+        "query": "router",
+        "index": {
+          "fileCount": 141,
+          "nodeCount": 866,
+          "edgeCount": 1327,
+          "unresolvedCount": 0,
+          "omittedCount": 0,
+          "databaseBytes": 3133440
+        },
+        "stageMs": {
+          "clone": 0,
+          "index": 231.4
+        },
+        "deterministic": true,
+        "pagination": {
+          "communities": {
+            "firstCursor": "idxcur_01000000000000050000000000000001",
+            "secondCursor": "idxcur_01000000000000050000000000000002",
+            "firstIds": [
+              "cicommunity_04bfdc527917032c6d3002a7e2a9ebb4"
+            ],
+            "secondIds": [
+              "cicommunity_ce9796fc2b4beda7b133f09bc44a03da"
+            ],
+            "continuous": true
+          },
+          "processes": {
+            "firstCursor": "idxcur_02000000000000050000000000000001",
+            "secondCursor": null,
+            "firstIds": [
+              "ciprocess_43fbb9f14b86a3dc1c406270e7e45c6d"
+            ],
+            "secondIds": [
+              "ciprocess_516f3d29b78829f98c9636c19cd84ea3"
+            ],
+            "continuous": true
+          }
+        },
+        "queries": {
+          "communities": {
+            "wallMs": {
+              "minimum": 38.167,
+              "p50": 56.678,
+              "p95": 61.597,
+              "maximum": 61.597
+            },
+            "resultCount": 100,
+            "relationshipCount": 100,
+            "communityCount": 1,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 63291,
+            "deliveredTokensEstimate": 15823,
+            "nextCursor": "idxcur_01000000000000050000000000000001",
+            "representative": "cinode_0378da1f6bfadd20b01b1e7b9a971686"
+          },
+          "processes": {
+            "wallMs": {
+              "minimum": 27.701,
+              "p50": 35.329,
+              "p95": 39.892,
+              "maximum": 39.892
+            },
+            "resultCount": 4,
+            "relationshipCount": 3,
+            "communityCount": 0,
+            "processCount": 1,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 3446,
+            "deliveredTokensEstimate": 862,
+            "nextCursor": "idxcur_02000000000000050000000000000001",
+            "representative": "cinode_0cb8000898fa010d505e94630c8ec314"
+          },
+          "routes": {
+            "wallMs": {
+              "minimum": 28.45,
+              "p50": 32.769,
+              "p95": 43.072,
+              "maximum": 43.072
+            },
+            "resultCount": 50,
+            "relationshipCount": 1,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 10037,
+            "deliveredTokensEstimate": 2510,
+            "nextCursor": "idxcur_79e4a07c4aebe54a3d09b581b7a4793f",
+            "representative": "cinode_01635e561cf1ec5ad44dec8ee56677de"
+          },
+          "impact": {
+            "wallMs": {
+              "minimum": 22.899,
+              "p50": 23.746,
+              "p95": 24.884,
+              "maximum": 24.884
+            },
+            "resultCount": 13,
+            "relationshipCount": 13,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 8016,
+            "deliveredTokensEstimate": 2004,
+            "nextCursor": null,
+            "representative": "cinode_17d0ff9a791f9e19c5ca0503b3cf94bc"
+          },
+          "search": {
+            "wallMs": {
+              "minimum": 22.585,
+              "p50": 23.825,
+              "p95": 24.258,
+              "maximum": 24.258
+            },
+            "resultCount": 50,
+            "relationshipCount": 0,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 9801,
+            "deliveredTokensEstimate": 2451,
+            "nextCursor": "idxcur_c843fa28d18c7bf0ff0db95bd6d49b48",
+            "representative": "cinode_7b4f936297a554beba91dcf0ed7c08e1"
+          },
+          "dependencies": {
+            "wallMs": {
+              "minimum": 22.704,
+              "p50": 23.887,
+              "p95": 26.167,
+              "maximum": 26.167
+            },
+            "resultCount": 1,
+            "relationshipCount": 0,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 1178,
+            "deliveredTokensEstimate": 295,
+            "nextCursor": null,
+            "representative": "cinode_7b4f936297a554beba91dcf0ed7c08e1"
+          },
+          "safeQuery": {
+            "wallMs": {
+              "minimum": 23.255,
+              "p50": 24.212,
+              "p95": 26.989,
+              "maximum": 26.989
+            },
+            "resultCount": 1,
+            "relationshipCount": 0,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 1178,
+            "deliveredTokensEstimate": 295,
+            "nextCursor": null,
+            "representative": "cinode_7b4f936297a554beba91dcf0ed7c08e1"
+          },
+          "trace": {
+            "wallMs": {
+              "minimum": 24.815,
+              "p50": 25.369,
+              "p95": 26.379,
+              "maximum": 26.379
+            },
+            "resultCount": 2,
+            "relationshipCount": 1,
+            "communityCount": 0,
+            "processCount": 0,
+            "truncated": false,
+            "deadlineMs": 2000,
+            "deadlineMet": true,
+            "deliveredBytes": 1709,
+            "deliveredTokensEstimate": 428,
+            "nextCursor": null,
+            "representative": "cinode_3ff58ddf6b422e0222c23b05ff61118a"
+          }
+        }
+      }
+    ]
   },
   "failures": [],
   "gateDecision": "pass",
@@ -227,7 +429,7 @@
     "competitorParity": false,
     "leadership": false,
     "millionNodeScale": false,
-    "reason": "This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; outbound depth-two calls-only traversal with evidence endpoints; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
+    "reason": "The fixture and pinned-repository slice prove deterministic bounded query behavior. Real-repository results are evidence only and do not prove competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
   },
   "safeguards": {
     "networkCalls": 0,
@@ -236,5 +438,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:cccbfff365205f85c241b25e2ed7234fd4e565c0db649675eaac44b85d30badb"
+  "reportFingerprint": "sha256:531cda6a21af4b132ae7bde63ed4994e93146dbdcedb8580b5908107b759d206"
 }

@@ -1,8 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 
@@ -11,6 +13,12 @@ const PRIVATE_PATH = /(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/
 const REPETITIONS = 5;
 const QUERY_LIMIT = 50;
 const QUERY_DEADLINE_MS = 2_000;
+const execFileAsync = promisify(execFile);
+const PINNED_REPOSITORIES = Object.freeze([
+  { id: 'cirepo_javascript_expressjs_express', url: 'https://github.com/expressjs/express.git', commit: 'ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4', scope: '.', language: 'javascript', query: 'router' },
+  { id: 'cirepo_typescript_microsoft_typescript', url: 'https://github.com/microsoft/TypeScript.git', commit: '637d5746b70257028fb95aad32ddec6b26ab0a14', scope: 'src/compiler/transformers', language: 'typescript', query: 'transform' },
+  { id: 'cirepo_go_hashicorp_go_multierror', url: 'https://github.com/hashicorp/go-multierror.git', commit: '6d4d48630db25c3c83fa83ecd41dd8438b82963c', scope: '.', language: 'go', query: 'error' }
+]);
 const CONSTRAINED_QUERY = Object.freeze({
   kind: 'dependencies',
   query: 'GET',
@@ -100,6 +108,7 @@ async function runBenchmark() {
       ...CONSTRAINED_QUERY
     }));
     const afterReads = await sqliteBundleSnapshot(indexPath);
+    const realRepositories = await runPinnedRepositories({ provider, temporary });
     const readQueriesPreservedIndex = sameSnapshots(beforeReads, afterReads);
     const firstCommunities = communityRuns.results[0];
     const firstProcesses = processRuns.results[0];
@@ -153,6 +162,7 @@ async function runBenchmark() {
       [representativeConstrainedQuery === null, 'constrained_query_evidence_missing'],
       [confidenceEvidence === null, 'confidence_semantics_missing']
     ].filter(([failed]) => failed).map(([, code]) => code);
+    failures.push(...realRepositoryFailures(realRepositories));
     const report = {
       schemaVersion: '1.0.0',
       reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-5',
@@ -165,6 +175,7 @@ async function runBenchmark() {
       },
       inputs: {
         fixtureRef: `fixture://${fixtureFingerprint}`,
+        pinnedRepositories: realRepositories.map((item) => item.sourceRef),
         implementationFingerprint: await filesFingerprint(IMPLEMENTATION_FILES),
         repetitions: REPETITIONS,
         queryLimit: QUERY_LIMIT,
@@ -202,7 +213,8 @@ async function runBenchmark() {
         representativeImpact,
         representativeSearch,
         representativeConstrainedQuery,
-        confidenceEvidence
+        confidenceEvidence,
+        realRepositories
       },
       failures,
       gateDecision: failures.length === 0 ? 'pass' : 'fail',
@@ -212,7 +224,7 @@ async function runBenchmark() {
         competitorParity: false,
         leadership: false,
         millionNodeScale: false,
-        reason: 'This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; outbound depth-two calls-only traversal with evidence endpoints; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove competitor parity, packaged native binaries, multi-repository behavior, or million-node scale.'
+        reason: 'The fixture and pinned-repository slice prove deterministic bounded query behavior. Real-repository results are evidence only and do not prove competitor parity, packaged native binaries, multi-repository behavior, or million-node scale.'
       },
       safeguards: {
         networkCalls: 0,
@@ -229,6 +241,137 @@ async function runBenchmark() {
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
+}
+
+async function runPinnedRepositories({ provider, temporary }) {
+  const results = [];
+  const selected = PINNED_REPOSITORIES.slice(0, Math.max(1, Number(process.env.PHASE4_MAX_REPOSITORIES ?? PINNED_REPOSITORIES.length)));
+  for (const pinned of selected) {
+    const started = performance.now();
+    const reuseRoot = process.env[`PHASE4_REPOSITORY_ROOT_${pinned.id}`];
+    const target = reuseRoot ? path.resolve(reuseRoot) : path.join(temporary, 'repositories', pinned.id);
+    if (!reuseRoot) {
+      await mkdir(path.dirname(target), { recursive: true });
+      await execFileAsync('git', ['clone', '--quiet', '--no-tags', '--filter=blob:none', pinned.url, target], { cwd: root });
+      await execFileAsync('git', ['-C', target, 'fetch', '--quiet', '--depth', '1', 'origin', pinned.commit], { cwd: root });
+      await execFileAsync('git', ['-C', target, 'checkout', '--quiet', '--detach', pinned.commit], { cwd: root });
+    }
+    const checked = (await execFileAsync('git', ['-C', target, 'rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
+    if (checked !== pinned.commit) throw new Error(`phase4_repository_commit_mismatch:${pinned.id}`);
+    const clonedMs = reuseRoot ? 0 : performance.now() - started;
+    const caseRoot = path.resolve(target, pinned.scope);
+    const built = await provider.buildIndex({
+      root: caseRoot,
+      workspaceId: `ws_phase4_${pinned.id}`,
+      languages: [pinned.language],
+      maxFiles: 5_000,
+      maxFileBytes: 512 * 1024,
+      maxNodes: 100_000,
+      maxEdges: 250_000
+    });
+    const indexedMs = performance.now() - started - clonedMs;
+    const query = async (kind, extra = {}) => provider.queryIndex({
+      root: caseRoot,
+      workspaceId: `ws_phase4_${pinned.id}`,
+      kind,
+      limit: QUERY_LIMIT,
+      ...extra
+    });
+    const queryRuns = {};
+    for (const [name, kind, extra] of [
+      ['communities', 'communities', { limit: 1 }],
+      ['processes', 'processes', { depth: 4, limit: 1 }],
+      ['routes', 'routes', {}],
+      ['impact', 'impact', { query: pinned.query, depth: 4 }],
+      ['search', 'search', { query: pinned.query }],
+      ['dependencies', 'dependencies', { query: pinned.query, direction: 'outbound', depth: 2 }],
+      ['safeQuery', 'dependencies', { query: pinned.query, direction: 'outbound', depth: 2, edgeKinds: ['calls'] }],
+      // Trace requires two independently resolvable seeds (query + locator).
+      // The pinned corpus metadata does not provide stable symbol pairs, so it
+      // remains covered by the fixture gate rather than inventing a target.
+    ]) queryRuns[name] = await repeat(() => query(kind, extra));
+    const traceSeed = traceArguments(queryRuns.processes.results[0]) ?? traceArguments(queryRuns.routes.results[0]);
+    if (traceSeed) queryRuns.trace = await repeat(() => query('trace', traceSeed));
+    const pagination = {};
+    for (const kind of ['communities', 'processes']) {
+      const firstPage = queryRuns[kind].results[0];
+      const secondPage = firstPage.nextCursor ? await query(kind, {
+        limit: 1,
+        ...(kind === 'processes' ? { depth: 4 } : {}),
+        cursor: firstPage.nextCursor
+      }) : null;
+      pagination[kind] = {
+        firstCursor: firstPage.nextCursor ?? null,
+        secondCursor: secondPage?.nextCursor ?? null,
+        firstIds: projectionIds(firstPage, kind),
+        secondIds: projectionIds(secondPage, kind),
+        continuous: Boolean(secondPage) && projectionIds(firstPage, kind).every((id) => !projectionIds(secondPage, kind).includes(id))
+      };
+    }
+    const first = Object.fromEntries(Object.entries(queryRuns).map(([name, run]) => [name, run.results[0]]));
+    results.push({
+      repositoryId: pinned.id,
+      sourceRef: `corpus://${pinned.id}@${pinned.commit}#${pinned.scope}`,
+      language: pinned.language,
+      query: pinned.query,
+      index: built.summary,
+      stageMs: { clone: Number(clonedMs.toFixed(1)), index: Number(indexedMs.toFixed(1)) },
+      deterministic: Object.values(queryRuns).every((run) => new Set(run.results.map(projectedResultFingerprint)).size === 1),
+      pagination,
+      queries: Object.fromEntries(Object.entries(queryRuns).map(([name, run]) => [name, {
+        wallMs: run.wallMs,
+        resultCount: (run.results[0]?.results ?? []).length,
+        relationshipCount: (run.results[0]?.relationships ?? []).length,
+        communityCount: (run.results[0]?.communities ?? []).length,
+        processCount: (run.results[0]?.processes ?? []).length,
+        truncated: Boolean(run.results[0]?.truncated),
+        deadlineMs: QUERY_DEADLINE_MS,
+        deadlineMet: run.wallMs.p95 <= QUERY_DEADLINE_MS,
+        deliveredBytes: Buffer.byteLength(JSON.stringify(run.results[0] ?? {})),
+        deliveredTokensEstimate: Math.ceil(Buffer.byteLength(JSON.stringify(run.results[0] ?? {})) / 4),
+        nextCursor: run.results[0]?.nextCursor ?? null,
+        representative: first[name]?.results?.[0]?.id ?? null
+      }]))
+    });
+    console.error(`phase4 real repository ${pinned.id}: clone=${clonedMs.toFixed(0)}ms index=${indexedMs.toFixed(0)}ms queries=${(performance.now() - started - clonedMs - indexedMs).toFixed(0)}ms`);
+  }
+  return results;
+}
+
+function traceArguments(routeResult) {
+  const resultById = new Map((routeResult?.results ?? []).map((item) => [item.id, item]));
+  const edge = (routeResult?.relationships ?? []).find((item) => resultById.has(item.fromNodeId) && resultById.has(item.toNodeId));
+  if (!edge) return null;
+  const from = resultById.get(edge.fromNodeId);
+  const to = resultById.get(edge.toNodeId);
+  return from?.label && to?.locator ? { query: from.label, locator: to.locator, depth: 4 } : null;
+}
+
+function projectionIds(result, kind) {
+  const key = kind === 'communities' ? 'communities' : 'processes';
+  return (result?.[key] ?? []).map((item) => item.id);
+}
+
+function realRepositoryFailures(repositories) {
+  const required = ['communities', 'processes', 'routes', 'impact', 'search', 'dependencies', 'safeQuery', 'trace'];
+  const failures = [];
+  for (const repository of repositories) {
+    const prefix = `real_${repository.repositoryId}`;
+    if (!repository.deterministic) failures.push(`${prefix}_nondeterministic`);
+    for (const kind of required) {
+      const query = repository.queries[kind];
+      if (!query) { failures.push(`${prefix}_${kind}_missing`); continue; }
+      if (!query.deadlineMet) failures.push(`${prefix}_${kind}_deadline_failed`);
+      if (!(query.deliveredBytes > 0 && query.deliveredTokensEstimate > 0)) failures.push(`${prefix}_${kind}_delivery_accounting_missing`);
+      if (query.truncated) failures.push(`${prefix}_${kind}_unexpected_truncation`);
+      if (query.resultCount === 0) failures.push(`${prefix}_${kind}_evidence_missing`);
+    }
+    for (const kind of ['communities', 'processes']) {
+      const page = repository.pagination[kind];
+      if (!page?.firstCursor || !page.continuous || page.secondIds.length === 0) failures.push(`${prefix}_${kind}_pagination_failed`);
+    }
+  }
+  return failures;
 }
 
 async function writeFixture(workspace) {

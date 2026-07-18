@@ -231,3 +231,94 @@ fn process_depth_is_strict_and_reports_truncation_without_cycles() {
         process.node_ids.len()
     );
 }
+
+#[test]
+fn projection_cursors_page_continuously_and_reject_invalid_mismatched_or_stale_values() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut input = generation();
+    for index in 0..3 {
+        let entry = format!("node_page_entry_{index}");
+        let route = format!("node_page_route_{index}");
+        let sink = format!("node_page_sink_{index}");
+        input.nodes.extend([
+            node(&entry, &entry, "function", "workspace://apps/cli/api.ts"),
+            node(&route, &route, "route", "workspace://apps/cli/api.ts"),
+            node(&sink, &sink, "storage", "workspace://apps/cli/api.ts"),
+        ]);
+        input.edges.extend([
+            edge(
+                &format!("edge_page_handles_{index}"),
+                &entry,
+                &route,
+                "handles_route",
+                1.0,
+                false,
+            ),
+            edge(
+                &format!("edge_page_writes_{index}"),
+                &entry,
+                &sink,
+                "writes",
+                0.9,
+                false,
+            ),
+        ]);
+    }
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer.commit_generation(&input).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let communities_one = index.communities(&QueryBounds::new(1)).unwrap();
+    let communities_cursor = communities_one.next_cursor.clone().unwrap();
+    let communities_two = index
+        .communities(&QueryBounds::new(1).with_cursor(&communities_cursor))
+        .unwrap();
+    assert_ne!(communities_one.items[0].id, communities_two.items[0].id);
+
+    let processes_one = index.processes(&QueryBounds::new(1).with_depth(4)).unwrap();
+    let processes_cursor = processes_one.next_cursor.clone().unwrap();
+    let processes_two = index
+        .processes(
+            &QueryBounds::new(1)
+                .with_depth(4)
+                .with_cursor(&processes_cursor),
+        )
+        .unwrap();
+    assert_ne!(processes_one.items[0].id, processes_two.items[0].id);
+
+    let malformed = QueryBounds::new(1).with_cursor("cinode_not_hex");
+    assert!(index.communities(&malformed).is_err());
+    assert!(index.processes(&malformed.with_depth(4)).is_err());
+    assert!(index
+        .processes(
+            &QueryBounds::new(1)
+                .with_depth(4)
+                .with_cursor(&communities_cursor)
+        )
+        .is_err());
+    assert!(index
+        .communities(&QueryBounds::new(1).with_cursor(&processes_cursor))
+        .is_err());
+    drop(index);
+
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    let mut replacement = input;
+    replacement.created_at = "2026-07-17T00:00:00.000Z".into();
+    replacement.structural_fingerprint =
+        "sha256:9999999999999999999999999999999999999999999999999999999999999999".into();
+    writer.commit_generation(&replacement).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+    assert!(index
+        .communities(&QueryBounds::new(1).with_cursor(communities_cursor))
+        .is_err());
+    assert!(index
+        .processes(
+            &QueryBounds::new(1)
+                .with_depth(4)
+                .with_cursor(processes_cursor)
+        )
+        .is_err());
+}

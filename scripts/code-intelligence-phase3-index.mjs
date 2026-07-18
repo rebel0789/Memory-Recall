@@ -484,7 +484,10 @@ async function checkoutPinnedRepository(repository, directory, scope) {
     await command('git', ['-C', directory, 'sparse-checkout', 'init', '--cone'], { cwd: root });
     await command('git', ['-C', directory, 'sparse-checkout', 'set', scope], { cwd: root });
   }
-  await command('git', ['-C', directory, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], { cwd: root });
+  await command('git', ['-C', directory, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'], {
+    cwd: root,
+    timeout: 60_000
+  });
   const commit = await command('git', ['-C', directory, 'rev-parse', 'HEAD'], { cwd: root });
   if (commit !== repository.commit) throw new Error(`phase3_repository_commit_mismatch:${repository.id}`);
   return directory;

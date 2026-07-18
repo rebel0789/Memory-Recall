@@ -20,6 +20,25 @@ pub use watcher::*;
 pub const SCHEMA_VERSION: i64 = 1;
 pub const COMMUNITY_ALGORITHM_VERSION: &str = "label-propagation-v1";
 pub const PROCESS_ALGORITHM_VERSION: &str = "entry-path-v1";
+fn projection_cursor(kind: u8, generation: i64, offset: usize) -> String {
+    format!("cinode_{kind:02x}{:014x}{offset:016x}", generation.max(0))
+}
+fn projection_offset(cursor: Option<&String>, kind: u8, generation: i64) -> Result<usize> {
+    let Some(cursor) = cursor else {
+        return Ok(0);
+    };
+    let suffix = cursor
+        .strip_prefix("cinode_")
+        .context("source_index_projection_cursor_invalid")?;
+    if suffix.len() != 32
+        || !suffix.bytes().all(|b| b.is_ascii_hexdigit())
+        || suffix[..2] != format!("{kind:02x}")
+        || u64::from_str_radix(&suffix[2..16], 16).ok() != Some(generation.max(0) as u64)
+    {
+        bail!("source_index_projection_cursor_stale");
+    }
+    usize::from_str_radix(&suffix[16..], 16).context("source_index_projection_cursor_invalid")
+}
 const COMMUNITY_MAX_PASSES: usize = 8;
 const COMMUNITY_SCAN_NODE_LIMIT: usize = 5_000;
 const COMMUNITY_SCAN_EDGE_LIMIT: usize = 20_000;
@@ -244,6 +263,7 @@ pub struct GraphProjection<T> {
     pub nodes: Vec<NodeRecord>,
     pub edges: Vec<EdgeRecord>,
     pub truncated: bool,
+    pub next_cursor: Option<String>,
 }
 
 pub struct SourceIndex {
@@ -955,9 +975,6 @@ impl SourceIndex {
         bounds: &QueryBounds,
     ) -> Result<GraphProjection<CommunityProjection>> {
         validate_query_bounds(bounds)?;
-        if bounds.cursor.is_some() {
-            bail!("source_index_projection_cursor_unsupported");
-        }
         let started = Instant::now();
         let Some(generation_id) = self.active_generation() else {
             return Ok(GraphProjection {
@@ -965,8 +982,10 @@ impl SourceIndex {
                 nodes: Vec::new(),
                 edges: Vec::new(),
                 truncated: false,
+                next_cursor: None,
             });
         };
+        let projection_offset = projection_offset(bounds.cursor.as_ref(), 1, generation_id)?;
         let mut statement = self.connection.prepare(
             "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 ORDER BY ordinal LIMIT ?2",
         )?;
@@ -988,6 +1007,7 @@ impl SourceIndex {
                 nodes: Vec::new(),
                 edges: Vec::new(),
                 truncated: scan_truncated,
+                next_cursor: None,
             });
         }
 
@@ -1094,8 +1114,18 @@ impl SourceIndex {
                 .cmp(&left.0.len())
                 .then_with(|| left.0.cmp(&right.0))
         });
-        let omitted_communities = communities.len() > bounds.limit;
-        communities.truncate(bounds.limit);
+        if projection_offset > communities.len() {
+            bail!("source_index_projection_cursor_stale");
+        }
+        let omitted_communities =
+            projection_offset.saturating_add(bounds.limit) < communities.len();
+        let next_cursor = omitted_communities
+            .then(|| projection_cursor(1, generation_id, projection_offset + bounds.limit));
+        communities = communities
+            .into_iter()
+            .skip(projection_offset)
+            .take(bounds.limit)
+            .collect();
         let community_count = communities.len().max(1);
         let per_community_node_cap = (100 / community_count).max(1);
         let mut items = Vec::new();
@@ -1182,6 +1212,7 @@ impl SourceIndex {
             nodes: evidence_nodes.into_values().collect(),
             edges: evidence_edges.into_values().collect(),
             truncated,
+            next_cursor,
         };
         enforce_output_bound(&result, bounds)?;
         Ok(result)
@@ -1190,7 +1221,7 @@ impl SourceIndex {
     /// Returns source-backed, bounded paths beginning at explicit entry-evidence edges.
     pub fn processes(&self, bounds: &QueryBounds) -> Result<GraphProjection<ProcessProjection>> {
         validate_query_bounds(bounds)?;
-        if bounds.cursor.is_some() || bounds.max_depth == 0 {
+        if bounds.max_depth == 0 {
             bail!("source_index_process_bounds_invalid");
         }
         let started = Instant::now();
@@ -1200,24 +1231,32 @@ impl SourceIndex {
                 nodes: Vec::new(),
                 edges: Vec::new(),
                 truncated: false,
+                next_cursor: None,
             });
         };
+        let projection_offset = projection_offset(bounds.cursor.as_ref(), 2, generation_id)?;
         let mut statement = self.connection.prepare(
-            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND kind IN ('entry_point', 'handles_route') AND stale = 0 AND confidence >= ?2 AND resolution_class != 'unresolved' ORDER BY canonical_id LIMIT ?3",
+            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND kind IN ('entry_point', 'handles_route') AND stale = 0 AND confidence >= ?2 AND resolution_class != 'unresolved' ORDER BY canonical_id LIMIT ?3 OFFSET ?4",
         )?;
         let mut entry_edges = statement
             .query_map(
                 params![
                     generation_id,
                     PROCESS_MIN_CONFIDENCE,
-                    count_i64(bounds.limit.saturating_add(1))?
+                    count_i64(bounds.limit.saturating_add(1))?,
+                    count_i64(projection_offset)?
                 ],
                 row_to_edge,
             )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         ensure_deadline(started, bounds)?;
+        if projection_offset > 0 && entry_edges.is_empty() {
+            bail!("source_index_projection_cursor_stale");
+        }
         let mut globally_truncated = entry_edges.len() > bounds.limit;
         entry_edges.truncate(bounds.limit);
+        let next_cursor = globally_truncated
+            .then(|| projection_cursor(2, generation_id, projection_offset + bounds.limit));
 
         let mut items = Vec::new();
         let mut evidence_nodes = BTreeMap::<String, NodeRecord>::new();
@@ -1328,6 +1367,7 @@ impl SourceIndex {
             nodes: evidence_nodes.into_values().collect(),
             edges: evidence_edges.into_values().collect(),
             truncated: globally_truncated,
+            next_cursor,
         };
         enforce_output_bound(&result, bounds)?;
         Ok(result)
