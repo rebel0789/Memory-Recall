@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T15:45:49.504Z",
+  "generatedAt": "2026-07-18T16:07:47.088Z",
   "fileCount": 1186,
-  "totalBytes": 9856478,
+  "totalBytes": 9861687,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 32380,
-      "sha256": "3f3fbe682a7ebd0e8fbcb9b3c4ff2806513198ada51d38cbdcd938f96519b661"
+      "bytes": 32629,
+      "sha256": "111a4d347c7dae65014fe7723ae74073c42d0dcc35d9c2d71e32b6139bf94669"
     },
     {
       "path": "CITATION.cff",
@@ -912,13 +912,13 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 33523,
-      "sha256": "f3a90b98fabfffe667bbf81478c1e86e1ceeee26ce6a93d985875d949d75c23d"
+      "bytes": 33693,
+      "sha256": "7587c7476e35cbad87a291b32d5e9a5dbca9c8f5bee490c5644664d391a79620"
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
-      "bytes": 8420,
-      "sha256": "7b57aab4bf44620bfa78f5572a38322d465d692a84953827703922abb270e021"
+      "bytes": 8521,
+      "sha256": "6ccc725af4934fcdb7692799f649212f8ac0e704821fba47066890475db44480"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",
@@ -1158,7 +1158,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "0c71568b54204a7ea8e98d1e7562e2a7849dc99b376ca23ecb71b803624b3db6"
+      "sha256": "892df7abecacc9a025e324d15bb0dd81ee2d6a4ad54bc87900988f98563ffe1e"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -4407,8 +4407,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 73317,
-      "sha256": "3b1fdd2c1f661f3d237354a61c4cda4f03ef2ec0d07e15e23d2d8cb8c2e9f665"
+      "bytes": 73596,
+      "sha256": "de8ef5cbee760572cb7811b0ac666b0fc5b1a0471166d9bd5cd106edf75b0570"
     },
     {
       "path": "providers/AGENTS.md",
@@ -4947,8 +4947,8 @@
     },
     {
       "path": "scripts/native-release-set.mjs",
-      "bytes": 32540,
-      "sha256": "ba515d127ea758330ff6165004a6db9d903855c325966963509cb4950a284157"
+      "bytes": 33342,
+      "sha256": "f2d99279af5fc66b66a5d819c7dc85b6fe16a96534a0f4e0abd4fad8843e84be"
     },
     {
       "path": "scripts/native-smoke.mjs",
@@ -5662,8 +5662,8 @@
     },
     {
       "path": "tests/native-release-set.test.mjs",
-      "bytes": 17935,
-      "sha256": "7bcc705f82471f5ca1f39d444e8b6615c58a55c5e5f2df78479e1d91bf3da641"
+      "bytes": 21543,
+      "sha256": "fff2091d59b01a810e919f920eb88c5442b4931fc565eb7a25026bbee5566506"
     },
     {
       "path": "tests/native-workflow-embedded.test.mjs",
