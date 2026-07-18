@@ -4,7 +4,7 @@ Audit date: 2026-07-18
 
 Published baseline: `memory-recall@1.1.0` at commit `06a947fb52b5c23544a6e1b18ed8e28bd0735fb2`
 
-Audited worktree: `codex/memory-recall-orientation-workbench` at commit `7b4b1d07f8f68cbdc0e95a6365eaeb8129466984`
+Audited worktree: `codex/memory-recall-orientation-workbench` at commit `7f4f34a2bda3a91d88210a3542f8ec0a3e00e16d`
 
 ## Decision
 
@@ -17,12 +17,13 @@ until implementation is frozen and the final compatibility and release gates
 pass.
 
 The size of the change is supporting context, not the reason for the decision:
-`main...7b4b1d0` changes 350 files with 92,135 additions and 2,436 deletions. The
+`main...7f4f34a` changes 351 files with 93,257 additions and 2,436 deletions. The
 major-line conclusion comes from observed public contract breaks.
 
-Commits through `7b4b1d0` add pagination and bounded exact-repository
-intelligence gates. They do not restore or dual-serve any breaking boundary
-recorded below, so the SemVer conclusion is unchanged.
+Commits through `7f4f34a` add pagination, bounded exact-repository intelligence
+gates, explicit Tier 1 applicability, and exact Java import targets. They do
+not restore or dual-serve any breaking boundary recorded below, so the SemVer
+conclusion is unchanged.
 
 ## Evidence snapshot
 

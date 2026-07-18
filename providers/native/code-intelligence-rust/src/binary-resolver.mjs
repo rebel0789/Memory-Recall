@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const VERSION_TIMEOUT_MS = 2_000;
+const VERSION_TIMEOUT_MS = 5_000;
 const VERSION_OUTPUT_LIMIT = 256;
 const TARGETS = Object.freeze({
   'darwin-arm64': Object.freeze({

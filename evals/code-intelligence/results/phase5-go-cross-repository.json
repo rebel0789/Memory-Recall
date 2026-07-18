@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "receiptVersion": "memory-recall-phase5-go-cross-repository-1",
   "phase": 5,
-  "generatedAt": "2026-07-18T09:41:36.839Z",
+  "generatedAt": "2026-07-18T13:01:57.010Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -21,14 +21,14 @@
       "rust/oaf/src/repository_protocol.rs",
       "scripts/native-code-intelligence-consumer-smoke.mjs"
     ],
-    "fingerprint": "sha256:54c0d8e169fb8eaf3389179d74d8c02e90c6b2589585733d1d5191d55c462395",
-    "releaseBinarySha256": "sha256:97cdc98d7d49fd9992cd179839f902e092cfca12eb098e5fc8beeba65919a1e9"
+    "fingerprint": "sha256:e6e5ac303d2a09e968e0472d4ae046055f8e04810c8437377576d68bccbb4e67",
+    "releaseBinarySha256": "sha256:7b7cc9e4112d1f34a018bc11170d7cd47bc2c8c3736b2486be8e900df5d870f2"
   },
   "packageEvidence": {
     "rootPackage": "memory-recall@1.1.1",
-    "rootTarballSha256": "sha256:f81030cd815fecb860d3d888149580651fcfcd5edb50c86cf58527193d896e65",
+    "rootTarballSha256": "sha256:1c0db73e8f2948c2b846be6f947974337eea20e12edcd430dbcfbcec740fca87",
     "nativePackage": "@memory-recall/native-darwin-arm64@1.1.1",
-    "nativeTarballSha256": "sha256:6002d51c002598fd6b98a635c15d14f1a300909082bfdb0f3e818c31f0d688e9",
+    "nativeTarballSha256": "sha256:586b4f08c0b07988f825499fe4d286927374bab8dc5135ecda645ceba15bca86",
     "installed": true,
     "providerSource": "platform-package",
     "providerVerified": true,
@@ -61,7 +61,7 @@
     "sqliteBundlesPreserved": true,
     "relationshipEvidence": [
       {
-        "id": "mrrel_1f05abf57c5253d1dce32954b245c78a",
+        "id": "mrrel_d9bd61770c7ce2eefc1b2bfbe0bf7670",
         "kind": "imports",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L7-L7",
@@ -70,7 +70,7 @@
         ]
       },
       {
-        "id": "mrrel_56e72a7219e92cddc2f34ef9f35d2dae",
+        "id": "mrrel_af2909dab27693d19f133a4c6e2d5da2",
         "kind": "constructs",
         "resolution": "exact_module_coordinate",
         "evidenceLocator": "workspace://api/routes.go#L18-L18",
@@ -81,8 +81,8 @@
       }
     ],
     "traceRelationshipIds": [
-      "mrrel_1f05abf57c5253d1dce32954b245c78a",
-      "mrrel_56e72a7219e92cddc2f34ef9f35d2dae"
+      "mrrel_d9bd61770c7ce2eefc1b2bfbe0bf7670",
+      "mrrel_af2909dab27693d19f133a4c6e2d5da2"
     ],
     "impactNativeNodeIds": [
       "cinode_f01e41d6ce66dade402cd8760c3b235e"
@@ -103,5 +103,5 @@
     "competitorParity": false,
     "productionPublishReady": false
   },
-  "receiptFingerprint": "sha256:4d9d4a56bb6dd44f23386fb8a57ca35c6d0cf0d67ee7acc5c4e74b96d750448d"
+  "receiptFingerprint": "sha256:3f745f48685da2e7d52561f53549e1abea6c4c48bd86cb9fd51605668094c020"
 }
