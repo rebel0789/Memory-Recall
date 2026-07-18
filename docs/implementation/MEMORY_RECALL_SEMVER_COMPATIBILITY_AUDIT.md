@@ -4,7 +4,7 @@ Audit date: 2026-07-18
 
 Published baseline: `memory-recall@1.1.0` at commit `06a947fb52b5c23544a6e1b18ed8e28bd0735fb2`
 
-Audited worktree: `codex/memory-recall-orientation-workbench` at commit `369fad0f6915242c6c8e22d7ae22d49ad3b4fa81`
+Audited worktree: `codex/memory-recall-orientation-workbench` at commit `62d7c3a3fd7340c2e159789c0be14b3b72d96900`
 
 ## Decision
 
@@ -17,16 +17,17 @@ until implementation is frozen and the final compatibility and release gates
 pass.
 
 The size of the change is supporting context, not the reason for the decision:
-`main...369fad0` changes 351 files with 95,083 additions and 2,596 deletions. The
+`main...62d7c3a` changes 351 files with 95,164 additions and 2,596 deletions. The
 major-line conclusion comes from observed public contract breaks.
 
-Commits through `369fad0` add pagination, bounded exact-repository intelligence
+Commits through `62d7c3a` add pagination, bounded exact-repository intelligence
 gates, explicit Tier 1 applicability, qualifying import evidence for all
 fourteen Tier 1 languages, qualifying Go, Rust, and Dart export evidence,
-qualifying Dart and Kotlin call evidence, qualifying Kotlin and C++ type evidence, and a
-fail-closed root publisher that requires and re-verifies the exact five native
-registry artifacts. They do not restore or dual-serve any breaking boundary
-recorded below, so the SemVer conclusion is unchanged.
+qualifying Dart and Kotlin call evidence, qualifying Dart heritage evidence,
+qualifying Kotlin and C++ type evidence, and a fail-closed root publisher that
+requires and re-verifies the exact five native registry artifacts. They do not
+restore or dual-serve any breaking boundary recorded below, so the SemVer
+conclusion is unchanged.
 
 ## Evidence snapshot
 
