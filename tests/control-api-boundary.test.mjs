@@ -12,6 +12,8 @@ import { LocalIdentityStore } from '../providers/native/identity-local/src/index
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import { buildNativeIndexSourceGraphPreview, createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
+import sourceGraphPreviewSchema from '../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
+import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
 const baseState = () => ({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] });
 
@@ -1355,6 +1357,34 @@ test('native source graph offset cursor walk treats an exhausted eighth page as 
   assert.equal(preview.search.offsetIncomplete, false);
   assert.equal(preview.search.hasMore, false);
   assert.equal(preview.search.results.length, 0);
+  assert.equal(validateJsonSchema(sourceGraphPreviewSchema, preview).valid, true);
+
+  const boundedWithoutCursor = await buildNativeIndexSourceGraphPreview({
+    provider: {
+      async queryIndex({ kind }) {
+        if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+        if (kind === 'neighborhood') return nativeReaderResult();
+        if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+        return nativeReaderResult({
+          results: [nativeQueryNode('b', 'boundedPage')],
+          truncated: true,
+          nextCursor: null
+        });
+      }
+    },
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'bounded',
+    offset: 0,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+  assert.equal(boundedWithoutCursor.search.truncated, true);
+  assert.equal(boundedWithoutCursor.search.hasMore, false);
+  assert.equal(boundedWithoutCursor.search.continuationCursor, null);
+  const boundedValidation = validateJsonSchema(sourceGraphPreviewSchema, boundedWithoutCursor);
+  assert.equal(boundedValidation.valid, true, JSON.stringify(boundedValidation.errors));
 });
 
 test('native source graph offset cursor walk aborts one slow provider call at the shared deadline', async () => {

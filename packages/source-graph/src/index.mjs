@@ -176,7 +176,7 @@ export async function buildSourceGraphPreview({
       query,
       limit: 25
     });
-    const search = searchSourceGraph(publicGraph, {
+    const searchPage = searchSourceGraph(publicGraph, {
       query,
       nodeKinds: normalizedNodeKinds,
       edgeKinds: normalizedEdgeKinds,
@@ -185,6 +185,13 @@ export async function buildSourceGraphPreview({
       limit: boundedLimit,
       offset: boundedOffset
     });
+    const search = {
+      ...searchPage,
+      reachedOffset: boundedOffset,
+      offsetIncomplete: false,
+      continuationCursor: null,
+      truncated: searchPage.hasMore === true
+    };
     const trace = startName || startNodeId
       ? traceSourceGraph(publicGraph, {
         startName,
@@ -339,6 +346,10 @@ function unavailableSourceGraphPreview({
     total: 0,
     limit,
     offset,
+    reachedOffset: offset,
+    offsetIncomplete: false,
+    continuationCursor: null,
+    truncated: false,
     hasMore: false,
     omittedCount: 0,
     results: []

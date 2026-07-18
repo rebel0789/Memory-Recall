@@ -63,6 +63,22 @@ test('Map names an incomplete offset walk without presenting a false empty page'
   assert.match(html, /Previous results/u);
   assert.doesNotMatch(html, /Next results/u);
   assert.doesNotMatch(html, /No query matches on this page/u);
+
+  report.search = {
+    offset: 0,
+    reachedOffset: 0,
+    offsetIncomplete: false,
+    continuationCursor: null,
+    truncated: true,
+    limit: 20,
+    hasMore: false,
+    results: [{ id: 'sgnode_router', resultType: 'node', kind: 'symbol', label: 'router' }]
+  };
+  const partialHtml = renderSourceMap({ state: parseMapUrl('/map?query=router'), report });
+  assert.match(partialHtml, /Query results partial/u);
+  assert.match(partialHtml, /omitted additional evidence/u);
+  assert.match(partialHtml, /no continuation cursor is available/u);
+  assert.doesNotMatch(partialHtml, /Next results/u);
 });
 
 test('Map failure keeps submitted values and diagnostic truth', () => {

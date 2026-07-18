@@ -231,6 +231,7 @@ function nativePreviewPayload(input) {
   const { architecture, communityResult, status, workspaceId, sampleLimit, generatedAt } = input;
   const nativeNodes = uniqueById([
     ...architecture.nodes,
+    ...(input.searchResult?.results ?? []).map(nativeStructuralNode),
     ...(input.neighborhood?.results ?? []).map(nativeStructuralNode),
     ...(input.impactResult?.results ?? []).map(nativeStructuralNode)
   ], 200);
@@ -471,6 +472,7 @@ function searchProjection(input, ids, graphFingerprint) {
     reachedOffset,
     offsetIncomplete: input.searchResult?.offsetIncomplete === true,
     continuationCursor: input.searchResult?.continuationCursor ?? null,
+    truncated: input.searchResult?.truncated === true,
     hasMore,
     omittedCount: hasMore ? 1 : 0,
     results
@@ -520,7 +522,8 @@ async function queryNativeSearchPage({ provider, root, workspaceId, query, locat
   }
   const walkStopped = controller.signal.aborted
     || (pageCalls >= maxPageCalls && Boolean(lastResult?.nextCursor));
-  const offsetIncomplete = matches.length <= offset && (Boolean(lastResult?.nextCursor) || walkStopped);
+  const offsetIncomplete = matches.length <= offset
+    && Boolean(lastResult?.truncated || lastResult?.nextCursor || walkStopped);
   const page = matches.slice(offset, offset + limit);
   const hasMore = matches.length > offset + page.length || Boolean(lastResult?.nextCursor) || (walkStopped && matches.length < targetCount);
   return {

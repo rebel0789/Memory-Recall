@@ -202,7 +202,7 @@
         "result": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["responseSchemaVersion", "operation", "repositoryIdentityHash", "indexLocator", "storageSchemaVersion", "engineVersion", "state", "activeGeneration", "freshness", "health", "summary", "measurements", "results", "truncated", "nextCursor", "diagnostics", "safeguards"],
+          "required": ["responseSchemaVersion", "operation", "repositoryIdentityHash", "indexLocator", "storageSchemaVersion", "engineVersion", "state", "activeGeneration", "freshness", "health", "summary", "measurements", "results", "nextCursor", "diagnostics", "safeguards"],
           "properties": {
             "responseSchemaVersion": { "const": "1.0.0" },
             "operation": { "enum": ["index.status", "index.doctor", "index.query"] },

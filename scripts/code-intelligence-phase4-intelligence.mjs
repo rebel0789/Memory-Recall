@@ -164,7 +164,7 @@ async function runBenchmark() {
     failures.push(...realRepositoryFailures(realRepositories));
     const report = {
       schemaVersion: '1.0.0',
-      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-5',
+      reportVersion: 'memory-recall-code-intelligence-phase4-intelligence-6',
       phase: 4,
       generatedAt: new Date().toISOString(),
       environment: {
@@ -269,13 +269,17 @@ async function runPinnedRepositories({ provider }) {
       ...extra
     });
     const queryRuns = {};
+    const querySpecs = {};
     for (const [name, kind, extra] of [
       ['communities', 'communities', { limit: 1 }],
       ['processes', 'processes', { depth: 4, limit: 1 }],
       ['routes', 'routes', {}],
       ['impact', 'impact', { query: pinned.query, depth: 4 }],
       ['search', 'search', { query: pinned.query }]
-    ]) queryRuns[name] = await repeat(() => query(kind, extra));
+    ]) {
+      querySpecs[name] = { kind, extra };
+      queryRuns[name] = await repeat(() => query(kind, extra));
+    }
     const candidates = relationshipCandidates(
       queryRuns.processes.results[0],
       queryRuns.routes.results[0],
@@ -288,6 +292,8 @@ async function runPinnedRepositories({ provider }) {
       const safeSeed = { ...dependencySeed, edgeKinds: [candidate.kind] };
       const firstSafeQuery = await query('dependencies', safeSeed);
       if (firstDependencies.relationships.length === 0 || firstSafeQuery.relationships.length === 0) continue;
+      querySpecs.dependencies = { kind: 'dependencies', extra: dependencySeed };
+      querySpecs.safeQuery = { kind: 'dependencies', extra: safeSeed };
       queryRuns.dependencies = await repeat(() => query('dependencies', dependencySeed));
       queryRuns.safeQuery = await repeat(() => query('dependencies', safeSeed));
       break;
@@ -296,23 +302,28 @@ async function runPinnedRepositories({ provider }) {
       const traceSeed = { query: candidate.query, locator: candidate.locator, depth: 4 };
       const firstTrace = await query('trace', traceSeed);
       if (firstTrace.results.length < 2 || firstTrace.relationships.length === 0) continue;
+      querySpecs.trace = { kind: 'trace', extra: traceSeed };
       queryRuns.trace = await repeat(() => query('trace', traceSeed));
       break;
     }
     const pagination = {};
-    for (const kind of ['communities', 'processes']) {
-      const firstPage = queryRuns[kind].results[0];
-      const secondPage = firstPage.nextCursor ? await query(kind, {
-        limit: 1,
-        ...(kind === 'processes' ? { depth: 4 } : {}),
-        cursor: firstPage.nextCursor
-      }) : null;
-      pagination[kind] = {
+    for (const [name, run] of Object.entries(queryRuns)) {
+      const firstPage = run.results[0];
+      if (!firstPage?.truncated) continue;
+      const spec = querySpecs[name];
+      const secondPage = firstPage.nextCursor && spec
+        ? await query(spec.kind, { ...spec.extra, cursor: firstPage.nextCursor })
+        : null;
+      const firstIds = paginatedIds(firstPage, name);
+      const secondIds = paginatedIds(secondPage, name);
+      pagination[name] = {
         firstCursor: firstPage.nextCursor ?? null,
         secondCursor: secondPage?.nextCursor ?? null,
-        firstIds: projectionIds(firstPage, kind),
-        secondIds: projectionIds(secondPage, kind),
-        continuous: Boolean(secondPage) && projectionIds(firstPage, kind).every((id) => !projectionIds(secondPage, kind).includes(id))
+        firstIds,
+        secondIds,
+        continuous: Boolean(secondPage)
+          && secondIds.length > 0
+          && firstIds.every((id) => !secondIds.includes(id))
       };
     }
     const first = Object.fromEntries(Object.entries(queryRuns).map(([name, run]) => [name, run.results[0]]));
@@ -377,9 +388,10 @@ function relationshipCandidates(...queryResults) {
   return candidates;
 }
 
-function projectionIds(result, kind) {
-  const key = kind === 'communities' ? 'communities' : 'processes';
-  return (result?.[key] ?? []).map((item) => item.id);
+function paginatedIds(result, kind) {
+  if (kind === 'communities') return (result?.communities ?? []).map((item) => item.id);
+  if (kind === 'processes') return (result?.processes ?? []).map((item) => item.id);
+  return (result?.results ?? []).map((item) => item.id);
 }
 
 function hasRelationshipEvidence(item) {
@@ -416,16 +428,14 @@ function realRepositoryFailures(repositories) {
       if (!query.deadlineMet) failures.push(`${prefix}_${kind}_deadline_failed`);
       if (!(query.deliveredBytes > 0 && query.deliveredTokensEstimate > 0)) failures.push(`${prefix}_${kind}_delivery_accounting_missing`);
       if (query.truncated && !query.nextCursor) failures.push(`${prefix}_${kind}_truncation_cursor_missing`);
+      if (!query.truncated && query.nextCursor) failures.push(`${prefix}_${kind}_cursor_without_truncation`);
+      if (query.truncated && !repository.pagination[kind]?.continuous) failures.push(`${prefix}_${kind}_pagination_failed`);
       if (query.resultCount === 0) failures.push(`${prefix}_${kind}_evidence_missing`);
       if (query.locatedResultCount !== query.resultCount) failures.push(`${prefix}_${kind}_locator_evidence_incomplete`);
       if (query.evidenceRelationshipCount !== query.relationshipCount) failures.push(`${prefix}_${kind}_relationship_evidence_incomplete`);
       if (query.minimumRelationshipConfidence !== null && query.minimumRelationshipConfidence <= 0) failures.push(`${prefix}_${kind}_relationship_confidence_invalid`);
       if (['dependencies', 'safeQuery', 'trace'].includes(kind) && query.relationshipCount === 0) failures.push(`${prefix}_${kind}_relationship_evidence_missing`);
       if (kind === 'processes' && (query.processEvidenceCount !== query.processCount || query.minimumProcessConfidence < 0.75)) failures.push(`${prefix}_${kind}_process_evidence_incomplete`);
-    }
-    for (const kind of ['communities', 'processes']) {
-      const page = repository.pagination[kind];
-      if (!page?.firstCursor || !page.continuous || page.secondIds.length === 0) failures.push(`${prefix}_${kind}_pagination_failed`);
     }
   }
   return failures;

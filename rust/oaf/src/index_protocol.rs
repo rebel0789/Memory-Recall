@@ -1255,7 +1255,7 @@ fn execute_query(
                 .chain(lexical_nodes)
                 .filter(|node| seen_nodes.insert(node.canonical_id.clone()))
                 .collect::<Vec<_>>();
-            if has_lexical_continuation {
+            if has_lexical_continuation || !first_page {
                 return Ok(QueryOutput::records(
                     nodes_to_results(nodes, index)?,
                     Vec::new(),

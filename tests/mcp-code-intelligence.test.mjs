@@ -196,7 +196,9 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['contains', 'defines', 'imports', 'exports', 're_exports', 'references', 'calls', 'constructs', 'inherits', 'implements', 'extends', 'mixes_in', 'extends_type', 'part_of', 'entry_point', 'handles_route', 'reads'] } } },
     { jsonrpc: '2.0', id: 17, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'src/index.ts', limit: 1 } } },
     { jsonrpc: '2.0', id: 18, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', offset: 1, limit: 1 } } },
-    { jsonrpc: '2.0', id: 19, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 1 } } }
+    { jsonrpc: '2.0', id: 19, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 1 } } },
+    { jsonrpc: '2.0', id: 20, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', offset: 1000, limit: 1 } } },
+    { jsonrpc: '2.0', id: 21, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', offset: 1, cursor: `idxcur_${'a'.repeat(32)}`, limit: 1 } } }
   ];
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
@@ -292,6 +294,13 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(offsetPage.offsetIncomplete, false);
   const offsetBaseline = JSON.parse(responses.find((entry) => entry.id === 19).result.content[0].text).data;
   assert.notEqual(offsetPage.results[0].id, offsetBaseline.results[0].id);
+  const exhaustedOffset = JSON.parse(responses.find((entry) => entry.id === 20).result.content[0].text).data;
+  assert.equal(exhaustedOffset.results.length, 0);
+  assert.equal(exhaustedOffset.offsetIncomplete, false);
+  assert.equal(exhaustedOffset.truncated, false);
+  assert.equal(exhaustedOffset.hasMore, false);
+  assert.equal(exhaustedOffset.nextCursor, null);
+  assert.match(responses.find((entry) => entry.id === 21).error.message, /cursor cannot be combined with a non-zero offset/u);
   const firstPage = JSON.parse(responses.find((entry) => entry.id === 17).result.content[0].text).data;
   assert.equal(firstPage.results.length, 1);
   assert.equal(firstPage.truncated, true);

@@ -182,8 +182,11 @@ function renderQueryBounds(search = {}, state) {
   const end = reachedOffset + count;
   const hasPrevious = state.offset > 0;
   const hasMore = search.hasMore === true;
+  const truncatedWithoutCursor = search.truncated === true && !hasMore && !offsetIncomplete;
   const copy = offsetIncomplete
     ? `The requested offset ${formatNumber(state.offset)} was not reached within the bounded native read. The walk reached ${formatNumber(reachedOffset)}; this is not an empty result page.`
+    : truncatedWithoutCursor
+      ? 'The bounded query omitted additional evidence, and no continuation cursor is available.'
     : count
     ? `Query matches ${formatNumber(start)}-${formatNumber(end)} on this page.${hasMore ? ' More matches are available.' : ' End of the bounded query results.'}`
     : hasPrevious
@@ -191,7 +194,14 @@ function renderQueryBounds(search = {}, state) {
       : 'No query matches were returned.';
   const previousOffset = Math.max(0, state.offset - state.limit);
   const nextOffset = Math.min(10000, state.offset + state.limit);
-  return `<section class="map-graph-toolbar" aria-label="Query result bounds"><div><strong>${offsetIncomplete ? 'Query page incomplete' : 'Query result bounds'}</strong><p>${escapeHtml(copy)}</p><small>${offsetIncomplete ? 'Use the returned continuation cursor through the API, or request an earlier page.' : 'The focused map expands relationships separately; its omitted node and relationship counts appear below.'}</small></div><div>${hasPrevious ? `<button class="button quiet" type="button" data-map-offset="${previousOffset}">Previous results</button>` : ''}${!offsetIncomplete && hasMore && nextOffset > state.offset ? `<button class="button quiet" type="button" data-map-offset="${nextOffset}">Next results</button>` : ''}</div></section>`;
+  const detail = offsetIncomplete
+    ? search.continuationCursor
+      ? 'Use the returned continuation cursor through the API, or request an earlier page.'
+      : 'Request an earlier page; this bounded result has no continuation cursor.'
+    : truncatedWithoutCursor
+      ? 'The result is partial. Broaden the limit only within the documented query bounds.'
+      : 'The focused map expands relationships separately; its omitted node and relationship counts appear below.';
+  return `<section class="map-graph-toolbar" aria-label="Query result bounds"><div><strong>${offsetIncomplete ? 'Query page incomplete' : truncatedWithoutCursor ? 'Query results partial' : 'Query result bounds'}</strong><p>${escapeHtml(copy)}</p><small>${detail}</small></div><div>${hasPrevious ? `<button class="button quiet" type="button" data-map-offset="${previousOffset}">Previous results</button>` : ''}${!offsetIncomplete && hasMore && nextOffset > state.offset ? `<button class="button quiet" type="button" data-map-offset="${nextOffset}">Next results</button>` : ''}</div></section>`;
 }
 
 function renderArchitecture(groups, relations) {

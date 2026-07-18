@@ -334,6 +334,10 @@
         "total": { "type": "integer", "minimum": 0 },
         "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
         "offset": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "reachedOffset": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "offsetIncomplete": { "type": "boolean" },
+        "continuationCursor": { "type": ["string", "null"], "pattern": "^idxcur_[a-f0-9]{32}$" },
+        "truncated": { "type": "boolean" },
         "hasMore": { "type": "boolean" },
         "omittedCount": { "type": "integer", "minimum": 0 },
         "results": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/searchItem" } }

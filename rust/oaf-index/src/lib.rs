@@ -865,12 +865,18 @@ impl SourceIndex {
             let mut next = BTreeSet::new();
             for current in frontier {
                 ensure_deadline(started, bounds)?;
+                let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                let mut edge_bounds = bounds.clone();
+                edge_bounds.limit = bounds.limit;
+                edge_bounds.cursor = None;
+                edge_bounds.timeout_ms = bounds.timeout_ms.saturating_sub(elapsed_ms).max(1);
                 let page = self.dependency_edges_with_kinds(
                     &current,
                     direction,
-                    &QueryBounds::new(bounds.limit),
+                    &edge_bounds,
                     edge_kinds,
                 )?;
+                ensure_deadline(started, bounds)?;
                 truncated |= page.next_cursor.is_some();
                 for edge in page.items {
                     if edges.len() >= bounds.limit {
@@ -906,6 +912,7 @@ impl SourceIndex {
             edges: edges.into_values().collect(),
             truncated,
         };
+        ensure_deadline(started, bounds)?;
         enforce_output_bound(&result, bounds)?;
         Ok(result)
     }

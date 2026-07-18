@@ -55,7 +55,7 @@ test('source index lifecycle request and response contracts are closed and bound
   assert.equal(validateJsonSchema(responseSchema, {
     ...reader,
     result: withoutTruncation
-  }).valid, false);
+  }).valid, true);
   assert.equal(validateJsonSchema(responseSchema, {
     ...reader,
     result: { ...reader.result, truncated: 'unknown' }
@@ -192,7 +192,7 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert.deepEqual(report.failures, []);
   assert(report.results.communityCount > 0);
   assert(report.results.processCount > 0);
-  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-5');
+  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-6');
   assert.equal(report.results.communityAlgorithm, 'label-propagation-v1');
   assert.equal(report.results.processAlgorithm, 'entry-path-v1');
   assert.equal(report.results.readQueriesPreservedIndex, true);
@@ -200,14 +200,17 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert.equal(report.results.realRepositories.length, 3);
   for (const repository of report.results.realRepositories) {
     assert.equal(repository.deterministic, true);
-    assert.equal(repository.pagination.communities.continuous, true);
-    assert.equal(repository.pagination.processes.continuous, true);
     for (const [kind, query] of Object.entries(repository.queries)) {
       assert.equal(query.deadlineMet, true, `${repository.repositoryId}:${kind}:deadline`);
       assert(query.deliveredBytes > 0, `${repository.repositoryId}:${kind}:bytes`);
       assert(query.deliveredTokensEstimate > 0, `${repository.repositoryId}:${kind}:tokens`);
       assert.equal(query.locatedResultCount, query.resultCount, `${repository.repositoryId}:${kind}:locators`);
       assert.equal(query.evidenceRelationshipCount, query.relationshipCount, `${repository.repositoryId}:${kind}:relationship evidence`);
+      if (query.truncated) {
+        assert.match(query.nextCursor, /^idxcur_[a-f0-9]{32}$/u, `${repository.repositoryId}:${kind}:cursor`);
+        assert.equal(repository.pagination[kind]?.continuous, true, `${repository.repositoryId}:${kind}:pagination`);
+        assert(repository.pagination[kind].secondIds.length > 0, `${repository.repositoryId}:${kind}:second page`);
+      }
     }
     for (const kind of ['dependencies', 'safeQuery', 'trace']) {
       assert(repository.queries[kind].relationshipCount > 0, `${repository.repositoryId}:${kind}:relationships`);

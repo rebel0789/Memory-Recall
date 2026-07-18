@@ -7035,7 +7035,19 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         cursor = lastResult.nextCursor;
         seenCursors.add(cursor);
       }
-      if (reachedOffset < offset || controller.signal.aborted) return incompleteResult();
+      if (controller.signal.aborted) return incompleteResult();
+      if (reachedOffset < offset) {
+        if (lastResult?.nextCursor || lastResult?.truncated) return incompleteResult();
+        return {
+          ...(lastResult ?? {}),
+          results: [],
+          relationships: [],
+          truncated: false,
+          offsetIncomplete: false,
+          reachedOffset,
+          nextCursor: null
+        };
+      }
       if (!cursor) {
         return {
           ...(lastResult ?? {}),
@@ -7179,6 +7191,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
         const cursor = input.cursor === undefined ? null : mcpStructuralString(input.cursor, 'code.search cursor', { required: true, max: 39 });
         if (cursor && !/^idxcur_[a-f0-9]{32}$/u.test(cursor)) throw new Error('code.search cursor is invalid');
+        if (cursor && offset !== 0) throw new Error('code.search cursor cannot be combined with a non-zero offset');
         if (repositoryIds) {
           if (query.length > 160) throw new Error('native repository query exceeds 160 characters');
           if (nodeKinds?.length || edgeKinds?.length || locatorPrefix || offset !== 0 || cursor) {
