@@ -99,8 +99,8 @@ canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
 node or edge budget and store only safe reason/count diagnostics. The audit
 does not hide those omissions.
 
-Across 154 Tier 1 capability cells, 69 meet the Phase 2 evidence floor, none has
-a recorded floor failure, 84 applicable rows remain unmeasured, and one row is
+Across 154 Tier 1 capability cells, 70 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 83 applicable rows remain unmeasured, and one row is
 explicitly not applicable. A row
 requires reviewed evidence from its fixture and at least three distinct pinned
 repositories before it can say `meets-floor`. Every Tier 1 language remains
@@ -119,6 +119,10 @@ and three pinned repositories. Local relative exports and self-package
 `package:` URIs resolve exactly when the scan root is a Dart package root or
 its `lib` directory. `show` and `hide` symbol filtering remain unmeasured and
 outside the passing sample.
+Dart calls also meet the sampled fixture-plus-three-repository floor. In the
+Flutter sample, `BookstoreAuth.of(context)` resolves to the workspace method and
+the same-name `GoRouter.of(context)` decoy does not. This does not establish
+general framework or monorepo call resolution.
 Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
 unmeasured; they were not counted in the passing sample. Python has exact
 framework-route evidence from narrow

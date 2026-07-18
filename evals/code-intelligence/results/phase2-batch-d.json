@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-d-1",
   "phase": 2,
   "batch": "D",
-  "generatedAt": "2026-07-18T16:28:29.455Z",
+  "generatedAt": "2026-07-18T16:49:07.681Z",
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
@@ -84,9 +84,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.331,
-        "secondElapsedMs": 9.657,
-        "evaluatorMaxRssKb": 59584,
+        "firstElapsedMs": 34.21,
+        "secondElapsedMs": 10.136,
+        "evaluatorMaxRssKb": 59936,
         "graphResponseBytes": 10617,
         "workspaceFingerprintUnchanged": true
       },
@@ -252,9 +252,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.14,
-        "secondElapsedMs": 10.966,
-        "evaluatorMaxRssKb": 66464,
+        "firstElapsedMs": 12.033,
+        "secondElapsedMs": 11.402,
+        "evaluatorMaxRssKb": 66768,
         "graphResponseBytes": 27884,
         "workspaceFingerprintUnchanged": true
       },
@@ -420,9 +420,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.644,
-        "secondElapsedMs": 10.092,
-        "evaluatorMaxRssKb": 68352,
+        "firstElapsedMs": 10.704,
+        "secondElapsedMs": 10.355,
+        "evaluatorMaxRssKb": 67296,
         "graphResponseBytes": 18525,
         "workspaceFingerprintUnchanged": true
       },
@@ -588,9 +588,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.317,
-        "secondElapsedMs": 9.79,
-        "evaluatorMaxRssKb": 70784,
+        "firstElapsedMs": 10.794,
+        "secondElapsedMs": 10.702,
+        "evaluatorMaxRssKb": 69680,
         "graphResponseBytes": 28813,
         "workspaceFingerprintUnchanged": true
       },
@@ -758,9 +758,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 25.104,
-        "secondElapsedMs": 25.186,
-        "evaluatorMaxRssKb": 74032,
+        "firstElapsedMs": 23.472,
+        "secondElapsedMs": 23.693,
+        "evaluatorMaxRssKb": 73024,
         "graphResponseBytes": 155949,
         "workspaceFingerprintUnchanged": true
       },
@@ -941,9 +941,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12488.962,
-        "secondElapsedMs": 12594.834,
-        "evaluatorMaxRssKb": 159520,
+        "firstElapsedMs": 12759.202,
+        "secondElapsedMs": 12615.296,
+        "evaluatorMaxRssKb": 145664,
         "graphResponseBytes": 7021532,
         "workspaceFingerprintUnchanged": true
       },
@@ -1120,9 +1120,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1068.266,
-        "secondElapsedMs": 1050.286,
-        "evaluatorMaxRssKb": 182320,
+        "firstElapsedMs": 1116.352,
+        "secondElapsedMs": 1135.597,
+        "evaluatorMaxRssKb": 209232,
         "graphResponseBytes": 6638156,
         "workspaceFingerprintUnchanged": true
       },
@@ -1299,9 +1299,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1128.97,
-        "secondElapsedMs": 1123.843,
-        "evaluatorMaxRssKb": 206640,
+        "firstElapsedMs": 1241.148,
+        "secondElapsedMs": 1176.282,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 6865245,
         "workspaceFingerprintUnchanged": true
       },
@@ -1474,9 +1474,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 26.07,
-        "secondElapsedMs": 25.657,
-        "evaluatorMaxRssKb": 207312,
+        "firstElapsedMs": 29.166,
+        "secondElapsedMs": 30.542,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 208275,
         "workspaceFingerprintUnchanged": true
       },
@@ -1649,9 +1649,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 395.435,
-        "secondElapsedMs": 399.146,
-        "evaluatorMaxRssKb": 228640,
+        "firstElapsedMs": 458.566,
+        "secondElapsedMs": 461.798,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 3133956,
         "workspaceFingerprintUnchanged": true
       },
@@ -1824,9 +1824,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 191.833,
-        "secondElapsedMs": 183.337,
-        "evaluatorMaxRssKb": 235600,
+        "firstElapsedMs": 214.483,
+        "secondElapsedMs": 198.058,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 1264956,
         "workspaceFingerprintUnchanged": true
       },
@@ -1999,9 +1999,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 682.597,
-        "secondElapsedMs": 685.431,
-        "evaluatorMaxRssKb": 256480,
+        "firstElapsedMs": 730.642,
+        "secondElapsedMs": 775.87,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 4681614,
         "workspaceFingerprintUnchanged": true
       },
@@ -2169,9 +2169,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 24.973,
-        "secondElapsedMs": 25.211,
-        "evaluatorMaxRssKb": 256480,
+        "firstElapsedMs": 28.143,
+        "secondElapsedMs": 26.82,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 157592,
         "workspaceFingerprintUnchanged": true
       },
@@ -2339,9 +2339,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 62.534,
-        "secondElapsedMs": 58.635,
-        "evaluatorMaxRssKb": 256480,
+        "firstElapsedMs": 66.179,
+        "secondElapsedMs": 64.784,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 464282,
         "workspaceFingerprintUnchanged": true
       },
@@ -2509,9 +2509,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.956,
-        "secondElapsedMs": 19.521,
-        "evaluatorMaxRssKb": 256480,
+        "firstElapsedMs": 21.948,
+        "secondElapsedMs": 21.159,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 105473,
         "workspaceFingerprintUnchanged": true
       },
@@ -2679,9 +2679,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 37.416,
-        "secondElapsedMs": 37.162,
-        "evaluatorMaxRssKb": 256480,
+        "firstElapsedMs": 41,
+        "secondElapsedMs": 38.451,
+        "evaluatorMaxRssKb": 249152,
         "graphResponseBytes": 260455,
         "workspaceFingerprintUnchanged": true
       },
@@ -2712,15 +2712,15 @@
             "value": 1
           },
           "reviewedCallPrecision": {
-            "numerator": 0,
-            "denominator": 0,
-            "value": null
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
           },
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 8,
-          "matchedTruthItemCount": 8
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -2767,10 +2767,10 @@
           },
           {
             "id": "calls",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "config",
@@ -2817,7 +2817,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:ea84bf685d23f00df66243a04afd4d99442c370fe41917f3dd11ae7801eac94c"
+        "reportFingerprint": "sha256:ee20ef0c5cb4f75943076672296bdffd38f42556f9cd50ef8ed161b14113471c"
       }
     }
   ],
@@ -2920,8 +2920,8 @@
           "value": 1
         },
         "reviewedCallPrecision": {
-          "numerator": 3,
-          "denominator": 3,
+          "numerator": 4,
+          "denominator": 4,
           "value": 1
         },
         "duplicateCanonicalSymbolCount": 0,
@@ -2952,5 +2952,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:75c09deeb22e87627efde3c3ed02f754ad3538f958137187a60f100d576f9c32"
+  "reportFingerprint": "sha256:1678027071c88bee61d663e889a3505021689f53814ffc9ec92eab3fda784fb8"
 }

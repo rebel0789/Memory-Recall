@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-18T16:29:31.153Z",
+  "generatedAt": "2026-07-18T16:50:06.337Z",
   "languages": [
     {
       "id": "typescript",
@@ -4245,7 +4245,7 @@
         },
         "calls": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -4266,10 +4266,14 @@
             {
               "class": "real-repo",
               "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and at least three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and at least three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ],
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract."
@@ -4364,7 +4368,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 5 capability floors; 6 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 6 capability floors; 5 applicable rows remain unmeasured; 0 rows are not applicable. Native is unbundled and JS remains the public default."
       ]
     },
     {
