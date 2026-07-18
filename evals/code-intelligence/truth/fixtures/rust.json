@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "partial",
     "types": "partial",
     "calls": "partial",
@@ -65,6 +65,30 @@
       "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
       "to": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
       "locator": "workspace://src/lib.rs#L3-L3",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_export_service",
+      "semanticKey": "edge:exports:src/service.rs:Service",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "src_service", "qualifiedName": "src/service.rs::src_service", "locator": "workspace://src/service.rs#L1-L22" },
+      "to": { "kind": "struct", "name": "Service", "qualifiedName": "src/service.rs::Service", "locator": "workspace://src/service.rs#L5-L5" },
+      "locator": "workspace://src/service.rs#L5-L5",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_private_build_not_exported",
+      "semanticKey": "edge:exports:src/lib.rs:build:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "to": { "kind": "function", "name": "build", "qualifiedName": "src/lib.rs::build", "locator": "workspace://src/lib.rs#L20-L22" },
+      "locator": "workspace://src/lib.rs#L20-L22",
       "resolution": "exact"
     },
     {
@@ -151,5 +175,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:27aa561014ae9a9b78132c6be6ae42fd9903f22137d8367f05c554246b5e1fcc"
+  "truthFingerprint": "sha256:8fbef3c0ad6750ba5919b56aa26137d02012407711720fac449e2cc9086bb427"
 }

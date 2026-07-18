@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -111,7 +111,31 @@
       "to": { "kind": "module", "name": "math/rand", "qualifiedName": "githubapi_test.go::math/rand", "locator": "workspace://githubapi_test.go#L9-L9" },
       "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_gin_export_engine",
+      "semanticKey": "edge:exports:gin.go:Engine",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "gin", "qualifiedName": "gin.go::gin", "locator": "workspace://gin.go#L5-L5" },
+      "to": { "kind": "struct", "name": "Engine", "qualifiedName": "gin.go::Engine", "locator": "workspace://gin.go#L92-L189" },
+      "locator": "workspace://gin.go#L92-L189",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_gin_private_rebuild_not_exported",
+      "semanticKey": "edge:exports:gin.go:Engine.rebuild404Handlers:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "gin", "qualifiedName": "gin.go::gin", "locator": "workspace://gin.go#L5-L5" },
+      "to": { "kind": "method", "name": "rebuild404Handlers", "qualifiedName": "gin.go::Engine::rebuild404Handlers", "locator": "workspace://gin.go#L356-L358" },
+      "locator": "workspace://gin.go#L356-L358",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:6a63783b1317ff069e2f0cad8e2bc7601da633c9455d9a2679d8362101a876d8"
+  "truthFingerprint": "sha256:ad9cbe5cf530ef7fe0796f6550f2db10e58cb9c42ebeb4f9c91295fa599d60bc"
 }

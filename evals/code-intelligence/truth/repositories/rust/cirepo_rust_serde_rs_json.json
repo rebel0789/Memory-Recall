@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -123,7 +123,31 @@
       "to": { "kind": "module", "name": "core::fmt", "qualifiedName": "error.rs::core::fmt", "locator": "workspace://error.rs#L6-L6" },
       "locator": "workspace://value/index.rs#L6-L6",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_export_map",
+      "semanticKey": "edge:exports:map.rs:Map",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "map", "qualifiedName": "map.rs::map", "locator": "workspace://map.rs#L1-L1182" },
+      "to": { "kind": "struct", "name": "Map", "qualifiedName": "map.rs::Map", "locator": "workspace://map.rs#L29-L31" },
+      "locator": "workspace://map.rs#L29-L31",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_serde_json_private_is_escape_not_exported",
+      "semanticKey": "edge:exports:read.rs:is_escape:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "read", "qualifiedName": "read.rs::read", "locator": "workspace://read.rs#L1-L1090" },
+      "to": { "kind": "function", "name": "is_escape", "qualifiedName": "read.rs::is_escape", "locator": "workspace://read.rs#L836-L838" },
+      "locator": "workspace://read.rs#L836-L838",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:ac19bd5b5a6625195ff183ffdbcc4a77bd7fde60b9e47ead3fd2d0251fb91439"
+  "truthFingerprint": "sha256:6dfa8297997f6ba368b803a856d459880cd643346e3ca96fabaa778da4949b0c"
 }

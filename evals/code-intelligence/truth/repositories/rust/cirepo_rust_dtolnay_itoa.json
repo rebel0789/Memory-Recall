@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "partial",
     "types": "partial",
     "calls": "partial",
@@ -135,7 +135,31 @@
       "to": { "kind": "module", "name": "core::str", "qualifiedName": "lib.rs::core::str", "locator": "workspace://lib.rs#L58-L58" },
       "locator": "workspace://lib.rs#L56-L56",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_itoa_export_buffer",
+      "semanticKey": "edge:exports:lib.rs:Buffer",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "lib", "qualifiedName": "lib.rs::lib", "locator": "workspace://lib.rs#L1-L467" },
+      "to": { "kind": "struct", "name": "Buffer", "qualifiedName": "lib.rs::Buffer", "locator": "workspace://lib.rs#L72-L74" },
+      "locator": "workspace://lib.rs#L72-L74",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_itoa_private_divmod100_not_exported",
+      "semanticKey": "edge:exports:lib.rs:divmod100:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "lib", "qualifiedName": "lib.rs::lib", "locator": "workspace://lib.rs#L1-L467" },
+      "to": { "kind": "function", "name": "divmod100", "qualifiedName": "lib.rs::divmod100", "locator": "workspace://lib.rs#L231-L237" },
+      "locator": "workspace://lib.rs#L231-L237",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:993c98ab7cb9cb126358a68e302ea44ce28c8338c276ec9fd72ebc7b2e5abc8d"
+  "truthFingerprint": "sha256:d61005dba5e81aed36c3840c12499c91f3bd092974163f464eda96a2a136ad41"
 }

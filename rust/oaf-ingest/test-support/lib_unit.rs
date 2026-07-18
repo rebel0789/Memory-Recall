@@ -163,6 +163,174 @@ mod tests {
     }
 
     #[test]
+    fn go_exports_only_capitalized_package_api_members_without_reparenting_declarations() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-b/go")
+            .canonicalize()
+            .unwrap();
+        let report = extract_repo(&IngestOptions::new(root)).unwrap();
+        let exports = report
+            .code_facts
+            .iter()
+            .filter(|fact| fact.predicate == "EXPORTS" && fact.subject == "package:service")
+            .map(|fact| {
+                (
+                    fact.object.clone(),
+                    fact.source.clone(),
+                    fact.span.start_line,
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            exports,
+            BTreeSet::from([
+                (
+                    "function:Use".to_string(),
+                    "workspace://service/service.go".to_string(),
+                    13,
+                ),
+                (
+                    "interface:Runner".to_string(),
+                    "workspace://service/service.go".to_string(),
+                    3,
+                ),
+                (
+                    "method:Service_Run".to_string(),
+                    "workspace://service/service.go".to_string(),
+                    9,
+                ),
+                (
+                    "struct:Service".to_string(),
+                    "workspace://service/service.go".to_string(),
+                    7,
+                ),
+            ])
+        );
+        assert!(report.code_facts.iter().any(|fact| {
+            fact.subject == "module:service_service"
+                && fact.predicate == "DEFINES"
+                && fact.object == "struct:Service"
+        }));
+        assert!(!report.code_facts.iter().any(|fact| {
+            fact.subject == "package:service"
+                && fact.predicate == "DEFINES"
+                && fact.object == "struct:Service"
+        }));
+
+        let decoy_root = std::env::temp_dir().join(format!(
+            "oaf-ingest-go-lowercase-export-decoys-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&decoy_root);
+        fs::create_dir_all(&decoy_root).unwrap();
+        fs::write(
+            decoy_root.join("service.go"),
+            [
+                "package service",
+                "type Service struct{}",
+                "func (s *Service) rebuild404Handlers() {}",
+                "func hidden() {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let decoy_exports = extract_repo(&IngestOptions::new(&decoy_root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| fact.predicate == "EXPORTS")
+            .map(|fact| fact.object)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(decoy_exports, BTreeSet::from(["struct:Service".to_string()]));
+
+        fs::remove_dir_all(decoy_root).unwrap();
+    }
+
+    #[test]
+    fn rust_exports_unrestricted_public_items_and_re_exports_only() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-rust-public-exports-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname = \"export-probe\"\nversion = \"0.0.0\"\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/lib.rs"),
+            [
+                "mod api;",
+                "pub use crate::api::PublicType;",
+                "pub(crate) use crate::api::CrateType;",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/api.rs"),
+            [
+                "pub struct PublicType;",
+                "pub(crate) struct CrateType;",
+                "struct PrivateType;",
+                "pub fn public_api() {}",
+                "pub(crate) fn crate_api() {}",
+                "fn private_api() {}",
+                "impl PublicType { pub fn method() {} }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let facts = extract_repo(&IngestOptions::new(&root))
+            .unwrap()
+            .code_facts
+            .into_iter()
+            .filter(|fact| matches!(fact.predicate.as_str(), "EXPORTS" | "RE_EXPORTS"))
+            .map(|fact| {
+                (
+                    fact.subject,
+                    fact.predicate,
+                    fact.object,
+                    fact.source,
+                    fact.span.start_line,
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            facts,
+            BTreeSet::from([
+                (
+                    "module:src_api".to_string(),
+                    "EXPORTS".to_string(),
+                    "function:public_api".to_string(),
+                    "workspace://src/api.rs".to_string(),
+                    4,
+                ),
+                (
+                    "module:src_api".to_string(),
+                    "EXPORTS".to_string(),
+                    "struct:PublicType".to_string(),
+                    "workspace://src/api.rs".to_string(),
+                    1,
+                ),
+                (
+                    "module:src_lib".to_string(),
+                    "RE_EXPORTS".to_string(),
+                    "struct:PublicType".to_string(),
+                    "workspace://src/lib.rs".to_string(),
+                    2,
+                ),
+            ])
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn rust_kotlin_and_csharp_imports_preserve_full_external_targets() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-full-external-import-targets-{}",

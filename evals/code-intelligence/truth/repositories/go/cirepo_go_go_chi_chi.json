@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "unmeasured",
     "calls": "partial",
@@ -123,7 +123,31 @@
       "to": { "kind": "module", "name": "github.com/go-chi/chi/v5", "qualifiedName": "_examples/custom-handler/main.go::github.com/go-chi/chi/v5", "locator": "workspace://_examples/custom-handler/main.go#L7-L7" },
       "locator": "workspace://_examples/custom-method/main.go#L7-L7",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_chi_export_new_router",
+      "semanticKey": "edge:exports:chi.go:NewRouter",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "chi", "qualifiedName": "chi.go::chi", "locator": "workspace://chi.go#L55-L55" },
+      "to": { "kind": "function", "name": "NewRouter", "qualifiedName": "chi.go::NewRouter", "locator": "workspace://chi.go#L60-L62" },
+      "locator": "workspace://chi.go#L60-L62",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_chi_private_path_value_not_exported",
+      "semanticKey": "edge:exports:_examples/pathvalue/main.go:pathValueHandler:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "main", "qualifiedName": "_examples/pathvalue/main.go::main", "locator": "workspace://_examples/pathvalue/main.go#L1-L1" },
+      "to": { "kind": "function", "name": "pathValueHandler", "qualifiedName": "_examples/pathvalue/main.go::pathValueHandler", "locator": "workspace://_examples/pathvalue/main.go#L20-L25" },
+      "locator": "workspace://_examples/pathvalue/main.go#L20-L25",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:5d10e346e10e4432e4bf93dce707353393602fbf1f374a0f21b19d348b417a3e"
+  "truthFingerprint": "sha256:391528ae06866dea31dfc2950502bd82c8615cc7f3f8667fb27d8bd127044fc2"
 }

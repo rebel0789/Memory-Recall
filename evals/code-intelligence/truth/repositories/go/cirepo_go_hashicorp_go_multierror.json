@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "unmeasured",
     "calls": "partial",
@@ -111,7 +111,31 @@
       "to": { "kind": "module", "name": "fmt", "qualifiedName": "flatten_test.go::fmt", "locator": "workspace://flatten_test.go#L8-L8" },
       "locator": "workspace://format.go#L8-L8",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_multierror_export_append",
+      "semanticKey": "edge:exports:append.go:Append",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "multierror", "qualifiedName": "append.go::multierror", "locator": "workspace://append.go#L4-L4" },
+      "to": { "kind": "function", "name": "Append", "qualifiedName": "append.go::Append", "locator": "workspace://append.go#L14-L46" },
+      "locator": "workspace://append.go#L14-L46",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_multierror_private_flatten_not_exported",
+      "semanticKey": "edge:exports:flatten.go:flatten:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "multierror", "qualifiedName": "flatten.go::multierror", "locator": "workspace://flatten.go#L4-L4" },
+      "to": { "kind": "function", "name": "flatten", "qualifiedName": "flatten.go::flatten", "locator": "workspace://flatten.go#L20-L29" },
+      "locator": "workspace://flatten.go#L20-L29",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:05ec3e6b7faf58f98ec4f2857db47b62e1d307b198514523dbaf5da46ef6678f"
+  "truthFingerprint": "sha256:81cfd8ae0e40a975043b02ecf4e0ef58a27f742d24c0d1a67a5fb268aeb87a42"
 }

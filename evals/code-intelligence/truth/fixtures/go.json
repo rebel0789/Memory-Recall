@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -169,6 +169,30 @@
       "locator": "workspace://api/routes.go#L12-L12"
     },
     {
+      "id": "cititem_go_export_service",
+      "semanticKey": "edge:exports:service/service.go:Service",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "service", "qualifiedName": "service/service.go::service", "locator": "workspace://service/service.go#L1-L1" },
+      "to": { "kind": "struct", "name": "Service", "qualifiedName": "service/service.go::Service", "locator": "workspace://service/service.go#L7-L7" },
+      "locator": "workspace://service/service.go#L7-L7",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_go_import_net_http_not_exported",
+      "semanticKey": "edge:exports:api/routes.go:net-http:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "api", "qualifiedName": "api/routes.go::api", "locator": "workspace://api/routes.go#L1-L1" },
+      "to": { "kind": "module", "name": "net/http", "qualifiedName": "api/routes.go::net/http", "locator": "workspace://api/routes.go#L4-L4" },
+      "locator": "workspace://api/routes.go#L4-L4",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_go_gin_route",
       "semanticKey": "edge:handles_route:api/routes.go:Item:GET_items_param",
       "capability": "frameworks",
@@ -193,5 +217,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:b66484c35bba1cdfb87e84cdb958e95873374b67b6eb1abe49767f364705c779"
+  "truthFingerprint": "sha256:f19444472ffb7e452da25fd155dc62e45bbc1e02f6ef06642a2b1b396ac0165c"
 }

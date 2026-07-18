@@ -561,10 +561,14 @@ impl ParsedRepo {
             };
             self.add_fact_at(
                 export.owner,
-                "EXPORTS",
+                export.predicate,
                 target,
                 &export.source,
-                "oaf.ingest:resolved-export",
+                if export.predicate == "RE_EXPORTS" {
+                    "oaf.ingest:resolved-re-export"
+                } else {
+                    "oaf.ingest:resolved-export"
+                },
                 export.span,
             );
         }
@@ -1187,6 +1191,7 @@ struct ImportRef {
 #[derive(Debug, Clone)]
 struct ExportRef {
     owner: String,
+    predicate: &'static str,
     target: String,
     source: String,
     span: CodeSpan,
@@ -1400,6 +1405,7 @@ struct DeclaredContainer {
 
 fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<DeclaredContainer> {
     let expected = match lang {
+        LangKind::Go => &["package_clause"][..],
         LangKind::Java => &["package_declaration"][..],
         LangKind::Kotlin => &["package_header"][..],
         LangKind::CSharp => &["namespace_declaration", "file_scoped_namespace_declaration"][..],
@@ -1418,6 +1424,7 @@ fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<D
                     matches!(
                         child.kind(),
                         "identifier"
+                            | "package_identifier"
                             | "scoped_identifier"
                             | "qualified_identifier"
                             | "qualified_name"
@@ -3794,12 +3801,36 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                 parsed.add_symbol_alias(&context.source, &alias, &target);
             }
         }
+        let rust_re_export = context.lang == LangKind::Rust
+            && node.kind() == "use_declaration"
+            && rust_unrestricted_public(node, source);
+        let rust_re_export_symbol = rust_re_export
+            .then(|| rust_public_use_symbol(node_text(node, source)))
+            .flatten();
         for target in import_targets(node, source, context.lang) {
             let owner = if context.lang == LangKind::Dart {
                 context.owner_subject.as_deref().unwrap_or(&context.module)
             } else {
                 &context.module
             };
+            if rust_re_export {
+                if let Some(symbol) = rust_re_export_symbol.as_ref() {
+                    parsed.exports.push(ExportRef {
+                        owner: owner.to_string(),
+                        predicate: "RE_EXPORTS",
+                        target: symbol.clone(),
+                        source: context.source.clone(),
+                        span: CodeSpan::from_node(node),
+                    });
+                } else {
+                    parsed.add_re_export(
+                        owner,
+                        target.clone(),
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
             parsed.add_import(owner, target, &context.source, CodeSpan::from_node(node));
         }
     }
@@ -3859,6 +3890,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             for target in exported_subjects(node, source, context) {
                 parsed.exports.push(ExportRef {
                     owner: context.module.clone(),
+                    predicate: "EXPORTS",
                     target,
                     source: context.source.clone(),
                     span: CodeSpan::from_node(node),
@@ -3869,6 +3901,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     if let Some(target) = commonjs_assignment_export(node, source, context.lang) {
         parsed.exports.push(ExportRef {
             owner: context.module.clone(),
+            predicate: "EXPORTS",
             target,
             source: context.source.clone(),
             span: CodeSpan::from_node(node),
@@ -3888,7 +3921,11 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         let definition_owner = context
             .caller
             .as_deref()
-            .or(context.owner_subject.as_deref())
+            .or(if context.lang == LangKind::Go {
+                None
+            } else {
+                context.owner_subject.as_deref()
+            })
             .unwrap_or(&context.module);
         parsed.add_entity_at(
             type_id.clone(),
@@ -3907,6 +3944,36 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         parsed.add_symbol_name(&simple_type_name, &type_id);
         if type_name != simple_type_name {
             parsed.add_symbol_name(&type_name, &type_id);
+        }
+        if context.lang == LangKind::Go
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && go_exported_identifier(&simple_type_name)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context
+                    .owner_subject
+                    .clone()
+                    .unwrap_or_else(|| context.module.clone()),
+                predicate: "EXPORTS",
+                target: type_id.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if context.lang == LangKind::Rust
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && context.impl_name.is_none()
+            && rust_unrestricted_public(node, source)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                predicate: "EXPORTS",
+                target: type_id.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
         }
         if let Some(container_name) = context.container_name.as_deref() {
             let relative = context
@@ -3974,7 +4041,11 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         let fallback_owner = context
             .caller
             .as_deref()
-            .or(context.owner_subject.as_deref())
+            .or(if context.lang == LangKind::Go {
+                None
+            } else {
+                context.owner_subject.as_deref()
+            })
             .unwrap_or(&context.module);
         parsed.add_entity_at(
             subject.clone(),
@@ -4031,6 +4102,40 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         for alias in batch_c_callable_aliases(&subject) {
             parsed.add_symbol_name(&alias, &subject);
         }
+        if context.lang == LangKind::Go
+            && matches!(node.kind(), "function_declaration" | "method_declaration")
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && callable_node_name(node, source, context)
+                .and_then(|name| sanitize_symbol(&name))
+                .is_some_and(|name| go_exported_identifier(&name))
+        {
+            parsed.exports.push(ExportRef {
+                owner: context
+                    .owner_subject
+                    .clone()
+                    .unwrap_or_else(|| context.module.clone()),
+                predicate: "EXPORTS",
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if context.lang == LangKind::Rust
+            && node.kind() == "function_item"
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && context.impl_name.is_none()
+            && rust_unrestricted_public(node, source)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                predicate: "EXPORTS",
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
         if let Some(receiver) = extension_receiver_type(node, source, context.lang) {
             if let Some(callable) =
                 callable_node_name(node, source, context).and_then(|value| sanitize_symbol(&value))
@@ -4047,6 +4152,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         {
             parsed.exports.push(ExportRef {
                 owner: context.module.clone(),
+                predicate: "EXPORTS",
                 target: subject.clone(),
                 source: context.source.clone(),
                 span: CodeSpan::from_node(node),
@@ -6470,11 +6576,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 }
             }
             LangKind::Rust => {
-                if let Some(raw) = text
-                    .trim()
-                    .strip_prefix("use ")
-                    .and_then(rust_import_target_from_raw)
-                {
+                if let Some(raw) = rust_use_target_from_declaration(text) {
                     out.push(raw);
                 }
             }
@@ -6650,6 +6752,46 @@ fn rust_import_target_from_raw(value: &str) -> Option<ImportTarget> {
         .split_once("::{")
         .map_or(raw.as_str(), |(prefix, _)| prefix);
     full_import_target_from_raw(coordinate)
+}
+
+fn rust_use_target_from_declaration(value: &str) -> Option<ImportTarget> {
+    rust_import_target_from_raw(rust_use_declaration_target(value)?)
+}
+
+fn rust_use_declaration_target(value: &str) -> Option<&str> {
+    let declaration = value.trim();
+    declaration
+        .strip_prefix("use ")
+        .or_else(|| declaration.strip_prefix("pub use "))
+        .or_else(|| {
+            declaration
+                .strip_prefix("pub(")?
+                .split_once(") use ")
+                .map(|(_, target)| target)
+        })
+}
+
+fn rust_public_use_symbol(value: &str) -> Option<String> {
+    let raw = clean_import_raw(rust_use_declaration_target(value)?)?;
+    if raw.contains(['{', '}', '*']) {
+        return None;
+    }
+    let symbol = raw.rsplit("::").next()?;
+    (!matches!(symbol, "crate" | "self" | "super"))
+        .then(|| sanitize_symbol(symbol))
+        .flatten()
+}
+
+fn rust_unrestricted_public(node: Node<'_>, source: &[u8]) -> bool {
+    (0..node.named_child_count())
+        .filter_map(|index| node.named_child(index))
+        .any(|child| {
+            child.kind() == "visibility_modifier" && node_text(child, source).trim() == "pub"
+        })
+}
+
+fn go_exported_identifier(value: &str) -> bool {
+    value.chars().next().is_some_and(|ch| ch.is_uppercase())
 }
 
 fn php_import_target_from_raw(value: &str) -> Option<ImportTarget> {

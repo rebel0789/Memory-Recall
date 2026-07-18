@@ -22,7 +22,7 @@
     "parse": "partial",
     "structure": "partial",
     "imports": "partial",
-    "exports": "unmeasured",
+    "exports": "partial",
     "heritage": "unmeasured",
     "types": "partial",
     "calls": "partial",
@@ -135,7 +135,31 @@
       "to": { "kind": "module", "name": "pin_project_lite::pin_project", "qualifiedName": "error_handling/mod.rs::pin_project_lite::pin_project", "locator": "workspace://error_handling/mod.rs#L228-L228" },
       "locator": "workspace://routing/route.rs#L24-L24",
       "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_axum_export_router",
+      "semanticKey": "edge:exports:routing/mod.rs:Router",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "routing_mod", "qualifiedName": "routing/mod.rs::routing_mod", "locator": "workspace://routing/mod.rs#L1-L841" },
+      "to": { "kind": "struct", "name": "Router", "qualifiedName": "routing/mod.rs::Router", "locator": "workspace://routing/mod.rs#L86-L88" },
+      "locator": "workspace://routing/mod.rs#L86-L88",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axum_private_router_inner_not_exported",
+      "semanticKey": "edge:exports:routing/mod.rs:RouterInner:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "routing_mod", "qualifiedName": "routing/mod.rs::routing_mod", "locator": "workspace://routing/mod.rs#L1-L841" },
+      "to": { "kind": "struct", "name": "RouterInner", "qualifiedName": "routing/mod.rs::RouterInner", "locator": "workspace://routing/mod.rs#L98-L102" },
+      "locator": "workspace://routing/mod.rs#L98-L102",
+      "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:0a264b77581cc0de367d8e0ad2840d2f062ac7d571d38a48639609846296dd5e"
+  "truthFingerprint": "sha256:8402c959c84484593c65a17e22500ede31e7acc6cd672bc5af3f05e7bdab92a4"
 }
