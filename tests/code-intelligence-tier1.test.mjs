@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 70);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 71);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 83);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 82);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -69,6 +69,13 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(dartCalls.fixtureEvidenceCount, 1);
   assert.equal(dartCalls.repositoryEvidenceCount, 3);
   assert.deepEqual(dartCalls.metrics.reviewedTruth, { numerator: 4, denominator: 4, value: 1 });
+  const kotlinCalls = summary.languages
+    .find((item) => item.language === 'kotlin')
+    .capabilities.find((capability) => capability.id === 'calls');
+  assert.equal(kotlinCalls.benchmarkStatus, 'meets-floor');
+  assert.equal(kotlinCalls.fixtureEvidenceCount, 1);
+  assert.equal(kotlinCalls.repositoryEvidenceCount, 3);
+  assert.deepEqual(kotlinCalls.metrics.reviewedTruth, { numerator: 5, denominator: 5, value: 1 });
   for (const language of ['rust', 'kotlin', 'csharp']) {
     const imports = summary.languages
       .find((item) => item.language === language)
