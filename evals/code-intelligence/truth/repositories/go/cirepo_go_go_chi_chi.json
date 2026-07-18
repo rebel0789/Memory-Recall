@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "partial",
     "heritage": "unmeasured",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "partial",
@@ -75,6 +75,18 @@
       "name": "pathValueHandler",
       "qualifiedName": "_examples/pathvalue/main.go::pathValueHandler",
       "locator": "workspace://_examples/pathvalue/main.go#L20-L25"
+    },
+    {
+      "id": "cititem_chi_construct_mux",
+      "semanticKey": "edge:constructs:mux.go:NewMux:Mux",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "NewMux", "qualifiedName": "mux.go::NewMux", "locator": "workspace://mux.go#L52-L58" },
+      "to": { "kind": "struct", "name": "Mux", "qualifiedName": "mux.go::Mux", "locator": "workspace://mux.go#L21-L48" },
+      "locator": "workspace://mux.go#L53-L53",
+      "resolution": "exact"
     },
     {
       "id": "cititem_chi_call_new_router",
@@ -149,5 +161,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:391528ae06866dea31dfc2950502bd82c8615cc7f3f8667fb27d8bd127044fc2"
+  "truthFingerprint": "sha256:5ff443493e76e815ef0e51fca22abbd3435e0c08c4c41308040d69c1c08d74e7"
 }

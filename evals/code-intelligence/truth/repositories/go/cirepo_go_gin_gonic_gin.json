@@ -77,6 +77,18 @@
       "locator": "workspace://gin.go#L356-L358"
     },
     {
+      "id": "cititem_gin_construct_engine",
+      "semanticKey": "edge:constructs:gin.go:New:Engine",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "New", "qualifiedName": "gin.go::New", "locator": "workspace://gin.go#L202-L233" },
+      "to": { "kind": "struct", "name": "Engine", "qualifiedName": "gin.go::Engine", "locator": "workspace://gin.go#L92-L189" },
+      "locator": "workspace://gin.go#L204-L227",
+      "resolution": "exact"
+    },
+    {
       "id": "cititem_gin_call_rebuild_404",
       "semanticKey": "edge:calls:gin.go:Engine.NoRoute:rebuild404Handlers",
       "capability": "calls",
@@ -137,5 +149,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:ad9cbe5cf530ef7fe0796f6550f2db10e58cb9c42ebeb4f9c91295fa599d60bc"
+  "truthFingerprint": "sha256:bac48e4a489313758cfa8aeb896782a45b0eb9c5f27bd42f76f757f1842b506d"
 }

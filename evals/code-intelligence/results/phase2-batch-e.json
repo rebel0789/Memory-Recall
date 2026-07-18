@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-e-1",
   "phase": 2,
   "batch": "E",
-  "generatedAt": "2026-07-18T14:23:19.313Z",
+  "generatedAt": "2026-07-18T18:34:30.955Z",
   "inputs": {
     "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
     "bounds": {
@@ -70,9 +70,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 161.703,
-        "secondElapsedMs": 59.413,
-        "evaluatorMaxRssKb": 66576,
+        "firstElapsedMs": 32.426,
+        "secondElapsedMs": 12.397,
+        "evaluatorMaxRssKb": 62384,
         "graphResponseBytes": 38145,
         "workspaceFingerprintUnchanged": true
       },
@@ -98,8 +98,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 7,
-            "denominator": 7,
+            "numerator": 8,
+            "denominator": 8,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -110,8 +110,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 15,
-          "matchedTruthItemCount": 15
+          "truthItemCount": 16,
+          "matchedTruthItemCount": 16
         },
         "capabilities": [
           {
@@ -153,8 +153,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 2,
-            "matchedItemCount": 2
+            "itemCount": 3,
+            "matchedItemCount": 3
           },
           {
             "id": "calls",
@@ -208,7 +208,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:03345a0c9f32326068d35856a734ca33e9be8473ab23da382a84e148d49af49e"
+        "reportFingerprint": "sha256:590ab343cc0aafd72f16d2c7c85d194b7acabbe33031f3b139f8f907a0406f58"
       }
     },
     {
@@ -238,9 +238,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.519,
-        "secondElapsedMs": 17.619,
-        "evaluatorMaxRssKb": 66928,
+        "firstElapsedMs": 11.049,
+        "secondElapsedMs": 10.636,
+        "evaluatorMaxRssKb": 66480,
         "graphResponseBytes": 27592,
         "workspaceFingerprintUnchanged": true
       },
@@ -408,9 +408,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 366.899,
-        "secondElapsedMs": 474.909,
-        "evaluatorMaxRssKb": 100240,
+        "firstElapsedMs": 224.731,
+        "secondElapsedMs": 233.812,
+        "evaluatorMaxRssKb": 101504,
         "graphResponseBytes": 2141385,
         "workspaceFingerprintUnchanged": true
       },
@@ -436,8 +436,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -448,8 +448,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -491,8 +491,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -546,7 +546,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:af6ab1e7b79842dff16b2c485358ece75c669a1b5b57a2d20a3b011ae14c72d7"
+        "reportFingerprint": "sha256:5e146c5e48ed489f81741bf77778f584b45f292c9ffdf03c230eae93c5724827"
       }
     },
     {
@@ -578,9 +578,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 183.568,
-        "secondElapsedMs": 157.422,
-        "evaluatorMaxRssKb": 123568,
+        "firstElapsedMs": 126.969,
+        "secondElapsedMs": 120.965,
+        "evaluatorMaxRssKb": 126704,
         "graphResponseBytes": 1209148,
         "workspaceFingerprintUnchanged": true
       },
@@ -606,8 +606,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -618,8 +618,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -661,8 +661,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -716,7 +716,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:7e2d205e4f4c93fd7a83e7fc8295fd94ad397073b39b1ca8cd7fb3e363214600"
+        "reportFingerprint": "sha256:43507b96a8b791fbf109c99b544cf7bd39b221913d2bbcf70c7c952d45a05d32"
       }
     },
     {
@@ -748,9 +748,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1197.715,
-        "secondElapsedMs": 1004.482,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 902.928,
+        "secondElapsedMs": 906.572,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 6120670,
         "workspaceFingerprintUnchanged": true
       },
@@ -776,8 +776,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -788,8 +788,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -831,8 +831,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -886,7 +886,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:6b51602d198d19953bd244a515907db8513f7513036cf4c9fc5a70399162b3a3"
+        "reportFingerprint": "sha256:92afc7b361e8cce9171704758f68f7454e0ee588f381c69874c88322de750fcb"
       }
     },
     {
@@ -918,9 +918,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 136.993,
-        "secondElapsedMs": 271.346,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 125.912,
+        "secondElapsedMs": 133.003,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 1244016,
         "workspaceFingerprintUnchanged": true
       },
@@ -1088,9 +1088,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 116.528,
-        "secondElapsedMs": 123.028,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 117.612,
+        "secondElapsedMs": 116.433,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 1139920,
         "workspaceFingerprintUnchanged": true
       },
@@ -1258,9 +1258,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 80.257,
-        "secondElapsedMs": 97.602,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 79.162,
+        "secondElapsedMs": 80.894,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 781752,
         "workspaceFingerprintUnchanged": true
       },
@@ -1413,8 +1413,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 16,
-          "denominator": 16,
+          "numerator": 20,
+          "denominator": 20,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -1477,5 +1477,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:03db90eabeba4a287b6c8b5120ea94b78d0caa6e3ae5ce713c4909c0dc660b72"
+  "reportFingerprint": "sha256:b62431b872953a81969ef029d869ccc06a516244a4a67c094d4a075bc753e41f"
 }

@@ -24,9 +24,9 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.languages.every((language) => language.accuracy.reviewedCallPrecision.value >= 0.90), true);
   assert.equal(summary.cases.every((item) => item.measurements.graphResponseBytes > 0), true);
   assert.equal(summary.cases.every((item) => item.report.gateDecision === 'pass'), true);
-  assert.equal(summary.summary.meetsFloorCapabilityCount, 75);
+  assert.equal(summary.summary.meetsFloorCapabilityCount, 77);
   assert.equal(summary.summary.doesNotMeetFloorCapabilityCount, 0);
-  assert.equal(summary.summary.unmeasuredCapabilityCount, 78);
+  assert.equal(summary.summary.unmeasuredCapabilityCount, 76);
   assert.equal(summary.summary.notApplicableCapabilityCount, 1);
   const pythonConfig = summary.languages
     .find((language) => language.language === 'python')
@@ -53,6 +53,20 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(goImports.fixtureEvidenceCount, 1);
   assert.equal(goImports.repositoryEvidenceCount, 3);
   assert.deepEqual(goImports.metrics.reviewedTruth, { numerator: 8, denominator: 8, value: 1 });
+  const goTypes = summary.languages
+    .find((item) => item.language === 'go')
+    .capabilities.find((capability) => capability.id === 'types');
+  assert.equal(goTypes.benchmarkStatus, 'meets-floor');
+  assert.equal(goTypes.fixtureEvidenceCount, 1);
+  assert.equal(goTypes.repositoryEvidenceCount, 3);
+  assert.deepEqual(goTypes.metrics.reviewedTruth, { numerator: 4, denominator: 4, value: 1 });
+  const phpTypes = summary.languages
+    .find((item) => item.language === 'php')
+    .capabilities.find((capability) => capability.id === 'types');
+  assert.equal(phpTypes.benchmarkStatus, 'meets-floor');
+  assert.equal(phpTypes.fixtureEvidenceCount, 1);
+  assert.equal(phpTypes.repositoryEvidenceCount, 3);
+  assert.deepEqual(phpTypes.metrics.reviewedTruth, { numerator: 6, denominator: 6, value: 1 });
   for (const language of ['go', 'rust', 'dart']) {
     const exports = summary.languages
       .find((item) => item.language === language)

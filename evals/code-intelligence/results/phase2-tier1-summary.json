@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-18T18:20:49.067Z",
+  "generatedAt": "2026-07-18T18:35:40.367Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -29,7 +29,7 @@
       {
         "batch": "B",
         "path": "evals/code-intelligence/results/phase2-batch-b.json",
-        "reportFingerprint": "sha256:8396e0149190d5116245b5cef2d7c2351593ca9314826df97aa57d956fc7545e",
+        "reportFingerprint": "sha256:c557321ef9c410e29e4aa917bb96a12ebb6122cd93a1053fdee3e001bee57546",
         "caseCount": 15,
         "languageCount": 3
       },
@@ -50,7 +50,7 @@
       {
         "batch": "E",
         "path": "evals/code-intelligence/results/phase2-batch-e.json",
-        "reportFingerprint": "sha256:03db90eabeba4a287b6c8b5120ea94b78d0caa6e3ae5ce713c4909c0dc660b72",
+        "reportFingerprint": "sha256:b62431b872953a81969ef029d869ccc06a516244a4a67c094d4a075bc753e41f",
         "caseCount": 8,
         "languageCount": 2
       }
@@ -64,12 +64,12 @@
     "graphNodeCount": 50664,
     "graphEdgeCount": 113640,
     "graphResponseBytes": 79816280,
-    "firstRunWallTimeMs": 22794.19,
-    "secondRunWallTimeMs": 23570.05,
+    "firstRunWallTimeMs": 22140.914,
+    "secondRunWallTimeMs": 22956.575,
     "peakEvaluatorRssKb": 254752,
-    "meetsFloorCapabilityCount": 75,
+    "meetsFloorCapabilityCount": 77,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 78,
+    "unmeasuredCapabilityCount": 76,
     "notApplicableCapabilityCount": 1
   },
   "cases": [
@@ -1244,9 +1244,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 28.01,
-        "secondElapsedMs": 8.909,
-        "evaluatorMaxRssKb": 60720,
+        "firstElapsedMs": 30.704,
+        "secondElapsedMs": 9.531,
+        "evaluatorMaxRssKb": 60416,
         "graphResponseBytes": 17791,
         "workspaceFingerprintUnchanged": true
       },
@@ -1385,9 +1385,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.036,
-        "secondElapsedMs": 8.691,
-        "evaluatorMaxRssKb": 66432,
+        "firstElapsedMs": 9.661,
+        "secondElapsedMs": 9.714,
+        "evaluatorMaxRssKb": 66192,
         "graphResponseBytes": 19051,
         "workspaceFingerprintUnchanged": true
       },
@@ -1526,9 +1526,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.298,
-        "secondElapsedMs": 9.454,
-        "evaluatorMaxRssKb": 66752,
+        "firstElapsedMs": 9.092,
+        "secondElapsedMs": 9.423,
+        "evaluatorMaxRssKb": 66512,
         "graphResponseBytes": 19198,
         "workspaceFingerprintUnchanged": true
       },
@@ -1669,8 +1669,8 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 221.097,
-        "secondElapsedMs": 220.96,
+        "firstElapsedMs": 220.405,
+        "secondElapsedMs": 227.017,
         "evaluatorMaxRssKb": 119728,
         "graphResponseBytes": 2232748,
         "workspaceFingerprintUnchanged": true
@@ -1812,9 +1812,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 131.167,
-        "secondElapsedMs": 129.691,
-        "evaluatorMaxRssKb": 128688,
+        "firstElapsedMs": 130.23,
+        "secondElapsedMs": 129.131,
+        "evaluatorMaxRssKb": 128752,
         "graphResponseBytes": 1403619,
         "workspaceFingerprintUnchanged": true
       },
@@ -1955,8 +1955,8 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 101.491,
-        "secondElapsedMs": 103.062,
+        "firstElapsedMs": 100.999,
+        "secondElapsedMs": 101.268,
         "evaluatorMaxRssKb": 135760,
         "graphResponseBytes": 1043140,
         "workspaceFingerprintUnchanged": true
@@ -2103,14 +2103,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 936.623,
-        "secondElapsedMs": 943.88,
-        "evaluatorMaxRssKb": 162464,
+        "firstElapsedMs": 933.641,
+        "secondElapsedMs": 927.163,
+        "evaluatorMaxRssKb": 162432,
         "graphResponseBytes": 6590671,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:81298a8469273d4e0cc46fc878c97c2b3c72ff4548f203dd71a7b6be77825c62",
+        "reportFingerprint": "sha256:48ade34716b9868024e0bb6ec58e2518c279fc941c28b532d3398d03c5b4a3b8",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -2118,8 +2118,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2130,8 +2130,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -2173,8 +2173,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -2246,14 +2246,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 306.704,
-        "secondElapsedMs": 292.969,
-        "evaluatorMaxRssKb": 162464,
+        "firstElapsedMs": 294.945,
+        "secondElapsedMs": 298.653,
+        "evaluatorMaxRssKb": 162432,
         "graphResponseBytes": 3107247,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:56967c9a504fdb26cd529d452cba5c0fc779423d9724b0d56dd1ac4ac0ab0d8e",
+        "reportFingerprint": "sha256:b05b7c69b75d32242f7b00768bbcf768e03f6d2dbe87b96a0c72873fedac1d6d",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -2261,8 +2261,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2273,8 +2273,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 10,
-          "matchedTruthItemCount": 10
+          "truthItemCount": 11,
+          "matchedTruthItemCount": 11
         },
         "capabilities": [
           {
@@ -2314,10 +2314,10 @@
           },
           {
             "id": "types",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -2389,14 +2389,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.049,
-        "secondElapsedMs": 30.789,
-        "evaluatorMaxRssKb": 162464,
+        "firstElapsedMs": 29.354,
+        "secondElapsedMs": 28.824,
+        "evaluatorMaxRssKb": 162432,
         "graphResponseBytes": 279569,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:6b254c9b559ad78e18dbbebb6bca04cab537c440fcd583d9ad455be2b1cda751",
+        "reportFingerprint": "sha256:29ce7204266831b4dcc5a27405eb1053ec586823d6292254a1f5e405102c7811",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -2404,8 +2404,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -2416,8 +2416,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -2457,10 +2457,10 @@
           },
           {
             "id": "types",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -2532,9 +2532,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 15.192,
-        "secondElapsedMs": 13.161,
-        "evaluatorMaxRssKb": 162464,
+        "firstElapsedMs": 13.66,
+        "secondElapsedMs": 12.405,
+        "evaluatorMaxRssKb": 162432,
         "graphResponseBytes": 57030,
         "workspaceFingerprintUnchanged": true
       },
@@ -2675,9 +2675,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 308.817,
-        "secondElapsedMs": 318.433,
-        "evaluatorMaxRssKb": 165392,
+        "firstElapsedMs": 317.279,
+        "secondElapsedMs": 319.389,
+        "evaluatorMaxRssKb": 163168,
         "graphResponseBytes": 3060926,
         "workspaceFingerprintUnchanged": true
       },
@@ -2818,9 +2818,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 487.469,
-        "secondElapsedMs": 510.442,
-        "evaluatorMaxRssKb": 165392,
+        "firstElapsedMs": 486.899,
+        "secondElapsedMs": 491.053,
+        "evaluatorMaxRssKb": 166400,
         "graphResponseBytes": 4414281,
         "workspaceFingerprintUnchanged": true
       },
@@ -2961,9 +2961,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.414,
-        "secondElapsedMs": 9.696,
-        "evaluatorMaxRssKb": 165392,
+        "firstElapsedMs": 12.292,
+        "secondElapsedMs": 10.346,
+        "evaluatorMaxRssKb": 166400,
         "graphResponseBytes": 31262,
         "workspaceFingerprintUnchanged": true
       },
@@ -3104,9 +3104,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 14.917,
-        "secondElapsedMs": 15.218,
-        "evaluatorMaxRssKb": 165392,
+        "firstElapsedMs": 16.316,
+        "secondElapsedMs": 17.358,
+        "evaluatorMaxRssKb": 166400,
         "graphResponseBytes": 101541,
         "workspaceFingerprintUnchanged": true
       },
@@ -3247,9 +3247,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 20.934,
-        "secondElapsedMs": 20.076,
-        "evaluatorMaxRssKb": 165392,
+        "firstElapsedMs": 21.858,
+        "secondElapsedMs": 21.79,
+        "evaluatorMaxRssKb": 166400,
         "graphResponseBytes": 164735,
         "workspaceFingerprintUnchanged": true
       },
@@ -7444,14 +7444,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 161.703,
-        "secondElapsedMs": 59.413,
-        "evaluatorMaxRssKb": 66576,
+        "firstElapsedMs": 32.426,
+        "secondElapsedMs": 12.397,
+        "evaluatorMaxRssKb": 62384,
         "graphResponseBytes": 38145,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:03345a0c9f32326068d35856a734ca33e9be8473ab23da382a84e148d49af49e",
+        "reportFingerprint": "sha256:590ab343cc0aafd72f16d2c7c85d194b7acabbe33031f3b139f8f907a0406f58",
         "metrics": {
           "declarationRecall": {
             "numerator": 6,
@@ -7459,8 +7459,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 7,
-            "denominator": 7,
+            "numerator": 8,
+            "denominator": 8,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -7471,8 +7471,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 15,
-          "matchedTruthItemCount": 15
+          "truthItemCount": 16,
+          "matchedTruthItemCount": 16
         },
         "capabilities": [
           {
@@ -7514,8 +7514,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 2,
-            "matchedItemCount": 2
+            "itemCount": 3,
+            "matchedItemCount": 3
           },
           {
             "id": "calls",
@@ -7585,9 +7585,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.519,
-        "secondElapsedMs": 17.619,
-        "evaluatorMaxRssKb": 66928,
+        "firstElapsedMs": 11.049,
+        "secondElapsedMs": 10.636,
+        "evaluatorMaxRssKb": 66480,
         "graphResponseBytes": 27592,
         "workspaceFingerprintUnchanged": true
       },
@@ -7728,14 +7728,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 366.899,
-        "secondElapsedMs": 474.909,
-        "evaluatorMaxRssKb": 100240,
+        "firstElapsedMs": 224.731,
+        "secondElapsedMs": 233.812,
+        "evaluatorMaxRssKb": 101504,
         "graphResponseBytes": 2141385,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:af6ab1e7b79842dff16b2c485358ece75c669a1b5b57a2d20a3b011ae14c72d7",
+        "reportFingerprint": "sha256:5e146c5e48ed489f81741bf77778f584b45f292c9ffdf03c230eae93c5724827",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7743,8 +7743,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -7755,8 +7755,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -7798,8 +7798,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -7871,14 +7871,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 183.568,
-        "secondElapsedMs": 157.422,
-        "evaluatorMaxRssKb": 123568,
+        "firstElapsedMs": 126.969,
+        "secondElapsedMs": 120.965,
+        "evaluatorMaxRssKb": 126704,
         "graphResponseBytes": 1209148,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:7e2d205e4f4c93fd7a83e7fc8295fd94ad397073b39b1ca8cd7fb3e363214600",
+        "reportFingerprint": "sha256:43507b96a8b791fbf109c99b544cf7bd39b221913d2bbcf70c7c952d45a05d32",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -7886,8 +7886,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -7898,8 +7898,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -7941,8 +7941,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -8014,14 +8014,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1197.715,
-        "secondElapsedMs": 1004.482,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 902.928,
+        "secondElapsedMs": 906.572,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 6120670,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:6b51602d198d19953bd244a515907db8513f7513036cf4c9fc5a70399162b3a3",
+        "reportFingerprint": "sha256:92afc7b361e8cce9171704758f68f7454e0ee588f381c69874c88322de750fcb",
         "metrics": {
           "declarationRecall": {
             "numerator": 4,
@@ -8029,8 +8029,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -8041,8 +8041,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 9,
-          "matchedTruthItemCount": 9
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -8084,8 +8084,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -8157,9 +8157,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 136.993,
-        "secondElapsedMs": 271.346,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 125.912,
+        "secondElapsedMs": 133.003,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 1244016,
         "workspaceFingerprintUnchanged": true
       },
@@ -8300,9 +8300,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 116.528,
-        "secondElapsedMs": 123.028,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 117.612,
+        "secondElapsedMs": 116.433,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 1139920,
         "workspaceFingerprintUnchanged": true
       },
@@ -8443,9 +8443,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 80.257,
-        "secondElapsedMs": 97.602,
-        "evaluatorMaxRssKb": 156752,
+        "firstElapsedMs": 79.162,
+        "secondElapsedMs": 80.894,
+        "evaluatorMaxRssKb": 180176,
         "graphResponseBytes": 781752,
         "workspaceFingerprintUnchanged": true
       },
@@ -10263,8 +10263,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 12,
-          "denominator": 12,
+          "numerator": 15,
+          "denominator": 15,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -10397,14 +10397,14 @@
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract.",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 0,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 1,
-              "denominator": 1,
+              "numerator": 4,
+              "denominator": 4,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -10412,7 +10412,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -10827,8 +10827,8 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 16,
-          "denominator": 16,
+          "numerator": 20,
+          "denominator": 20,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -10961,14 +10961,14 @@
           "applicability": "applicable",
           "applicabilityRationale": "This capability is part of the published Tier 1 language contract.",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "fixtureEvidenceCount": 1,
-          "repositoryEvidenceCount": 0,
-          "sourceCoverageMet": false,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 2,
-              "denominator": 2,
+              "numerator": 6,
+              "denominator": 6,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -10976,7 +10976,7 @@
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and at least three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and at least three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -12529,5 +12529,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:0d052a13793353174618d8b60131c88484c3da509b9d30ca4dfe2ec03c4ddb92"
+  "reportFingerprint": "sha256:74d064df9b659e09aadc364e5104dadaea4adca33f94be751fd139aec9922a1d"
 }

@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "partial",
     "heritage": "unmeasured",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -75,6 +75,18 @@
       "name": "Append",
       "qualifiedName": "append.go::Append",
       "locator": "workspace://append.go#L14-L46"
+    },
+    {
+      "id": "cititem_multierror_construct_error",
+      "semanticKey": "edge:constructs:append.go:Append:Error",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "Append", "qualifiedName": "append.go::Append", "locator": "workspace://append.go#L14-L46" },
+      "to": { "kind": "struct", "name": "Error", "qualifiedName": "multierror.go::Error", "locator": "workspace://multierror.go#L13-L16" },
+      "locator": "workspace://append.go#L44-L44",
+      "resolution": "exact"
     },
     {
       "id": "cititem_multierror_recursive_append",
@@ -137,5 +149,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:81cfd8ae0e40a975043b02ecf4e0ef58a27f742d24c0d1a67a5fb268aeb87a42"
+  "truthFingerprint": "sha256:9641a4ebee69a58ab7d1db1550efd780b91deaa8e64d3a21159b22dfcd20e495"
 }
