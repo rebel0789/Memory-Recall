@@ -88,9 +88,29 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
       command: 'node scripts/native-code-intelligence-consumer-smoke.mjs',
       result: 'pass'
     },
-    artifactState: { signed: false, published: false }
+    artifactState: { signed: false, published: false, signature: null }
   });
   assert.doesNotMatch(JSON.stringify(receipt), /\/private\/|\/Users\/|\/home\//u);
+  const signedReceipt = buildNativeDistributionReceipt({
+    packageReport,
+    commit: 'b'.repeat(40),
+    runner: 'ubuntu-22.04',
+    tarballSha256: `sha256:${'c'.repeat(64)}`,
+    consumerGateResult: 'pass',
+    packageAttestation: {
+      id: '12345',
+      url: 'https://github.com/rebel0789/Memory-Recall/attestations/12345'
+    }
+  });
+  assert.deepEqual(signedReceipt.artifactState, {
+    signed: true,
+    published: false,
+    signature: {
+      kind: 'github-sigstore-provenance',
+      attestationId: '12345',
+      attestationUrl: 'https://github.com/rebel0789/Memory-Recall/attestations/12345'
+    }
+  });
   assert.throws(
     () => buildNativeDistributionReceipt({ packageReport, commit: 'b'.repeat(40), runner: 'ubuntu-22.04', tarballSha256: `sha256:${'c'.repeat(64)}`, consumerGateResult: 'fail' }),
     /requires a passing consumer gate/u
@@ -99,9 +119,13 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
   const workflow = await readFile('.github/workflows/rust.yml', 'utf8');
   const consumerStep = workflow.indexOf('Verify exact artifact in installed consumer');
   const receiptStep = workflow.indexOf('Record sanitized native package receipt');
-  const uploadStep = workflow.indexOf('Upload unsigned native package and receipt');
-  assert(consumerStep >= 0 && consumerStep < receiptStep && receiptStep < uploadStep);
+  const packageAttestationStep = workflow.indexOf('Attest native package provenance');
+  const receiptAttestationStep = workflow.indexOf('Attest native receipt provenance');
+  const uploadStep = workflow.indexOf('Upload native package and receipt');
+  assert(consumerStep >= 0 && consumerStep < packageAttestationStep && packageAttestationStep < receiptStep);
+  assert(receiptStep < receiptAttestationStep && receiptAttestationStep < uploadStep);
   assert.match(workflow, /buildNativeDistributionReceipt/u);
   assert.match(workflow, /consumerGateResult: 'pass'/u);
+  assert.match(workflow, /uses: actions\/attest@v4/u);
   assert.match(workflow, /output\/native-package-\*-receipt\.json/u);
 });

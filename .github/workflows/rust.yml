@@ -3,8 +3,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
+  actions: read
+  artifact-metadata: write
+  attestations: write
   contents: read
+  id-token: write
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -156,12 +161,20 @@ jobs:
         run: |
           export MEMORY_RECALL_NATIVE_PACKAGE_TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('output/native-package-report.json', 'utf8')).tarball")"
           node scripts/native-code-intelligence-consumer-smoke.mjs
+      - name: Attest native package provenance
+        if: ${{ github.event_name != 'pull_request' }}
+        id: attest-package
+        uses: actions/attest@v4
+        with:
+          subject-path: output/native-packages/*.tgz
       - name: Record sanitized native package receipt
         shell: bash
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
           EXPECTED_RUNNER: ${{ matrix.runner }}
           GIT_COMMIT: ${{ github.sha }}
+          PACKAGE_ATTESTATION_ID: ${{ steps.attest-package.outputs.attestation-id }}
+          PACKAGE_ATTESTATION_URL: ${{ steps.attest-package.outputs.attestation-url }}
         run: |
           node --input-type=module <<'NODE'
           import { createHash } from 'node:crypto';
@@ -176,16 +189,65 @@ jobs:
             commit: process.env.GIT_COMMIT,
             runner: process.env.EXPECTED_RUNNER,
             tarballSha256,
-            consumerGateResult: 'pass'
+            consumerGateResult: 'pass',
+            packageAttestation: process.env.PACKAGE_ATTESTATION_ID ? {
+              id: process.env.PACKAGE_ATTESTATION_ID,
+              url: process.env.PACKAGE_ATTESTATION_URL
+            } : null
           });
           writeFileSync(`output/native-package-${receipt.target}-receipt.json`, `${JSON.stringify(receipt, null, 2)}\n`);
           NODE
-      - name: Upload unsigned native package and receipt
+      - name: Attest native receipt provenance
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: output/native-package-*-receipt.json
+      - name: Upload native package and receipt
         uses: actions/upload-artifact@v6
         with:
-          name: memory-recall-native-${{ matrix.target }}-unsigned-${{ github.sha }}
+          name: memory-recall-native-${{ matrix.target }}-${{ github.event_name == 'pull_request' && 'unsigned' || 'attested' }}-${{ github.sha }}
           path: |
             output/native-packages/*.tgz
             output/native-package-*-receipt.json
+          if-no-files-found: error
+          retention-days: 14
+
+  native-release-set:
+    name: Native release set
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: [rust, native-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+      - name: Download all attested native packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: memory-recall-native-*-attested-${{ github.sha }}
+          path: output/native-release
+          merge-multiple: true
+      - name: Validate exact native release set
+        run: node scripts/native-release-set.mjs validate --artifacts output/native-release --version "$(node -p "require('./package.json').version")" --commit "$GITHUB_SHA"
+      - name: Verify native provenance signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          while IFS= read -r -d '' artifact; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/rust.yml" \
+              --signer-digest "$GITHUB_SHA" \
+              --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners
+          done < <(find output/native-release -type f \( -name '*.tgz' -o -name 'native-package-*-receipt.json' \) -print0)
+      - name: Upload exact native release set
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-recall-native-release-set-${{ github.sha }}
+          path: output/native-release
           if-no-files-found: error
           retention-days: 14

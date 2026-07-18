@@ -36,6 +36,7 @@
 
 ### Changed
 
+- Stable npm publication is now native-first and fail-closed: one exact successful Rust run must supply all five checksum-verified packages and signed GitHub provenance, every native registry integrity must match, and only then can the root package publish. The lane remains local and unproven until the remote five-platform, SBOM, npm-provenance, and final release gates pass.
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
 - Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
 - Tier 1 documentation now names the 56 capability rows that meet the sampled Phase 2 floor and the 98 rows that remain unmeasured or not applicable. Python framework evidence is exact across the fixture and three distinct pinned FastAPI, Flask, and Django application sources. TypeScript, JavaScript, and Python have all applicable sampled Phase 2 rows at the floor; the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.

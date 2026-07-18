@@ -44,7 +44,7 @@ export function buildPublishedPackageJson(template, target) {
   });
 }
 
-export function buildNativeDistributionReceipt({ packageReport, commit, runner, tarballSha256, consumerGateResult }) {
+export function buildNativeDistributionReceipt({ packageReport, commit, runner, tarballSha256, consumerGateResult, packageAttestation = null }) {
   const expected = NATIVE_TARGETS[packageReport?.target];
   if (!expected) throw new Error('native distribution receipt target is unsupported');
   if (!/^[a-f0-9]{40}$/u.test(commit ?? '')) throw new Error('native distribution receipt commit must be a full Git SHA');
@@ -54,6 +54,12 @@ export function buildNativeDistributionReceipt({ packageReport, commit, runner, 
   if (!/^sha256:[a-f0-9]{64}$/u.test(packageReport?.binarySha256 ?? '')) throw new Error('native distribution receipt binary checksum is invalid');
   if (!/^sha256:[a-f0-9]{64}$/u.test(tarballSha256 ?? '')) throw new Error('native distribution receipt tarball checksum is invalid');
   if (consumerGateResult !== 'pass') throw new Error('native distribution receipt requires a passing consumer gate');
+  if (packageAttestation !== null) {
+    if (!/^[1-9][0-9]*$/u.test(packageAttestation.id ?? '')) throw new Error('native package attestation ID is invalid');
+    if (!/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/attestations\/[1-9][0-9]*$/u.test(packageAttestation.url ?? '')) {
+      throw new Error('native package attestation URL is invalid');
+    }
+  }
   const tarball = path.basename(packageReport.tarball ?? '');
   if (!tarball.endsWith('.tgz')) throw new Error('native distribution receipt tarball is invalid');
   if (packageReport.entryCount !== 5 || !Number.isInteger(packageReport.size) || packageReport.size <= 0
@@ -86,8 +92,13 @@ export function buildNativeDistributionReceipt({ packageReport, commit, runner, 
       result: consumerGateResult
     },
     artifactState: {
-      signed: false,
-      published: false
+      signed: packageAttestation !== null,
+      published: false,
+      signature: packageAttestation === null ? null : {
+        kind: 'github-sigstore-provenance',
+        attestationId: packageAttestation.id,
+        attestationUrl: packageAttestation.url
+      }
     }
   });
 }

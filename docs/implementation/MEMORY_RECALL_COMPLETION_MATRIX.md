@@ -2,7 +2,7 @@
 
 Snapshot date: 2026-07-18  
 Branch: `codex/memory-recall-orientation-workbench`  
-Commit inspected: `8cdfb7a`  
+Evidence baseline commit: `dc8fb91`
 Public registry observed: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
 This is the controlling proof ledger for the polyglot code-intelligence and stable-release goal. A green narrow test does not close a broader row. The original completion criteria remain unchanged.
@@ -52,15 +52,15 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| D-1 | Publish all five native packages before the root package. | Contradicted | `.github/workflows/npm-publish.yml` publishes only the root package. `.github/workflows/rust.yml` builds unsigned artifacts but does not publish them. | Add a gated five-target artifact/publish chain, verify all native versions from npm, then publish the root last. |
-| D-2 | No root package may reference unpublished native packages. | Contradicted | Root `optionalDependencies` references five `@memory-recall/native-*@1.1.1` packages; each package currently returns npm `E404`. The current publish workflow would publish the root alone. | Make root publication depend on registry verification of the exact five native versions. |
+| D-1 | Publish all five native packages before the root package. | Incomplete | The local Rust workflow now aggregates exactly five attested packages; the npm workflow publishes them in fixed order, verifies npm integrity, and reaches root publication only afterward. No remote run or publication is authorized or proven. | Run the exact five-target workflow at the frozen commit and prove the protected publication lane without bypass. |
+| D-2 | No root package may reference unpublished native packages. | Incomplete | Root `optionalDependencies` still references five `@memory-recall/native-*@1.1.1` packages that currently return npm `E404`. The local workflow now blocks root publication until those exact versions and tarball integrities are registry-visible. | Prove the guard in the remote protected workflow and publish no root until all five native packages pass it. |
 | D-3 | Root installation works without a Rust toolchain. | Incomplete | Darwin-arm64 packed consumer smoke passes without the legacy JS module and without Cargo/rustc. Four platform lanes and registry-shaped installation remain unproven. | Run the identical consumer smoke on all five native runners using the exact release artifacts. |
 | D-4 | Validate target OS, CPU, libc, binary version, and exact package contents. | Incomplete | `.github/workflows/rust.yml` defines five runner identities and validates tarball contents; only darwin-arm64 has a retained local receipt. | Obtain successful retained receipts from all five GitHub matrix jobs at the frozen commit. |
 | D-5 | Verify binary and tarball checksums. | Incomplete | Native manifests and receipts carry SHA-256; the matrix job checks the binary and records tarball SHA-256. Four remote receipts are missing. | Bind all five artifact checksums into release provenance and verify them before root publication. |
-| D-6 | Produce complete native provenance and SBOM. | Incomplete | Root release provenance hashes source documents; SBOM lists native package names but not native binary/tarball checksums, and provenance has no native package subjects. | Generate release provenance/SBOM from the five verified artifacts, including target, runner, source commit, binary hash, tarball hash, and signature state. |
-| D-7 | Sign supported native artifacts. | Missing | Native receipts explicitly record `signed: false`; no signing stage or verified signature exists. | Choose documented platform-appropriate signing/attestation, run it in protected CI, and verify signatures before publishing. |
+| D-6 | Produce complete native provenance and SBOM. | Incomplete | The local five-runner workflow now creates signed GitHub provenance for every native tarball and receipt and binds exact checksums into the aggregate release set. Native SBOM subjects are still absent, and no remote attestation exists. | Add and verify per-target SBOM subjects, then obtain all provenance from one successful frozen-commit run. |
+| D-7 | Sign supported native artifacts. | Incomplete | The local workflow uses `actions/attest@v4`; both the Rust aggregate and npm consumer verify exact repository, signer workflow, signer/source commit, and hosted runner. Remote attestations and any required platform code-signing proof remain absent. | Run the protected five-platform producer, retain the cryptographic attestations, and document whether macOS/Windows platform signing is additionally required. |
 | D-8 | Prove uninstall and clean reinstall. | Incomplete | Darwin-arm64 consumer smoke proves exact MCP entry removal, neighboring-config preservation, package removal, workspace-state preservation, and same-version reinstall. | Repeat on all five targets; add clean HOME install/uninstall/reinstall and cross-version upgrade/downgrade cases. |
-| D-9 | Publish checksums, provenance, and SBOM with the stable release. | Missing | Current workflow publishes only npm root and does not collect the native matrix artifacts. | Download all five verified artifacts into the protected release job and publish/attach the immutable evidence set. |
+| D-9 | Publish checksums, provenance, and SBOM with the stable release. | Incomplete | The local protected workflow now consumes one exact five-target artifact with signed provenance and checksum receipts. It does not yet bind native SBOMs or attach the immutable evidence set to a stable release. | Bind SBOMs, verify npm provenance after each publish, and attach the frozen evidence set only during the authorized stable release. |
 
 ## Fourteen-language support gate
 
@@ -169,7 +169,7 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 | 3 | Scalable index, watcher, and recovery. | Incomplete | Core SQLite lifecycle passes; cross-platform packaged migration/recovery and million-node scale do not. |
 | 4 | Search, communities, processes, routes, impact, query, and MCP. | Incomplete | Small deterministic fixture passes; real-repository and full budget/pagination proof is missing. |
 | 5 | Multi-repository and cross-service. | Incomplete | One Go cross-repo path and one monorepo fixture are insufficient. |
-| 6 | Signed npm distribution. | Contradicted | Five unsigned build lanes exist; publish workflow publishes only root and native packages are absent from npm. |
+| 6 | Signed npm distribution. | Incomplete | The local producer/consumer chain is native-first and verifies signed GitHub provenance; native npm packages, SBOM binding, remote five-platform proof, and publication remain absent. |
 | 7 | Polyglot large-repository UI. | Incomplete | Local UI slices exist; complete packaged native, large-repo, responsive, accessibility, and anti-slop gates are missing. |
 | 8 | Head-to-head benchmark and audits. | Missing | Only a fake-competitor one-fixture harness test exists; no full comparison receipt exists. |
 | 9 | Promote extra languages and formats. | Missing | Correctly deferred; no promotion gate has been run. |
@@ -178,7 +178,7 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| R-1 | Full Node CI on frozen implementation. | Incomplete | 801 tests, 208 protocol fixtures, and 144 evaluations passed at `8cdfb7a`; implementation is not frozen. | Run once more only after all required implementation is complete. |
+| R-1 | Full Node CI on frozen implementation. | Incomplete | 802 tests, 208 protocol fixtures, and 144 evaluations passed in the native-first distribution slice; implementation is not frozen. | Run once more only after all required implementation is complete. |
 | R-2 | Full Rust workspace on frozen implementation. | Incomplete | Full Rust workspace passed in the Python-route slice; implementation is not frozen. | Run at final freeze. |
 | R-3 | All five platform package jobs. | Missing | Workflow matrix exists; only darwin-arm64 is locally proven. | Run the GitHub `Rust` workflow `native-artifacts` matrix at the exact frozen commit and retain all receipts. |
 | R-4 | Security and CodeQL. | Incomplete | CodeQL workflow exists; no final frozen-commit result is recorded here. | Run CodeQL and security audit at the frozen commit and bind run URLs/SHAs to release evidence. |
@@ -189,7 +189,7 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 
 ## Fastest dependency order
 
-1. Fix D-1 and D-2 in the publish workflow and add a focused workflow contract test.
+1. Remote-prove D-1 and D-2 only after native SBOM and npm-provenance verification are bound into the release set.
 2. Finish the semantic-version compatibility audit before changing package versions.
 3. Close the 98 language rows without weakening gates.
 4. Prove Phase 4 workflows on real repositories, then general Phase 5.

@@ -18,14 +18,18 @@ on:
         options:
           - trusted-publishing
           - npm-token
+      native_run_id:
+        description: Successful Rust workflow run containing the exact attested native release set
+        required: true
+        type: string
 permissions:
+  actions: read
   contents: read
   id-token: write
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: npm-release
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -33,11 +37,12 @@ jobs:
           node-version: 22.14.0
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install -g npm@latest
+      - run: npm install -g npm@11.5.1
       - name: Validate manual confirmation
         env:
           INPUT_VERSION: ${{ inputs.version }}
           INPUT_CONFIRM: ${{ inputs.confirm }}
+          INPUT_NATIVE_RUN_ID: ${{ inputs.native_run_id }}
         run: |
           ACTUAL_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
           EXPECTED_CONFIRM="publish memory-recall@${ACTUAL_VERSION}"
@@ -49,12 +54,89 @@ jobs:
             echo "Confirmation must exactly match: $EXPECTED_CONFIRM" >&2
             exit 1
           fi
+          if ! printf '%s' "$INPUT_NATIVE_RUN_ID" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "native_run_id must be a positive GitHub Actions run ID" >&2
+            exit 1
+          fi
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run ci
       - run: npm run native:smoke
       - run: npm run consumer:smoke
       - run: npm run release:readiness:check
       - run: npm publish --access public --dry-run
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: npm-release
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install -g npm@11.5.1
+      - name: Verify exact successful Rust workflow run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_NATIVE_RUN_ID: ${{ inputs.native_run_id }}
+        shell: bash
+        run: |
+          RUN_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INPUT_NATIVE_RUN_ID")"
+          RUN_JSON="$RUN_JSON" node --input-type=module <<'NODE'
+          const run = JSON.parse(process.env.RUN_JSON);
+          const expected = {
+            repository: process.env.GITHUB_REPOSITORY,
+            commit: process.env.GITHUB_SHA,
+            workflow: '.github/workflows/rust.yml'
+          };
+          if (run.head_repository?.full_name !== expected.repository) throw new Error('native run repository mismatch');
+          if (run.path !== expected.workflow) throw new Error('native run workflow mismatch');
+          if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error('native run must be completed successfully');
+          if (run.head_sha !== expected.commit) throw new Error('native run commit mismatch');
+          if (!['push', 'workflow_dispatch'].includes(run.event)) throw new Error('native run event is not release eligible');
+          NODE
+      - name: Download exact native release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ inputs.native_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: memory-recall-native-release-set-${{ github.sha }}
+          path: output/native-release
+      - name: Validate complete signed native release set
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/native-release-set.mjs validate --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"
+      - name: Verify native provenance signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          while IFS= read -r -d '' artifact; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/rust.yml" \
+              --signer-digest "$GITHUB_SHA" \
+              --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners
+          done < <(find output/native-release -type f \( -name '*.tgz' -o -name 'native-package-*-receipt.json' \) -print0)
+      - name: Publish native packages
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          AUTH_MODE: ${{ inputs.auth_mode }}
+          NODE_AUTH_TOKEN: ${{ inputs.auth_mode == 'npm-token' && secrets.NPM_TOKEN || '' }}
+        run: node scripts/native-release-set.mjs publish-native --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" --auth-mode "$AUTH_MODE"
+      - name: Verify native packages on npm
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/native-release-set.mjs verify-registry --artifacts output/native-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"
+      - name: Dry-run root package after native registry verification
+        run: npm publish --access public --dry-run
       - name: Publish with npm Trusted Publishing
         if: ${{ inputs.auth_mode == 'trusted-publishing' }}
         run: npm publish --access public

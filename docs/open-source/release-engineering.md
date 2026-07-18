@@ -22,18 +22,30 @@ external writes.
 
 `.github/workflows/npm-publish.yml` is the maintainer publication lane for the
 public npm package. It is manual-only (`workflow_dispatch`), requires the exact
-`publish memory-recall@VERSION` confirmation text, runs CI, native smoke,
-consumer smoke, release-readiness verification, and an npm publish dry run before
-the real publish step, and uses the protected `npm-release` environment.
+`publish memory-recall@VERSION` confirmation text and the run ID of a successful
+`Rust` workflow for the same commit. The Rust run must produce all five native
+packages, signed GitHub provenance for every tarball and receipt, and one exact
+aggregate artifact. The protected `npm-release` job authenticates that run and
+the signer workflow, verifies the complete release set and its checksums, then
+publishes the five native packages in fixed order. It verifies every native
+version and npm integrity before it can dry-run or publish the root package.
+
+The validation job runs CI, native smoke, consumer smoke, release-readiness
+verification, and a root-package dry run. Both jobs use Node 22.14.0 and npm
+11.5.1 so validation and publication do not drift with `npm@latest`.
 
 Prefer npm Trusted Publishing. Configure npm with GitHub Actions as the trusted
 publisher for repository `rebel0789/Memory-Recall` and workflow filename
 `npm-publish.yml`, then run the workflow with `auth_mode=trusted-publishing`.
-This uses OIDC and does not require a long-lived npm token. If the maintainer
-chooses token auth for the first release, set the repository secret `NPM_TOKEN`
-and run the same workflow with `auth_mode=npm-token`.
+This uses OIDC and does not require a long-lived npm token. Each of the six npm
+packages must authorize `npm-publish.yml` and the `npm-release` environment as
+its trusted publisher. If the maintainer chooses token auth for the first
+release, set the repository secret `NPM_TOKEN` and run the same workflow with
+`auth_mode=npm-token`; the workflow requests npm provenance in token mode.
 
-The workflow does not create tags, sign artifacts, submit marketplace manifests,
-or publish from pull requests. Marketplace or plugin-registry submission remains
-blocked until target registry requirements are known and a maintainer approves
-the submission.
+The workflows do not create tags, submit marketplace manifests, publish from
+pull requests, or publish without the protected environment. GitHub provenance
+attestation is implemented, but the remote five-runner result, native SBOM
+binding, npm provenance verification, and stable publication remain unproven.
+Marketplace or plugin-registry submission remains blocked until target registry
+requirements are known and a maintainer approves the submission.
