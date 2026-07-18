@@ -215,3 +215,9 @@ pub struct GraphRoute {
     pub node_ids: Vec<String>,
     pub edge_ids: Vec<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GraphRoutes {
+    pub items: Vec<GraphRoute>,
+    pub truncated: bool,
+}

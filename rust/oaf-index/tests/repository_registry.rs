@@ -343,6 +343,29 @@ fn registers_and_searches_repositories_without_identity_collisions_or_read_write
 }
 
 #[test]
+fn repository_list_reports_when_the_requested_limit_omits_repositories() {
+    let fleet = tempdir().unwrap();
+    create_repository(fleet.path(), "repo-a");
+    create_repository(fleet.path(), "repo-b");
+    let mut registry =
+        RepositoryRegistry::open(fleet.path(), WORKSPACE_ID, ENGINE_VERSION).unwrap();
+    registry
+        .register("Repository A", "workspace://repo-a")
+        .unwrap();
+    registry
+        .register("Repository B", "workspace://repo-b")
+        .unwrap();
+    drop(registry);
+
+    let registry =
+        RepositoryRegistry::open_read_only(fleet.path(), WORKSPACE_ID, ENGINE_VERSION).unwrap();
+    let listed = registry.list(1).unwrap();
+
+    assert_eq!(listed.repositories.len(), 1);
+    assert!(listed.truncated);
+}
+
+#[test]
 fn rejects_invalid_bounds_and_roots_outside_the_fleet() {
     let fleet = tempdir().unwrap();
     let outside = tempdir().unwrap();

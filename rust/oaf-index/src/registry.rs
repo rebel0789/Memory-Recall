@@ -90,6 +90,13 @@ pub struct RepositorySearchOutput {
     pub opened_repository_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryListOutput {
+    pub repositories: Vec<RegisteredRepository>,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoRepositoryModule {
@@ -251,12 +258,17 @@ impl RepositoryRegistry {
         })
     }
 
-    pub fn list(&self, limit: usize) -> Result<Vec<RegisteredRepository>> {
+    pub fn list(&self, limit: usize) -> Result<RepositoryListOutput> {
         if !(1..=64).contains(&limit) {
             bail!("repository_list_limit_invalid");
         }
-        let rows = self.load_rows(limit, None)?;
-        Ok(rows.into_iter().map(|row| self.inspect_row(row)).collect())
+        let mut rows = self.load_rows(limit.saturating_add(1), None)?;
+        let truncated = rows.len() > limit;
+        rows.truncate(limit);
+        Ok(RepositoryListOutput {
+            repositories: rows.into_iter().map(|row| self.inspect_row(row)).collect(),
+            truncated,
+        })
     }
 
     pub fn search(

@@ -11,18 +11,58 @@ import { layoutFocusedGraph } from '../apps/web/graph-layout-worker.js';
 import { graphLabelBoxesOverlap, graphLabelPlacement, visibleGraphLabelIds } from '../apps/web/graph-viewport.js';
 
 test('Map query state round-trips through the URL', () => {
-  const state = parseMapUrl('http://127.0.0.1:4318/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24');
+  const state = parseMapUrl('http://127.0.0.1:4318/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24&offset=48');
   assert.deepEqual(state, {
     query: 'copytrading', group: 'apps/terminal', startName: 'execute',
-    changedLocator: 'src/trade.ts', depth: 3, limit: 24, advanced: true
+    changedLocator: 'src/trade.ts', depth: 3, limit: 24, offset: 48, advanced: true
   });
-  assert.equal(serializeMapUrl(state), '/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24');
+  assert.equal(serializeMapUrl(state), '/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24&offset=48');
 });
 
 test('Map request is exact, bounded, and cache-aware by default', () => {
   assert.deepEqual(buildMapRequest(parseMapUrl('/map?group=apps%2Fweb&changed=src%2Fapp.js')), {
-    locatorPrefix: 'apps/web', changedLocators: ['src/app.js'], depth: 2, limit: 20, sampleLimit: 50
+    locatorPrefix: 'apps/web', changedLocators: ['src/app.js'], depth: 2, limit: 20, offset: 0, sampleLimit: 50
   });
+});
+
+test('Map distinguishes query pagination from focused graph omissions', () => {
+  const report = mapPreviewFixture();
+  report.search = {
+    offset: 20,
+    limit: 20,
+    hasMore: true,
+    omittedCount: 1,
+    results: [{ id: 'sgnode_router', resultType: 'node', kind: 'symbol', label: 'router' }]
+  };
+  report.focus.omittedNodes = 7;
+  report.focus.omittedEdges = 9;
+  const html = renderSourceMap({ state: parseMapUrl('/map?query=router&offset=20'), report });
+  assert.match(html, /Query matches 21-21 on this page\. More matches are available\./u);
+  assert.match(html, /data-map-offset="0">Previous results/u);
+  assert.match(html, /data-map-offset="40">Next results/u);
+  assert.match(html, /7 nodes omitted/u);
+  assert.match(html, /9 relationships omitted/u);
+  assert.match(html, /focused map expands relationships separately/iu);
+});
+
+test('Map names an incomplete offset walk without presenting a false empty page', () => {
+  const report = mapPreviewFixture();
+  report.search = {
+    offset: 10_000,
+    reachedOffset: 8,
+    offsetIncomplete: true,
+    continuationCursor: `idxcur_${'a'.repeat(32)}`,
+    limit: 20,
+    hasMore: true,
+    results: []
+  };
+  const html = renderSourceMap({ state: parseMapUrl('/map?query=router&offset=10000'), report });
+  assert.match(html, /Query page incomplete/u);
+  assert.match(html, /requested offset 10,000 was not reached/u);
+  assert.match(html, /walk reached 8; this is not an empty result page/u);
+  assert.match(html, /Previous results/u);
+  assert.doesNotMatch(html, /Next results/u);
+  assert.doesNotMatch(html, /No query matches on this page/u);
 });
 
 test('Map failure keeps submitted values and diagnostic truth', () => {

@@ -67,6 +67,7 @@
         "stale": false
       }
     ],
+    "truncated": false,
     "nextCursor": null,
     "diagnostics": [],
     "safeguards": {

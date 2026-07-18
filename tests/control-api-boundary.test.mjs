@@ -11,7 +11,7 @@ import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
-import { createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
+import { buildNativeIndexSourceGraphPreview, createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
 
 const baseState = () => ({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] });
 
@@ -1200,6 +1200,190 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
   assert.equal(api.calls.compile, 0);
+});
+
+function nativeQueryNode(suffix, label) {
+  return {
+    id: `cinode_${suffix.repeat(32)}`,
+    kind: 'function',
+    label,
+    locator: `workspace://src/${label}.ts#L1-L1`,
+    confidence: 1,
+    generation: 1
+  };
+}
+
+function nativeReaderResult(overrides = {}) {
+  return {
+    schemaVersion: '1.0.0',
+    operation: 'index.query',
+    state: 'ready',
+    freshness: 'current',
+    indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+    repositoryIdentityHash: `sha256:${'a'.repeat(64)}`,
+    activeGeneration: 1,
+    engineVersion: 'test',
+    results: [],
+    relationships: [],
+    communities: [],
+    processes: [],
+    truncated: false,
+    nextCursor: null,
+    summary: { fileCount: 3, nodeCount: 3, edgeCount: 0, omittedCount: 0 },
+    measurements: { durationMs: 1 },
+    diagnostics: [],
+    health: { status: 'ready', repairRequired: false, lastSuccessfulRefreshAt: '2026-07-19T00:00:00.000Z' },
+    safeguards: { readOnly: true, localFilesWritten: 0 },
+    ...overrides
+  };
+}
+
+test('native source graph preview honors offset by walking opaque query cursors', async () => {
+  const cursorOne = `idxcur_${'1'.repeat(32)}`;
+  const cursorTwo = `idxcur_${'2'.repeat(32)}`;
+  const nodes = [
+    nativeQueryNode('a', 'pageOne'),
+    nativeQueryNode('b', 'pageTwo'),
+    nativeQueryNode('c', 'pageThree')
+  ];
+  const seenSearchCursors = [];
+  let selected = nodes[0];
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind, cursor }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult({ operation: 'index.query' });
+      if (kind === 'search') {
+        seenSearchCursors.push(cursor ?? null);
+        const index = cursor === cursorOne ? 1 : cursor === cursorTwo ? 2 : 0;
+        selected = nodes[index];
+        return nativeReaderResult({
+          operation: 'index.query',
+          results: [selected],
+          truncated: index < 2,
+          nextCursor: index === 0 ? cursorOne : index === 1 ? cursorTwo : null
+        });
+      }
+      if (kind === 'neighborhood') return nativeReaderResult({ operation: 'index.query', results: [selected] });
+      throw new Error(`unexpected native query kind: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 1,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.deepEqual(seenSearchCursors, [null, cursorOne, cursorTwo]);
+  assert.equal(preview.search.offset, 1);
+  assert.equal(preview.search.results.length, 1);
+  assert.equal(preview.search.results[0].label, 'pageTwo');
+  assert.equal(preview.search.hasMore, true);
+  assert.equal(preview.search.omittedCount, 1);
+});
+
+test('native source graph offset cursor walk is bounded and reports an incomplete offset', async () => {
+  let searchCalls = 0;
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      searchCalls += 1;
+      return nativeReaderResult({
+        results: [nativeQueryNode(String(searchCalls), `page${searchCalls}`)],
+        truncated: true,
+        nextCursor: `idxcur_${searchCalls.toString(16).padStart(32, '0')}`
+      });
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.equal(searchCalls, 8);
+  assert.equal(preview.search.offset, 10_000);
+  assert.equal(preview.search.reachedOffset, 8);
+  assert.equal(preview.search.offsetIncomplete, true);
+  assert.equal(preview.search.results.length, 0);
+  assert.equal(preview.search.hasMore, true);
+  assert.match(preview.search.continuationCursor, /^idxcur_[a-f0-9]{32}$/u);
+});
+
+test('native source graph offset cursor walk treats an exhausted eighth page as complete', async () => {
+  let searchCalls = 0;
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      searchCalls += 1;
+      return nativeReaderResult({
+        results: [nativeQueryNode(String(searchCalls), `page${searchCalls}`)],
+        truncated: searchCalls < 8,
+        nextCursor: searchCalls < 8 ? `idxcur_${searchCalls.toString(16).padStart(32, '0')}` : null
+      });
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.equal(searchCalls, 8);
+  assert.equal(preview.search.reachedOffset, 8);
+  assert.equal(preview.search.offsetIncomplete, false);
+  assert.equal(preview.search.hasMore, false);
+  assert.equal(preview.search.results.length, 0);
+});
+
+test('native source graph offset cursor walk aborts one slow provider call at the shared deadline', async () => {
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind, signal }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      return new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(Object.assign(new Error('cancelled'), { code: 'native_engine_cancelled' })), { once: true });
+      });
+    }
+  };
+  const startedAt = Date.now();
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert(Date.now() - startedAt < 2_500);
+  assert.equal(preview.search.offsetIncomplete, true);
+  assert.equal(preview.search.reachedOffset, 0);
+  assert.equal(preview.search.results.length, 0);
 });
 
 test('context graph preview route returns sanitized unavailable preview when source root disappears', async (t) => {

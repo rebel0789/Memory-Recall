@@ -193,7 +193,10 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 3 } } },
     { jsonrpc: '2.0', id: 14, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', direction: 'outbound', depth: 2, edgeKinds: ['calls'], limit: 10 } } },
     { jsonrpc: '2.0', id: 15, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['calls', 'calls'] } } },
-    { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['contains', 'defines', 'imports', 'exports', 're_exports', 'references', 'calls', 'constructs', 'inherits', 'implements', 'extends', 'mixes_in', 'extends_type', 'part_of', 'entry_point', 'handles_route', 'reads'] } } }
+    { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['contains', 'defines', 'imports', 'exports', 're_exports', 'references', 'calls', 'constructs', 'inherits', 'implements', 'extends', 'mixes_in', 'extends_type', 'part_of', 'entry_point', 'handles_route', 'reads'] } } },
+    { jsonrpc: '2.0', id: 17, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'src/index.ts', limit: 1 } } },
+    { jsonrpc: '2.0', id: 18, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', offset: 1, limit: 1 } } },
+    { jsonrpc: '2.0', id: 19, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 1 } } }
   ];
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
@@ -218,8 +221,15 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     assert.equal(source.kind, 'native-persistent-index-preview');
   }
   const architecture = JSON.parse(responses.find((entry) => entry.id === 3).result.content[0].text).data;
+  const indexStatus = JSON.parse(responses.find((entry) => entry.id === 4).result.content[0].text).data;
+  assert.equal(Number.isSafeInteger(indexStatus.omittedCount), true);
+  assert.equal(Array.isArray(indexStatus.diagnostics), true);
   const repeatedArchitecture = JSON.parse(responses.find((entry) => entry.id === 12).result.content[0].text).data;
   assert.equal(architecture.retrievalMethod, 'native_index_architecture');
+  assert.equal(typeof architecture.completeness.communities.truncated, 'boolean');
+  assert.equal(typeof architecture.completeness.processes.truncated, 'boolean');
+  assert.equal(typeof architecture.completeness.merged.truncated, 'boolean');
+  assert.equal(architecture.truncated, architecture.completeness.communities.truncated || architecture.completeness.processes.truncated || architecture.completeness.merged.truncated || architecture.groups.some((item) => item.truncated) || architecture.processes.some((item) => item.truncated));
   assert.match(architecture.groups[0].id, /^cicommunity_[a-f0-9]{32}$/u);
   assert.equal(architecture.groups[0].algorithmVersion, 'label-propagation-v1');
   assert(architecture.processes.some((item) => item.algorithmVersion === 'entry-path-v1'));
@@ -256,7 +266,11 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
       && searchResultIds.has(item.fromNodeId)
       && searchResultIds.has(item.toNodeId)
   )));
-  assert(JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
+  const context = JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data;
+  assert(context.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
+  assert.equal(typeof context.completeness.selection.truncated, 'boolean');
+  assert.equal(typeof context.completeness.neighborhood.truncated, 'boolean');
+  assert.equal(context.truncated, context.completeness.selection.truncated || context.completeness.neighborhood.truncated);
   const constrainedContext = JSON.parse(responses.find((entry) => entry.id === 14).result.content[0].text).data;
   assert.equal(constrainedContext.selected.label, 'main');
   assert.equal(constrainedContext.direction, 'outbound');
@@ -272,6 +286,32 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   )));
   assert(responses.find((entry) => entry.id === 15).error);
   assert(responses.find((entry) => entry.id === 16).error);
+  const offsetPage = JSON.parse(responses.find((entry) => entry.id === 18).result.content[0].text).data;
+  assert.equal(offsetPage.offset, 1);
+  assert.equal(offsetPage.reachedOffset, 1);
+  assert.equal(offsetPage.offsetIncomplete, false);
+  const offsetBaseline = JSON.parse(responses.find((entry) => entry.id === 19).result.content[0].text).data;
+  assert.notEqual(offsetPage.results[0].id, offsetBaseline.results[0].id);
+  const firstPage = JSON.parse(responses.find((entry) => entry.id === 17).result.content[0].text).data;
+  assert.equal(firstPage.results.length, 1);
+  assert.equal(firstPage.truncated, true);
+  assert.equal(firstPage.hasMore, true);
+  assert.match(firstPage.nextCursor, /^idxcur_[a-f0-9]{32}$/u);
+  const continued = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
+  ], {
+    encoding: 'utf8',
+    env,
+    input: [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'src/index.ts', limit: 1, cursor: firstPage.nextCursor } } }
+    ].map((request) => JSON.stringify(request)).join('\n')
+  });
+  assert.equal(continued.status, 0, continued.stderr);
+  const continuedResponses = continued.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  const secondPage = JSON.parse(continuedResponses.find((entry) => entry.id === 2).result.content[0].text).data;
+  assert.equal(secondPage.results.length, 1);
+  assert.notEqual(secondPage.results[0].id, firstPage.results[0].id);
   const routes = JSON.parse(responses.find((entry) => entry.id === 9).result.content[0].text).data;
   assert(routes.routes.some((item) => item.locator.includes('app/api/users/route.ts')));
   assert(routes.relationships.some((item) => item.kind === 'handles_route' && item.confidence > 0));

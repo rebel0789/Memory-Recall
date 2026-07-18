@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-5",
   "phase": 4,
-  "generatedAt": "2026-07-18T18:27:47.494Z",
+  "generatedAt": "2026-07-18T19:16:46.332Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -15,7 +15,7 @@
       "corpus://cirepo_typescript_nestjs_nest_cats_sample@7cdb8f498e7723f5e2e89b6befc693bf07f171b0#sample/01-cats-app/src",
       "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#."
     ],
-    "implementationFingerprint": "sha256:34c5db4167858cd7ca97eb10ac244e191bc6c9b736988b41527a51c3ea02a6dd",
+    "implementationFingerprint": "sha256:df8973b0f4ef9a3089d759a70fa8626548a75b513ae9c8f4746045e2c43d386c",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000,
@@ -47,40 +47,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 8.575,
-      "p50": 9.411,
-      "p95": 9.871,
-      "maximum": 9.871
+      "minimum": 9.43,
+      "p50": 9.88,
+      "p95": 11.045,
+      "maximum": 11.045
     },
     "processQueryWallMs": {
-      "minimum": 7.456,
-      "p50": 7.96,
-      "p95": 8.779,
-      "maximum": 8.779
+      "minimum": 7.844,
+      "p50": 8.384,
+      "p95": 9.349,
+      "maximum": 9.349
     },
     "routeQueryWallMs": {
-      "minimum": 7.165,
-      "p50": 7.55,
-      "p95": 7.608,
-      "maximum": 7.608
+      "minimum": 7.89,
+      "p50": 8.168,
+      "p95": 8.707,
+      "maximum": 8.707
     },
     "impactQueryWallMs": {
-      "minimum": 6.772,
-      "p50": 7.156,
-      "p95": 7.544,
-      "maximum": 7.544
+      "minimum": 7.433,
+      "p50": 8.404,
+      "p95": 10.476,
+      "maximum": 10.476
     },
     "searchQueryWallMs": {
-      "minimum": 6.506,
-      "p50": 6.933,
-      "p95": 7.394,
-      "maximum": 7.394
+      "minimum": 7.058,
+      "p50": 7.593,
+      "p95": 7.673,
+      "maximum": 7.673
     },
     "constrainedQueryWallMs": {
-      "minimum": 6.483,
-      "p50": 6.894,
-      "p95": 7.234,
-      "maximum": 7.234
+      "minimum": 7.109,
+      "p50": 7.779,
+      "p95": 8.275,
+      "maximum": 8.275
     },
     "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
@@ -239,14 +239,14 @@
           "databaseBytes": 3133440
         },
         "stageMs": {
-          "clone": 1.5,
-          "index": 202.8
+          "clone": 0.6,
+          "index": 218.9
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_010000000000000c0000000000000001",
-            "secondCursor": "idxcur_010000000000000c0000000000000002",
+            "firstCursor": "idxcur_010000000000000e0000000000000001",
+            "secondCursor": "idxcur_010000000000000e0000000000000002",
             "firstIds": [
               "cicommunity_04bfdc527917032c6d3002a7e2a9ebb4"
             ],
@@ -256,7 +256,7 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_020000000000000c0000000000000001",
+            "firstCursor": "idxcur_020000000000000e0000000000000001",
             "secondCursor": null,
             "firstIds": [
               "ciprocess_43fbb9f14b86a3dc1c406270e7e45c6d"
@@ -270,10 +270,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 31.859,
-              "p50": 32.548,
-              "p95": 33.858,
-              "maximum": 33.858
+              "minimum": 34.454,
+              "p50": 36.292,
+              "p95": 36.457,
+              "maximum": 36.457
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -284,20 +284,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 63493,
-            "deliveredTokensEstimate": 15874,
-            "nextCursor": "idxcur_010000000000000c0000000000000001",
+            "deliveredBytes": 63510,
+            "deliveredTokensEstimate": 15878,
+            "nextCursor": "idxcur_010000000000000e0000000000000001",
             "representative": "cinode_0378da1f6bfadd20b01b1e7b9a971686"
           },
           "processes": {
             "wallMs": {
-              "minimum": 22.658,
-              "p50": 22.835,
-              "p95": 22.885,
-              "maximum": 22.885
+              "minimum": 24.412,
+              "p50": 25.68,
+              "p95": 30.048,
+              "maximum": 30.048
             },
             "resultCount": 4,
             "locatedResultCount": 4,
@@ -308,20 +308,20 @@
             "processCount": 1,
             "processEvidenceCount": 1,
             "minimumProcessConfidence": 0.75,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3455,
-            "deliveredTokensEstimate": 864,
-            "nextCursor": "idxcur_020000000000000c0000000000000001",
+            "deliveredBytes": 3472,
+            "deliveredTokensEstimate": 868,
+            "nextCursor": "idxcur_020000000000000e0000000000000001",
             "representative": "cinode_0cb8000898fa010d505e94630c8ec314"
           },
           "routes": {
             "wallMs": {
-              "minimum": 26.471,
-              "p50": 27.616,
-              "p95": 28.94,
-              "maximum": 28.94
+              "minimum": 29.675,
+              "p50": 32.699,
+              "p95": 50.736,
+              "maximum": 50.736
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -332,20 +332,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 10089,
-            "deliveredTokensEstimate": 2523,
+            "deliveredBytes": 10106,
+            "deliveredTokensEstimate": 2527,
             "nextCursor": "idxcur_79e4a07c4aebe54a3d09b581b7a4793f",
             "representative": "cinode_01635e561cf1ec5ad44dec8ee56677de"
           },
           "impact": {
             "wallMs": {
-              "minimum": 22.514,
-              "p50": 22.692,
-              "p95": 22.808,
-              "maximum": 22.808
+              "minimum": 24.956,
+              "p50": 25.336,
+              "p95": 25.66,
+              "maximum": 25.66
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -359,17 +359,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 8043,
-            "deliveredTokensEstimate": 2011,
+            "deliveredBytes": 8061,
+            "deliveredTokensEstimate": 2016,
             "nextCursor": null,
             "representative": "cinode_17d0ff9a791f9e19c5ca0503b3cf94bc"
           },
           "search": {
             "wallMs": {
-              "minimum": 21.657,
-              "p50": 21.966,
-              "p95": 22.214,
-              "maximum": 22.214
+              "minimum": 23.885,
+              "p50": 24.233,
+              "p95": 24.802,
+              "maximum": 24.802
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -380,20 +380,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9852,
-            "deliveredTokensEstimate": 2463,
+            "deliveredBytes": 9869,
+            "deliveredTokensEstimate": 2468,
             "nextCursor": "idxcur_c843fa28d18c7bf0ff0db95bd6d49b48",
             "representative": "cinode_7b4f936297a554beba91dcf0ed7c08e1"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 21.765,
-              "p50": 21.882,
-              "p95": 21.926,
-              "maximum": 21.926
+              "minimum": 23.883,
+              "p50": 24.29,
+              "p95": 25.026,
+              "maximum": 25.026
             },
             "resultCount": 16,
             "locatedResultCount": 16,
@@ -407,17 +407,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 13223,
-            "deliveredTokensEstimate": 3306,
+            "deliveredBytes": 13241,
+            "deliveredTokensEstimate": 3311,
             "nextCursor": null,
             "representative": "cinode_0beb76c273c6d8d8d4a04772ecfdb13b"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 21.043,
-              "p50": 21.659,
-              "p95": 23.092,
-              "maximum": 23.092
+              "minimum": 22.953,
+              "p50": 23.565,
+              "p95": 24.222,
+              "maximum": 24.222
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -431,17 +431,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1713,
-            "deliveredTokensEstimate": 429,
+            "deliveredBytes": 1731,
+            "deliveredTokensEstimate": 433,
             "nextCursor": null,
             "representative": "cinode_3ff58ddf6b422e0222c23b05ff61118a"
           },
           "trace": {
             "wallMs": {
-              "minimum": 24.701,
-              "p50": 26.984,
-              "p95": 28.9,
-              "maximum": 28.9
+              "minimum": 24.758,
+              "p50": 25.224,
+              "p95": 26.311,
+              "maximum": 26.311
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -455,8 +455,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1713,
-            "deliveredTokensEstimate": 429,
+            "deliveredBytes": 1731,
+            "deliveredTokensEstimate": 433,
             "nextCursor": null,
             "representative": "cinode_3ff58ddf6b422e0222c23b05ff61118a"
           }
@@ -477,14 +477,14 @@
           "databaseBytes": 581632
         },
         "stageMs": {
-          "clone": 1.2,
-          "index": 33.4
+          "clone": 1.1,
+          "index": 31.8
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_010000000000000c0000000000000001",
-            "secondCursor": "idxcur_010000000000000c0000000000000002",
+            "firstCursor": "idxcur_010000000000000e0000000000000001",
+            "secondCursor": "idxcur_010000000000000e0000000000000002",
             "firstIds": [
               "cicommunity_78b6ee37571b9136fe9164a654be2ebb"
             ],
@@ -494,7 +494,7 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_020000000000000c0000000000000001",
+            "firstCursor": "idxcur_020000000000000e0000000000000001",
             "secondCursor": null,
             "firstIds": [
               "ciprocess_57696fa402005ab6d7c1a9e74f0f29d3"
@@ -508,10 +508,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 13.324,
-              "p50": 14.588,
-              "p95": 14.989,
-              "maximum": 14.989
+              "minimum": 12.056,
+              "p50": 12.834,
+              "p95": 13.619,
+              "maximum": 13.619
             },
             "resultCount": 64,
             "locatedResultCount": 64,
@@ -522,20 +522,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 57144,
-            "deliveredTokensEstimate": 14286,
-            "nextCursor": "idxcur_010000000000000c0000000000000001",
+            "deliveredBytes": 57161,
+            "deliveredTokensEstimate": 14291,
+            "nextCursor": "idxcur_010000000000000e0000000000000001",
             "representative": "cinode_01911b19660d26959a8efd3d1cfce814"
           },
           "processes": {
             "wallMs": {
-              "minimum": 10.94,
-              "p50": 11.18,
-              "p95": 12.002,
-              "maximum": 12.002
+              "minimum": 9.695,
+              "p50": 9.961,
+              "p95": 10.688,
+              "maximum": 10.688
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -546,20 +546,20 @@
             "processCount": 1,
             "processEvidenceCount": 1,
             "minimumProcessConfidence": 0.95,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2285,
-            "deliveredTokensEstimate": 572,
-            "nextCursor": "idxcur_020000000000000c0000000000000001",
+            "deliveredBytes": 2302,
+            "deliveredTokensEstimate": 576,
+            "nextCursor": "idxcur_020000000000000e0000000000000001",
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "routes": {
             "wallMs": {
-              "minimum": 9.111,
-              "p50": 9.773,
-              "p95": 9.892,
-              "maximum": 9.892
+              "minimum": 9.367,
+              "p50": 9.851,
+              "p95": 10.167,
+              "maximum": 10.167
             },
             "resultCount": 1,
             "locatedResultCount": 1,
@@ -573,17 +573,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1908,
-            "deliveredTokensEstimate": 477,
+            "deliveredBytes": 1926,
+            "deliveredTokensEstimate": 482,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "impact": {
             "wallMs": {
-              "minimum": 10.163,
-              "p50": 10.462,
-              "p95": 10.742,
-              "maximum": 10.742
+              "minimum": 10.026,
+              "p50": 10.682,
+              "p95": 11.673,
+              "maximum": 11.673
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -597,17 +597,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9831,
-            "deliveredTokensEstimate": 2458,
+            "deliveredBytes": 9849,
+            "deliveredTokensEstimate": 2463,
             "nextCursor": null,
             "representative": "cinode_0e7c6bbf03532714596098940f855246"
           },
           "search": {
             "wallMs": {
-              "minimum": 10.991,
-              "p50": 11.696,
-              "p95": 11.761,
-              "maximum": 11.761
+              "minimum": 11.616,
+              "p50": 12.121,
+              "p95": 12.761,
+              "maximum": 12.761
             },
             "resultCount": 43,
             "locatedResultCount": 43,
@@ -621,17 +621,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 11256,
-            "deliveredTokensEstimate": 2814,
+            "deliveredBytes": 11274,
+            "deliveredTokensEstimate": 2819,
             "nextCursor": null,
             "representative": "cinode_0e7c6bbf03532714596098940f855246"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 8.759,
-              "p50": 9.263,
-              "p95": 9.813,
-              "maximum": 9.813
+              "minimum": 9.942,
+              "p50": 10.38,
+              "p95": 10.99,
+              "maximum": 10.99
             },
             "resultCount": 3,
             "locatedResultCount": 3,
@@ -645,17 +645,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2246,
-            "deliveredTokensEstimate": 562,
+            "deliveredBytes": 2264,
+            "deliveredTokensEstimate": 566,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 8.95,
-              "p50": 9.702,
-              "p95": 9.749,
-              "maximum": 9.749
+              "minimum": 9.171,
+              "p50": 9.573,
+              "p95": 10.153,
+              "maximum": 10.153
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -669,17 +669,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1714,
-            "deliveredTokensEstimate": 429,
+            "deliveredBytes": 1732,
+            "deliveredTokensEstimate": 433,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "trace": {
             "wallMs": {
-              "minimum": 9.138,
-              "p50": 9.456,
-              "p95": 9.618,
-              "maximum": 9.618
+              "minimum": 9.599,
+              "p50": 10.149,
+              "p95": 10.219,
+              "maximum": 10.219
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -693,8 +693,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1714,
-            "deliveredTokensEstimate": 429,
+            "deliveredBytes": 1732,
+            "deliveredTokensEstimate": 433,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           }
@@ -715,14 +715,14 @@
           "databaseBytes": 23449600
         },
         "stageMs": {
-          "clone": 1.4,
-          "index": 1182.4
+          "clone": 0.6,
+          "index": 1231.9
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_010000000000000c0000000000000001",
-            "secondCursor": "idxcur_010000000000000c0000000000000002",
+            "firstCursor": "idxcur_010000000000000e0000000000000001",
+            "secondCursor": "idxcur_010000000000000e0000000000000002",
             "firstIds": [
               "cicommunity_5e29536b693bb51d359b3ccc893d38aa"
             ],
@@ -732,8 +732,8 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_020000000000000c0000000000000001",
-            "secondCursor": "idxcur_020000000000000c0000000000000002",
+            "firstCursor": "idxcur_020000000000000e0000000000000001",
+            "secondCursor": "idxcur_020000000000000e0000000000000002",
             "firstIds": [
               "ciprocess_c91901b93b627cc717d33cad02653203"
             ],
@@ -746,10 +746,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 149.904,
-              "p50": 152.347,
-              "p95": 155.241,
-              "maximum": 155.241
+              "minimum": 164.005,
+              "p50": 211.107,
+              "p95": 369.451,
+              "maximum": 369.451
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -760,20 +760,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 63426,
-            "deliveredTokensEstimate": 15857,
-            "nextCursor": "idxcur_010000000000000c0000000000000001",
+            "deliveredBytes": 63443,
+            "deliveredTokensEstimate": 15861,
+            "nextCursor": "idxcur_010000000000000e0000000000000001",
             "representative": "cinode_001290994686b1db518808b167fae09d"
           },
           "processes": {
             "wallMs": {
-              "minimum": 79.04,
-              "p50": 79.336,
-              "p95": 82.188,
-              "maximum": 82.188
+              "minimum": 92.653,
+              "p50": 96.824,
+              "p95": 117.617,
+              "maximum": 117.617
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -784,20 +784,20 @@
             "processCount": 1,
             "processEvidenceCount": 1,
             "minimumProcessConfidence": 0.95,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2673,
-            "deliveredTokensEstimate": 669,
-            "nextCursor": "idxcur_020000000000000c0000000000000001",
+            "deliveredBytes": 2691,
+            "deliveredTokensEstimate": 673,
+            "nextCursor": "idxcur_020000000000000e0000000000000001",
             "representative": "cinode_21887e5ac1043c0b9dccfe71b6d9c504"
           },
           "routes": {
             "wallMs": {
-              "minimum": 145.945,
-              "p50": 148.388,
-              "p95": 152.943,
-              "maximum": 152.943
+              "minimum": 159.501,
+              "p50": 169.596,
+              "p95": 182.665,
+              "maximum": 182.665
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -808,20 +808,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 12828,
-            "deliveredTokensEstimate": 3207,
+            "deliveredBytes": 12845,
+            "deliveredTokensEstimate": 3212,
             "nextCursor": "idxcur_6bd95ba9e00f8b374677f2eda6ac07c0",
             "representative": "cinode_0489d38ddca298b56649894d3415a024"
           },
           "impact": {
             "wallMs": {
-              "minimum": 91.486,
-              "p50": 92.552,
-              "p95": 92.979,
-              "maximum": 92.979
+              "minimum": 95.089,
+              "p50": 96.745,
+              "p95": 99.131,
+              "maximum": 99.131
             },
             "resultCount": 9,
             "locatedResultCount": 9,
@@ -835,17 +835,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 8921,
-            "deliveredTokensEstimate": 2231,
+            "deliveredBytes": 8939,
+            "deliveredTokensEstimate": 2235,
             "nextCursor": null,
             "representative": "cinode_13e4297cd1d3e24814e41b523fa59644"
           },
           "search": {
             "wallMs": {
-              "minimum": 79.082,
-              "p50": 81.182,
-              "p95": 82.597,
-              "maximum": 82.597
+              "minimum": 83.282,
+              "p50": 84.587,
+              "p95": 86.316,
+              "maximum": 86.316
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -856,20 +856,20 @@
             "processCount": 0,
             "processEvidenceCount": 0,
             "minimumProcessConfidence": null,
-            "truncated": false,
+            "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9633,
-            "deliveredTokensEstimate": 2409,
+            "deliveredBytes": 9650,
+            "deliveredTokensEstimate": 2413,
             "nextCursor": "idxcur_2f5e5a66a6ff671c26c874fc2b2374d3",
             "representative": "cinode_13e4297cd1d3e24814e41b523fa59644"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 83.557,
-              "p50": 84.828,
-              "p95": 91.428,
-              "maximum": 91.428
+              "minimum": 88.678,
+              "p50": 90.911,
+              "p95": 90.938,
+              "maximum": 90.938
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -883,17 +883,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3601,
-            "deliveredTokensEstimate": 901,
+            "deliveredBytes": 3619,
+            "deliveredTokensEstimate": 905,
             "nextCursor": null,
             "representative": "cinode_177744669b5a79cb4b3f1e8285f0b571"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 78.954,
-              "p50": 80.891,
-              "p95": 81.632,
-              "maximum": 81.632
+              "minimum": 84.642,
+              "p50": 88.052,
+              "p95": 94.033,
+              "maximum": 94.033
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -907,17 +907,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3601,
-            "deliveredTokensEstimate": 901,
+            "deliveredBytes": 3619,
+            "deliveredTokensEstimate": 905,
             "nextCursor": null,
             "representative": "cinode_177744669b5a79cb4b3f1e8285f0b571"
           },
           "trace": {
             "wallMs": {
-              "minimum": 84.74,
-              "p50": 85.246,
-              "p95": 90.424,
-              "maximum": 90.424
+              "minimum": 89.258,
+              "p50": 90.79,
+              "p95": 100.107,
+              "maximum": 100.107
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -931,8 +931,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2054,
-            "deliveredTokensEstimate": 514,
+            "deliveredBytes": 2072,
+            "deliveredTokensEstimate": 518,
             "nextCursor": null,
             "representative": "cinode_21887e5ac1043c0b9dccfe71b6d9c504"
           }
@@ -957,5 +957,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:30a41191d311a79a1a8b5da47f17373bc141a297a87251b9451199b977a91fc0"
+  "reportFingerprint": "sha256:b2f963a63df634d7ddc5931ae64755aff3bcfe8371c403d8a44c0fa7e0f8e373"
 }

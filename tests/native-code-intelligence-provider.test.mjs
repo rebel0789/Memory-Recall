@@ -166,11 +166,23 @@ test('native provider owns the bounded source-index lifecycle without mutating r
     depth: 1,
     limit: 10
   });
+  const boundedDependencies = await instance.queryIndex({
+    root,
+    workspaceId: 'ws_local',
+    kind: 'dependencies',
+    query: 'main',
+    direction: 'outbound',
+    depth: 1,
+    limit: 1
+  });
   assert.equal(status.state, 'ready');
+  assert.equal(status.truncated, false);
   assert.equal(doctor.health.status, 'ready');
+  assert.equal(doctor.truncated, false);
   assert(query.results.some((item) => item.label === 'main'));
   assert(search.results.some((item) => item.label === 'main'));
   assert(dependencies.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
+  assert.equal(boundedDependencies.truncated, true);
   assert.deepEqual(await indexSnapshot(indexPath), beforeReaders);
 
   const unchanged = await instance.refreshIndex({

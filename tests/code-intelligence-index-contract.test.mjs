@@ -50,6 +50,16 @@ test('source index lifecycle request and response contracts are closed and bound
   assert.equal(CODE_INTELLIGENCE_INDEX_LOCATOR, 'workspace://.local/source-index/index.v1.sqlite');
   assert.equal(requests.every((request) => validateJsonSchema(requestSchema, request).valid), true);
   assert.equal(responses.every((response) => validateJsonSchema(responseSchema, response).valid), true);
+  const reader = responses[1];
+  const { truncated: _truncated, ...withoutTruncation } = reader.result;
+  assert.equal(validateJsonSchema(responseSchema, {
+    ...reader,
+    result: withoutTruncation
+  }).valid, false);
+  assert.equal(validateJsonSchema(responseSchema, {
+    ...reader,
+    result: { ...reader.result, truncated: 'unknown' }
+  }).valid, false);
 });
 
 test('source index request contract rejects paths, SQL, unbounded reads, and accidental writer authority', async () => {

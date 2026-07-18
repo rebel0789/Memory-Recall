@@ -64,12 +64,14 @@ export function nativeStructuralRelationship(item) {
 }
 
 export function buildNativeIndexArchitecture(communityResult, processResult, limit) {
+  const mergedNodeCount = new Set([...processResult.results, ...communityResult.results].map((item) => item.id)).size;
   const processNodes = processResult.results.map(nativeStructuralNode);
   const communityNodes = communityResult.results.map(nativeStructuralNode);
   const nodes = uniqueById([...processNodes, ...communityNodes], 100);
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const processRelationships = (processResult.relationships ?? []).map(nativeStructuralRelationship);
   const communityRelationships = (communityResult.relationships ?? []).map(nativeStructuralRelationship);
+  const mergedRelationshipCount = new Set([...processRelationships, ...communityRelationships].map((item) => item.id)).size;
   const relationships = uniqueById([...processRelationships, ...communityRelationships], 100);
   const groups = (communityResult.communities ?? []).slice(0, limit).map((community) => ({
     id: community.id,
@@ -104,6 +106,21 @@ export function buildNativeIndexArchitecture(communityResult, processResult, lim
     .sort((left, right) => (degree.get(right.id)?.total ?? 0) - (degree.get(left.id)?.total ?? 0) || left.id.localeCompare(right.id))
     .slice(0, limit)
     .map((node) => ({ ...node, relationshipCount: degree.get(node.id).total }));
+  const communityLocallyTruncated = communityResult.results.length > 100
+    || (communityResult.communities ?? []).length > limit
+    || communityRelationships.length > 100;
+  const processLocallyTruncated = processResult.results.length > 100
+    || (processResult.processes ?? []).length > limit
+    || processRelationships.length > 100;
+  const completeness = {
+    communities: nativeResultCompleteness(communityResult, communityLocallyTruncated),
+    processes: nativeResultCompleteness(processResult, processLocallyTruncated),
+    merged: {
+      truncated: mergedNodeCount > 100 || mergedRelationshipCount > 100,
+      representedNodeLimit: 100,
+      representedRelationshipLimit: 100
+    }
+  };
   return {
     schemaVersion: '1.0.0',
     retrievalMethod: 'native_index_architecture',
@@ -122,8 +139,21 @@ export function buildNativeIndexArchitecture(communityResult, processResult, lim
     processes,
     nodes,
     relationships,
-    truncated: groups.some((group) => group.truncated) || processes.some((process) => process.truncated),
+    completeness,
+    truncated: completeness.communities.truncated
+      || completeness.processes.truncated
+      || completeness.merged.truncated
+      || groups.some((group) => group.truncated)
+      || processes.some((process) => process.truncated),
     source: nativeIndexSource(communityResult)
+  };
+}
+
+function nativeResultCompleteness(result, locallyTruncated = false) {
+  return {
+    truncated: Boolean(result?.truncated || result?.nextCursor || locallyTruncated),
+    nextCursor: result?.nextCursor ?? null,
+    locallyTruncated
   };
 }
 
@@ -158,11 +188,13 @@ export async function buildNativeIndexSourceGraphPreview({
   const focusSeed = normalizedQuery || startName || locatorPrefix || normalizedChanged[0] || null;
   const seedUsesLocator = Boolean(!normalizedQuery && !startName && (locatorPrefix || normalizedChanged[0]));
   const searchResult = focusSeed
-    ? await provider.queryIndex({
+    ? await queryNativeSearchPage({
+      provider,
       root,
       workspaceId,
-      kind: 'search',
       limit: boundedLimit,
+      offset: boundedOffset,
+      locatorPrefix,
       ...(seedUsesLocator ? { locator: normalizeLocator(focusSeed) } : { query: String(focusSeed).slice(0, 160) })
     })
     : null;
@@ -412,8 +444,6 @@ function processCommunities(architecture, ids, changedLocators) {
 
 function searchProjection(input, ids, graphFingerprint) {
   const results = (input.searchResult?.results ?? [])
-    .filter((item) => !input.locatorPrefix || item.locator?.startsWith(normalizeLocator(input.locatorPrefix)))
-    .slice(0, input.limit)
     .map((item) => {
       const node = sourceGraphNode(nativeStructuralNode(item), ids, input.workspaceId);
       return {
@@ -427,19 +457,80 @@ function searchProjection(input, ids, graphFingerprint) {
         reasonCodes: ['native_index_match']
       };
     });
-  const hasMore = Boolean(input.searchResult?.nextCursor);
+  const hasMore = input.searchResult?.hasMore === true;
+  const reachedOffset = input.searchResult?.reachedOffset ?? input.offset;
   return {
     schemaVersion: '1.0.0',
     workspaceId: input.workspaceId,
     graphFingerprint,
     retrievalMethod: 'source_graph_lexical',
-    queryFingerprint: fingerprint({ query: input.query, locatorPrefix: input.locatorPrefix }),
-    total: results.length + (hasMore ? 1 : 0),
+    queryFingerprint: fingerprint({ query: input.query, locatorPrefix: input.locatorPrefix, limit: input.limit, offset: input.offset }),
+    total: reachedOffset + results.length + (hasMore ? 1 : 0),
     limit: input.limit,
     offset: input.offset,
+    reachedOffset,
+    offsetIncomplete: input.searchResult?.offsetIncomplete === true,
+    continuationCursor: input.searchResult?.continuationCursor ?? null,
     hasMore,
     omittedCount: hasMore ? 1 : 0,
     results
+  };
+}
+
+async function queryNativeSearchPage({ provider, root, workspaceId, query, locator, locatorPrefix, limit, offset }) {
+  const targetCount = offset + limit + 1;
+  const matches = [];
+  const seenCursors = new Set();
+  const maxPageCalls = 8;
+  const controller = new AbortController();
+  const deadlineTimer = setTimeout(() => controller.abort(), 1_500);
+  let pageCalls = 0;
+  let cursor = null;
+  let lastResult = null;
+  try {
+    while (matches.length < targetCount && pageCalls < maxPageCalls && !controller.signal.aborted) {
+      const remaining = targetCount - matches.length;
+      pageCalls += 1;
+      let result;
+      try {
+        result = await provider.queryIndex({
+          root,
+          workspaceId,
+          kind: 'search',
+          limit: Math.min(100, Math.max(limit, remaining)),
+          ...(query ? { query } : {}),
+          ...(locator ? { locator } : {}),
+          ...(cursor ? { cursor } : {}),
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (controller.signal.aborted) break;
+        throw error;
+      }
+      lastResult = result;
+      matches.push(...(result.results ?? []).filter((item) => (
+        !locatorPrefix || item.locator?.startsWith(normalizeLocator(locatorPrefix))
+      )));
+      if (!result.nextCursor || seenCursors.has(result.nextCursor)) break;
+      seenCursors.add(result.nextCursor);
+      cursor = result.nextCursor;
+    }
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+  const walkStopped = controller.signal.aborted
+    || (pageCalls >= maxPageCalls && Boolean(lastResult?.nextCursor));
+  const offsetIncomplete = matches.length <= offset && (Boolean(lastResult?.nextCursor) || walkStopped);
+  const page = matches.slice(offset, offset + limit);
+  const hasMore = matches.length > offset + page.length || Boolean(lastResult?.nextCursor) || (walkStopped && matches.length < targetCount);
+  return {
+    ...(lastResult ?? {}),
+    results: page,
+    truncated: Boolean(lastResult?.truncated || hasMore),
+    hasMore,
+    offsetIncomplete,
+    reachedOffset: Math.min(offset, matches.length),
+    continuationCursor: offsetIncomplete ? lastResult?.nextCursor ?? cursor : null
   };
 }
 

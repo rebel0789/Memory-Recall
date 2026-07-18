@@ -206,6 +206,40 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
   assert.match(ignoredReaderBound.stderr, /--status does not accept --max-nodes/u);
 });
 
+test('graph index native query exposes and consumes an opaque continuation cursor', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-native-query-page-'));
+  writeFileSync(path.join(root, 'index.ts'), [
+    'export function pageMatchOne(){ return 1; }',
+    'export function pageMatchTwo(){ return 2; }',
+    'export function pageMatchThree(){ return 3; }'
+  ].join('\n'));
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary };
+  const run = (...args) => spawnSync(process.execPath, [
+    cli, 'graph', 'index', ...args, '--engine', 'native-preview', '--root', root
+  ], { encoding: 'utf8', env });
+
+  const built = run('--write', '--languages', 'typescript', '--format', 'json');
+  assert.equal(built.status, 0, built.stderr);
+  const first = run('--query', 'pageMatch', '--kind', 'search', '--limit', '1', '--format', 'json');
+  assert.equal(first.status, 0, first.stderr);
+  const firstReport = JSON.parse(first.stdout);
+  assert.equal(firstReport.results.length, 1);
+  assert.equal(firstReport.truncated, true);
+  assert.match(firstReport.nextCursor, /^idxcur_[a-f0-9]{32}$/u);
+
+  const second = run('--query', 'pageMatch', '--kind', 'search', '--limit', '1', '--cursor', firstReport.nextCursor, '--format', 'json');
+  assert.equal(second.status, 0, second.stderr);
+  const secondReport = JSON.parse(second.stdout);
+  assert.equal(secondReport.results.length, 1);
+  assert.notEqual(secondReport.results[0].id, firstReport.results[0].id);
+
+  const summary = run('--query', 'pageMatch', '--kind', 'search', '--limit', '1', '--format', 'summary');
+  assert.equal(summary.status, 0, summary.stderr);
+  assert.match(summary.stdout, /Results returned: 1/u);
+  assert.match(summary.stdout, /Query truncated: yes/u);
+  assert.match(summary.stdout, /Next cursor: idxcur_[a-f0-9]{32}/u);
+});
+
 test('graph help documents the explicit persistent index lifecycle', () => {
   const result = spawnSync(process.execPath, [cli, 'help', 'graph'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);

@@ -1119,7 +1119,8 @@ function bindCurrentSourceMap(root) {
   sourceMapCleanup=bindSourceMap(root,{
     report:sourceGraphResult,
     onSubmit:submitSourceGraph,
-    onRefresh:refreshSourceGraph
+    onRefresh:refreshSourceGraph,
+    onPage:pageSourceGraph
   });
 }
 
@@ -2970,6 +2971,7 @@ async function pinCurrentContextPack(event) {
 }
 
 async function submitSourceGraph(state){
+  state={...state,offset:0};
   const target=serializeMapUrl(state);
   const current=`${globalThis.location?.pathname??''}${globalThis.location?.search??''}`;
   if(target!==current)history.pushState({},'',target);
@@ -2977,6 +2979,16 @@ async function submitSourceGraph(state){
   await loadSourceMap(state);
   render();
   document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map loaded.';
+}
+
+async function pageSourceGraph(offset){
+  const state={...parseMapUrl(globalThis.location?.href),offset};
+  const target=serializeMapUrl(state);
+  history.pushState({},'',target);
+  document.querySelector('#live-status').textContent='Loading the requested query page.';
+  await loadSourceMap(state);
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Query page loaded.';
 }
 
 async function refreshSourceGraph(){

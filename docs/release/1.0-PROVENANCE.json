@@ -23,7 +23,7 @@
   "sourceHashes": {
     "package.json": "sha256:d46ef8897597bb0666a517cd6d80ce9b165b983ece8ba88d1226a2de3f8af5c7",
     "package-lock.json": "sha256:0bf6240c49921d2c4ccfe40378118874aae6c3e030022016d9d1179de779b06b",
-    "PROJECT_STATUS.json": "sha256:71d5f4aaac7661064037f89b4811f666b13cccb20bd6049a80930683fceadfa3",
+    "PROJECT_STATUS.json": "sha256:501f179161ab667d0d12cd014c55150b6fe60546d8321a3a1ac187e840d3561a",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "docs/usage/support-matrix.md": "sha256:423c282674d1a6b5e367aff6ccd863d95f02f3ac842f01ceb019b90d51696f92",

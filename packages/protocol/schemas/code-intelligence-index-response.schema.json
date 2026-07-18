@@ -202,7 +202,7 @@
         "result": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["responseSchemaVersion", "operation", "repositoryIdentityHash", "indexLocator", "storageSchemaVersion", "engineVersion", "state", "activeGeneration", "freshness", "health", "summary", "measurements", "results", "nextCursor", "diagnostics", "safeguards"],
+          "required": ["responseSchemaVersion", "operation", "repositoryIdentityHash", "indexLocator", "storageSchemaVersion", "engineVersion", "state", "activeGeneration", "freshness", "health", "summary", "measurements", "results", "truncated", "nextCursor", "diagnostics", "safeguards"],
           "properties": {
             "responseSchemaVersion": { "const": "1.0.0" },
             "operation": { "enum": ["index.status", "index.doctor", "index.query"] },
@@ -220,6 +220,7 @@
             "relationships": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/relationshipItem" } },
             "communities": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/communityProjection" } },
             "processes": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/processProjection" } },
+            "truncated": { "type": "boolean" },
             "nextCursor": { "type": ["string", "null"], "pattern": "^idxcur_[a-f0-9]{32}$" },
             "diagnostics": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/diagnostic" } },
             "safeguards": { "$ref": "#/$defs/readerSafeguards" }

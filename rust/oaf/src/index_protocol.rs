@@ -172,6 +172,7 @@ struct QueryOutput {
     communities: Option<Vec<Value>>,
     processes: Option<Vec<Value>>,
     next_cursor: Option<String>,
+    truncated: bool,
 }
 
 impl QueryOutput {
@@ -179,11 +180,13 @@ impl QueryOutput {
         results: Vec<Value>,
         relationships: Vec<Value>,
         next_cursor: Option<String>,
+        truncated: bool,
     ) -> Self {
         Self {
             results,
             relationships,
             next_cursor,
+            truncated,
             ..Self::default()
         }
     }
@@ -748,6 +751,7 @@ fn read_index(
         ensure_queryable(health.status)?;
         bail!("source_index_query_unavailable");
     }
+    let query_truncated = query_output.truncated;
     let mut response = success_frame(
         &request.request_id,
         if doctor {
@@ -773,6 +777,7 @@ fn read_index(
         true,
         response_diagnostics,
     );
+    response["result"]["truncated"] = Value::Bool(query_truncated);
     if query.is_some() {
         response["result"]["relationships"] = Value::Array(query_output.relationships);
         if let Some(communities) = query_output.communities {
@@ -1195,22 +1200,26 @@ fn execute_query(
         "exact" => {
             let query = query_seed(arguments)?;
             let page = index.find_exact_nodes(query, &bounds)?;
+            let truncated = page.next_cursor.is_some();
             let next = page.next_cursor.as_deref().and_then(node_cursor);
             Ok(QueryOutput::records(
                 nodes_to_results(page.items, index)?,
                 Vec::new(),
                 next,
+                truncated,
             ))
         }
         "search" => {
             let query = query_seed(arguments)?;
             let lexical = index.find_nodes(query, &bounds)?;
             if bounds.limit == 1 {
+                let truncated = lexical.next_cursor.is_some();
                 let next = lexical.next_cursor.as_deref().and_then(node_cursor);
                 return Ok(QueryOutput::records(
                     nodes_to_results(lexical.items, index)?,
                     Vec::new(),
                     next,
+                    truncated,
                 ));
             }
 
@@ -1219,9 +1228,7 @@ fn execute_query(
                 .items
                 .into_iter()
                 .next();
-            let top_exact_id = top_exact
-                .as_ref()
-                .map(|node| node.canonical_id.as_str());
+            let top_exact_id = top_exact.as_ref().map(|node| node.canonical_id.as_str());
             let mut lexical_nodes = lexical
                 .items
                 .into_iter()
@@ -1248,11 +1255,12 @@ fn execute_query(
                 .chain(lexical_nodes)
                 .filter(|node| seen_nodes.insert(node.canonical_id.clone()))
                 .collect::<Vec<_>>();
-            if nodes.len() == bounds.limit || has_lexical_continuation {
+            if has_lexical_continuation {
                 return Ok(QueryOutput::records(
                     nodes_to_results(nodes, index)?,
                     Vec::new(),
                     next,
+                    has_lexical_continuation,
                 ));
             }
 
@@ -1261,12 +1269,14 @@ fn execute_query(
                 .map(|node| node.canonical_id.clone())
                 .collect::<BTreeSet<_>>();
             let mut candidate_edges = BTreeMap::new();
+            let mut neighbor_truncated = false;
             for node in &nodes {
                 let page = index.dependency_edges(
                     &node.canonical_id,
                     EdgeDirection::Both,
                     &query_bounds_without_cursor(&bounds, bounds.limit),
                 )?;
+                neighbor_truncated |= page.next_cursor.is_some();
                 for edge in page.items {
                     candidate_edges.insert(edge.canonical_id.clone(), edge);
                 }
@@ -1316,6 +1326,7 @@ fn execute_query(
             let mut relationships = Vec::new();
             for (edge, neighbor_id) in neighbor_candidates {
                 if nodes.len() >= bounds.limit || relationships.len() >= bounds.limit {
+                    neighbor_truncated = true;
                     break;
                 }
                 if !seen_nodes.contains(&neighbor_id) {
@@ -1331,15 +1342,18 @@ fn execute_query(
                 nodes_to_results(nodes, index)?,
                 edges_to_results(relationships, index)?,
                 None,
+                neighbor_truncated,
             ))
         }
         "routes" => {
             let page = index.nodes_by_kind("route", &bounds)?;
-            let next = page.next_cursor.as_deref().and_then(node_cursor);
+            let route_page_truncated = page.next_cursor.is_some();
+            let mut relationship_truncated = false;
             let mut relationships = BTreeMap::new();
             for route in &page.items {
                 let remaining = bounds.limit.saturating_sub(relationships.len());
                 if remaining == 0 {
+                    relationship_truncated = true;
                     break;
                 }
                 let edges = index.dependency_edges(
@@ -1347,16 +1361,21 @@ fn execute_query(
                     EdgeDirection::Both,
                     &query_bounds_without_cursor(&bounds, remaining),
                 )?;
+                relationship_truncated |= edges.next_cursor.is_some();
                 for edge in edges.items {
                     if matches!(edge.kind.as_str(), "entry_point" | "handles_route") {
                         relationships.insert(edge.canonical_id.clone(), edge);
                     }
                 }
             }
+            let next = (!relationship_truncated)
+                .then(|| page.next_cursor.as_deref().and_then(node_cursor))
+                .flatten();
             Ok(QueryOutput::records(
                 nodes_to_results(page.items, index)?,
                 edges_to_results(relationships.into_values().collect(), index)?,
                 next,
+                route_page_truncated || relationship_truncated,
             ))
         }
         "neighborhood" => {
@@ -1371,10 +1390,12 @@ fn execute_query(
             } else {
                 index.neighborhood(&seed.canonical_id, &bounds)?
             };
+            let truncated = graph.truncated;
             Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
                 None,
+                truncated,
             ))
         }
         "dependencies" | "impact" => {
@@ -1398,10 +1419,12 @@ fn execute_query(
             } else {
                 index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?
             };
+            let truncated = graph.truncated;
             Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
                 None,
+                truncated,
             ))
         }
         "trace" => {
@@ -1417,9 +1440,10 @@ fn execute_query(
                 .next()
                 .context("source_index_trace_target_not_found")?;
             let routes = index.trace_routes(&from.canonical_id, &target.canonical_id, &bounds)?;
+            let mut truncated = routes.truncated;
             let mut nodes = BTreeMap::new();
             let mut edges = BTreeMap::new();
-            for route in routes {
+            for route in routes.items {
                 for node_id in route.node_ids {
                     if let Some(node) = index.node(&node_id)? {
                         nodes.insert(node.canonical_id.clone(), node);
@@ -1431,14 +1455,17 @@ fn execute_query(
                     }
                 }
             }
+            truncated |= nodes.len() > bounds.limit || edges.len() > bounds.limit;
             Ok(QueryOutput::records(
                 nodes_to_results(nodes.into_values().take(bounds.limit).collect(), index)?,
                 edges_to_results(edges.into_values().take(bounds.limit).collect(), index)?,
                 None,
+                truncated,
             ))
         }
         "communities" => {
             let projection = index.communities(&bounds)?;
+            let truncated = projection.truncated;
             let results = nodes_to_results(projection.nodes, index)?;
             let relationships = edges_to_results(projection.edges, index)?;
             let communities = projection_values(projection.items, &results, &relationships)?;
@@ -1447,11 +1474,13 @@ fn execute_query(
                 relationships,
                 communities: Some(communities),
                 next_cursor: projection.next_cursor.as_deref().and_then(node_cursor),
+                truncated,
                 ..QueryOutput::default()
             })
         }
         "processes" => {
             let projection = index.processes(&bounds)?;
+            let truncated = projection.truncated;
             let results = nodes_to_results(projection.nodes, index)?;
             let relationships = edges_to_results(projection.edges, index)?;
             let processes = projection_values(projection.items, &results, &relationships)?;
@@ -1460,6 +1489,7 @@ fn execute_query(
                 relationships,
                 processes: Some(processes),
                 next_cursor: projection.next_cursor.as_deref().and_then(node_cursor),
+                truncated,
                 ..QueryOutput::default()
             })
         }
@@ -2176,6 +2206,7 @@ mod tests {
         );
         assert_eq!(status["result"]["measurements"]["localFilesWritten"], 0);
         assert_eq!(status["result"]["safeguards"]["readOnly"], true);
+        assert_eq!(status["result"]["truncated"], false);
         assert!(!workspace.path().join(".local").exists());
     }
 
@@ -2224,6 +2255,26 @@ mod tests {
             .unwrap()
             .starts_with("workspace://src/index.ts#L"));
 
+        let full_lexical_page = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "search", "query": "main", "limit": 2 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(
+            full_lexical_page["result"]["results"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(full_lexical_page["result"]["truncated"], true);
+        assert_eq!(full_lexical_page["result"]["nextCursor"], Value::Null);
+
         let first_page = execute_request(
             parse_request(request(
                 "index.query",
@@ -2266,10 +2317,39 @@ mod tests {
             .collect::<BTreeSet<_>>();
         assert_eq!(
             combined_labels,
-            ["page", "pageUtility", "pageWorker"]
-                .into_iter()
-                .collect()
+            ["page", "pageUtility", "pageWorker"].into_iter().collect()
         );
+    }
+
+    #[test]
+    fn bounded_graph_query_reports_truncation_in_the_response() {
+        let workspace = tempdir().unwrap();
+        fs::create_dir_all(workspace.path().join("src")).unwrap();
+        fs::write(
+            workspace.path().join("src/index.ts"),
+            "export function entry(): number { return left() + right(); }\nexport function left(): number { return 1; }\nexport function right(): number { return 2; }\n",
+        )
+        .unwrap();
+        execute_request(
+            parse_request(request("index.build", writer_arguments())).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+
+        let response = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "dependencies", "query": "entry", "direction": "outbound", "depth": 1, "limit": 1 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+
+        assert_eq!(response["result"]["results"].as_array().unwrap().len(), 1);
+        assert_eq!(response["result"]["truncated"], true);
     }
 
     #[test]
@@ -2380,6 +2460,7 @@ mod tests {
         .unwrap();
         assert_eq!(build["result"]["operation"], "index.build");
         assert_eq!(build["result"]["state"], "ready");
+        assert!(build["result"].get("truncated").is_none());
         assert_eq!(build["result"]["safeguards"]["canonicalMemoryWrites"], 0);
         assert!(!build
             .to_string()

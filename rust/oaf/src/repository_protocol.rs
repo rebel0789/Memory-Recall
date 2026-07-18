@@ -284,8 +284,9 @@ fn execute_request(
         Operation::List(arguments) => {
             let registry =
                 RepositoryRegistry::open_read_only(root, &request.workspace_id, engine_version)?;
-            let repositories = registry
-                .list(arguments.limit)?
+            let output = registry.list(arguments.limit)?;
+            let repositories = output
+                .repositories
                 .into_iter()
                 .map(serde_json::to_value)
                 .collect::<serde_json::Result<Vec<_>>>()?;
@@ -296,7 +297,7 @@ fn execute_request(
                 Vec::new(),
                 Vec::new(),
                 false,
-                false,
+                output.truncated,
                 elapsed_ms(started),
                 0,
                 0,

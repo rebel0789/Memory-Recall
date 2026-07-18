@@ -12,6 +12,7 @@ export function parseMapUrl(input = '/map') {
   const changedLocator = boundedText(url.searchParams.get('changed'), 512);
   const depth = boundedInteger(url.searchParams.get('depth'), DEFAULT_DEPTH, 1, 5);
   const limit = boundedInteger(url.searchParams.get('limit'), DEFAULT_LIMIT, 1, 100);
+  const offset = boundedInteger(url.searchParams.get('offset'), 0, 0, 10000);
   return {
     query,
     group,
@@ -19,6 +20,7 @@ export function parseMapUrl(input = '/map') {
     changedLocator,
     depth,
     limit,
+    offset,
     advanced: Boolean(startName || changedLocator || depth !== DEFAULT_DEPTH || limit !== DEFAULT_LIMIT)
   };
 }
@@ -32,6 +34,7 @@ export function serializeMapUrl(value = {}) {
   if (state.changedLocator) params.set('changed', state.changedLocator);
   if (state.depth !== DEFAULT_DEPTH) params.set('depth', String(state.depth));
   if (state.limit !== DEFAULT_LIMIT) params.set('limit', String(state.limit));
+  if (state.offset > 0) params.set('offset', String(state.offset));
   const query = params.toString();
   return query ? `/map?${query}` : '/map';
 }
@@ -45,6 +48,7 @@ export function buildMapRequest(value = {}) {
     changedLocators: state.changedLocator ? [state.changedLocator] : null,
     depth: state.depth,
     limit: state.limit,
+    offset: state.offset,
     sampleLimit: 50
   });
 }
@@ -78,7 +82,7 @@ export function renderSourceMap({ state: value = {}, report = null, error = null
   </div>`;
 }
 
-export function bindSourceMap(root, { report = null, onSubmit, onRefresh, onSelectNode } = {}) {
+export function bindSourceMap(root, { report = null, onSubmit, onRefresh, onPage, onSelectNode } = {}) {
   if (!root) return () => {};
   const controller = new AbortController();
   const options = { signal: controller.signal };
@@ -88,6 +92,9 @@ export function bindSourceMap(root, { report = null, onSubmit, onRefresh, onSele
     onSubmit?.(mapStateFromForm(event.currentTarget), event);
   }, options);
   root.querySelector('[data-action="refresh-source-map"]')?.addEventListener('click', (event) => onRefresh?.(event), options);
+  root.querySelectorAll('[data-map-offset]').forEach((button) => button.addEventListener('click', () => {
+    onPage?.(boundedInteger(button.dataset.mapOffset, 0, 0, 10000));
+  }, options));
   const canvas = root.querySelector('#source-map-canvas');
   if (canvas) {
     const state = mapStateFromRoot(root);
@@ -158,12 +165,33 @@ function renderMapResult(report, state) {
   return `<section class="source-map-result" aria-labelledby="map-result-title">
     <header class="map-result-heading"><div><h2 id="map-result-title">${hasFocus ? 'Focused map' : 'Repository architecture'}</h2><p>${escapeHtml(coverage.summary)}</p></div>${snapshotLabel(report.snapshot)}</header>
     ${coverage.status === 'partial' ? renderCoverageWarning(coverage) : ''}
+    ${hasFocus ? renderQueryBounds(report.search, state) : ''}
     <div class="source-map-layout">
       <section class="source-map-stage" aria-label="${hasFocus ? 'Focused source relationships' : 'Repository group relationships'}">${content}</section>
       <aside class="source-map-inspector"><h2>Selection</h2><div id="source-map-selection">${renderSelection(outlineNodes[0])}</div><hr><h2>Source map outline</h2>${renderMapOutline(outlineNodes, hasFocus)}<hr>${renderSourceTruth(report, coverage)}</aside>
     </div>
     ${renderProcesses(processes)}
   </section>`;
+}
+
+function renderQueryBounds(search = {}, state) {
+  const count = arrayValue(search.results).length;
+  const offsetIncomplete = search.offsetIncomplete === true;
+  const reachedOffset = number(search.reachedOffset ?? state.offset);
+  const start = count ? reachedOffset + 1 : 0;
+  const end = reachedOffset + count;
+  const hasPrevious = state.offset > 0;
+  const hasMore = search.hasMore === true;
+  const copy = offsetIncomplete
+    ? `The requested offset ${formatNumber(state.offset)} was not reached within the bounded native read. The walk reached ${formatNumber(reachedOffset)}; this is not an empty result page.`
+    : count
+    ? `Query matches ${formatNumber(start)}-${formatNumber(end)} on this page.${hasMore ? ' More matches are available.' : ' End of the bounded query results.'}`
+    : hasPrevious
+      ? 'No query matches on this page. Previous results may still be available.'
+      : 'No query matches were returned.';
+  const previousOffset = Math.max(0, state.offset - state.limit);
+  const nextOffset = Math.min(10000, state.offset + state.limit);
+  return `<section class="map-graph-toolbar" aria-label="Query result bounds"><div><strong>${offsetIncomplete ? 'Query page incomplete' : 'Query result bounds'}</strong><p>${escapeHtml(copy)}</p><small>${offsetIncomplete ? 'Use the returned continuation cursor through the API, or request an earlier page.' : 'The focused map expands relationships separately; its omitted node and relationship counts appear below.'}</small></div><div>${hasPrevious ? `<button class="button quiet" type="button" data-map-offset="${previousOffset}">Previous results</button>` : ''}${!offsetIncomplete && hasMore && nextOffset > state.offset ? `<button class="button quiet" type="button" data-map-offset="${nextOffset}">Next results</button>` : ''}</div></section>`;
 }
 
 function renderArchitecture(groups, relations) {
@@ -269,8 +297,9 @@ function normalizeMapState(value) {
   const changedLocator = boundedText(value.changedLocator, 512);
   const depth = boundedInteger(value.depth, DEFAULT_DEPTH, 1, 5);
   const limit = boundedInteger(value.limit, DEFAULT_LIMIT, 1, 100);
+  const offset = boundedInteger(value.offset, 0, 0, 10000);
   return {
-    query, group, startName, changedLocator, depth, limit,
+    query, group, startName, changedLocator, depth, limit, offset,
     advanced: Boolean(startName || changedLocator || depth !== DEFAULT_DEPTH || limit !== DEFAULT_LIMIT)
   };
 }

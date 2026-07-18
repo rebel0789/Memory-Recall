@@ -415,7 +415,7 @@ function realRepositoryFailures(repositories) {
       if (!query) { failures.push(`${prefix}_${kind}_missing`); continue; }
       if (!query.deadlineMet) failures.push(`${prefix}_${kind}_deadline_failed`);
       if (!(query.deliveredBytes > 0 && query.deliveredTokensEstimate > 0)) failures.push(`${prefix}_${kind}_delivery_accounting_missing`);
-      if (query.truncated) failures.push(`${prefix}_${kind}_unexpected_truncation`);
+      if (query.truncated && !query.nextCursor) failures.push(`${prefix}_${kind}_truncation_cursor_missing`);
       if (query.resultCount === 0) failures.push(`${prefix}_${kind}_evidence_missing`);
       if (query.locatedResultCount !== query.resultCount) failures.push(`${prefix}_${kind}_locator_evidence_incomplete`);
       if (query.evidenceRelationshipCount !== query.relationshipCount) failures.push(`${prefix}_${kind}_relationship_evidence_incomplete`);

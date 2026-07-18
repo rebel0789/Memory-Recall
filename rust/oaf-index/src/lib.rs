@@ -915,7 +915,7 @@ impl SourceIndex {
         from_node_id: &str,
         to_node_id: &str,
         bounds: &QueryBounds,
-    ) -> Result<Vec<GraphRoute>> {
+    ) -> Result<GraphRoutes> {
         validate_query_bounds(bounds)?;
         validate_identifier(from_node_id)?;
         validate_identifier(to_node_id)?;
@@ -926,7 +926,8 @@ impl SourceIndex {
         }]);
         let max_queue = bounds.limit.saturating_mul(bounds.max_depth.max(1));
         let mut routes = Vec::new();
-        while let Some(route) = queue.pop_front() {
+        let mut truncated = false;
+        'search: while let Some(route) = queue.pop_front() {
             ensure_deadline(started, bounds)?;
             if route.edge_ids.len() >= bounds.max_depth {
                 continue;
@@ -935,11 +936,14 @@ impl SourceIndex {
                 .node_ids
                 .last()
                 .context("source_index_route_invalid")?;
-            let page = self.dependency_edges(
-                current,
-                EdgeDirection::Outgoing,
-                &QueryBounds::new(bounds.limit),
-            )?;
+            let mut edge_bounds = bounds.clone();
+            edge_bounds.limit = 100;
+            edge_bounds.cursor = None;
+            let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            edge_bounds.timeout_ms = bounds.timeout_ms.saturating_sub(elapsed_ms).max(1);
+            let page = self.dependency_edges(current, EdgeDirection::Outgoing, &edge_bounds)?;
+            ensure_deadline(started, bounds)?;
+            truncated |= page.next_cursor.is_some();
             for edge in page.items {
                 if route.node_ids.contains(&edge.target_id) {
                     continue;
@@ -949,12 +953,14 @@ impl SourceIndex {
                 candidate.edge_ids.push(edge.canonical_id);
                 if edge.target_id == to_node_id {
                     routes.push(candidate);
-                    if routes.len() >= bounds.limit {
-                        enforce_output_bound(&routes, bounds)?;
-                        return Ok(routes);
+                    if routes.len() > bounds.limit {
+                        truncated = true;
+                        break 'search;
                     }
                 } else if queue.len() < max_queue {
                     queue.push_back(candidate);
+                } else {
+                    truncated = true;
                 }
             }
         }
@@ -964,8 +970,14 @@ impl SourceIndex {
                 .cmp(&right.edge_ids.len())
                 .then_with(|| left.edge_ids.cmp(&right.edge_ids))
         });
-        enforce_output_bound(&routes, bounds)?;
-        Ok(routes)
+        routes.truncate(bounds.limit);
+        let result = GraphRoutes {
+            items: routes,
+            truncated,
+        };
+        ensure_deadline(started, bounds)?;
+        enforce_output_bound(&result, bounds)?;
+        Ok(result)
     }
 
     /// Returns a bounded induced graph slice grouped by deterministic label propagation.

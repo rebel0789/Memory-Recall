@@ -185,7 +185,7 @@
             "responseSchemaVersion": { "const": "1.0.0" },
             "operation": { "enum": ["repository.go.resolve", "repository.go.trace", "repository.go.impact"] },
             "registryLocator": { "const": "workspace://.local/source-index/registry.v1.sqlite" },
-            "state": { "const": "ready" },
+            "state": { "enum": ["ready", "partial"] },
             "repositories": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/repository" } },
             "results": { "type": "array", "maxItems": 0, "items": { "$ref": "#/$defs/qualifiedNode" } },
             "perRepository": { "type": "array", "maxItems": 0, "items": { "$ref": "#/$defs/perRepository" } },
@@ -193,8 +193,8 @@
             "goRelationships": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/goRelationship" } },
             "paths": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/goPath" } },
             "impactedNodes": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/qualifiedNode" } },
-            "partial": { "const": false },
-            "truncated": { "const": false },
+            "partial": { "type": "boolean" },
+            "truncated": { "type": "boolean" },
             "measurements": { "$ref": "#/$defs/measurements" },
             "safeguards": { "$ref": "#/$defs/safeguards" }
           }

@@ -3030,8 +3030,8 @@ async function graphIndexCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const allowedFlags = new Set(['--status', '--write', '--refresh', '--doctor', '--repair', '--query', '--watch', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
-  const valueFlags = new Set(['--query', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
+  const allowedFlags = new Set(['--status', '--write', '--refresh', '--doctor', '--repair', '--query', '--watch', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
+  const valueFlags = new Set(['--query', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
   const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
   if (unsupported.length) {
     console.error('graph index options are invalid');
@@ -3142,6 +3142,7 @@ async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format
           ...(option(values, '--locator') === null ? {} : { locator: option(values, '--locator') }),
           ...(option(values, '--direction') === null ? {} : { direction: option(values, '--direction') }),
           ...(option(values, '--depth') === null ? {} : { depth: strictIntegerOption(values, '--depth', 1) }),
+          ...(option(values, '--cursor') === null ? {} : { cursor: option(values, '--cursor') }),
           limit: strictIntegerOption(values, '--limit', 25)
         });
       }
@@ -3167,7 +3168,7 @@ function invalidGraphIndexModeOption(values, mode, engine) {
         ? new Set([...base, '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages', ...(mode === '--refresh' ? ['--watch'] : [])])
         : mode === '--repair'
           ? new Set([...base, '--confirm', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages'])
-          : new Set([...base, '--kind', '--locator', '--direction', '--depth', '--limit']);
+          : new Set([...base, '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor']);
   return values.find((value) => value.startsWith('--') && !allowed.has(value)) ?? null;
 }
 
@@ -3190,9 +3191,11 @@ function compactNativeGraphIndexReport(result) {
     nodeCount: result.summary.nodeCount,
     edgeCount: result.summary.edgeCount,
     unresolvedCount: result.summary.unresolvedCount,
+    omittedCount: result.summary.omittedCount,
     databaseBytes: result.summary.databaseBytes,
     measurements: result.measurements,
     results: result.results,
+    truncated: result.truncated,
     nextCursor: result.nextCursor,
     diagnostics: result.diagnostics,
     safeguards: result.safeguards
@@ -3263,6 +3266,13 @@ function graphIndexSafeguards({ localFilesWritten }) {
 
 function renderGraphIndexSummary(report) {
   const measurements = report.measurements ?? {};
+  const queryLines = report.command === 'graph index query'
+    ? [
+      `Results returned: ${report.results?.length ?? 0}`,
+      `Query truncated: ${report.truncated ? 'yes' : 'no'}`,
+      `Next cursor: ${report.nextCursor ?? 'none'}`
+    ]
+    : [];
   return [
     '# Source Graph Index',
     `Status: ${report.status}`,
@@ -3275,6 +3285,7 @@ function renderGraphIndexSummary(report) {
     `Changed: ${measurements.changedFileCount ?? 0}`,
     `Added: ${measurements.addedFileCount ?? 0}`,
     `Deleted: ${measurements.deletedFileCount ?? 0}`,
+    ...queryLines,
     `Raw source bodies stored: no`
   ].join('\n');
 }
@@ -6973,10 +6984,78 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         ...(argumentsValue.locator === undefined ? {} : { locator: argumentsValue.locator }),
         ...(argumentsValue.direction === undefined ? {} : { direction: argumentsValue.direction }),
         ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth }),
-        ...(argumentsValue.edgeKinds === undefined ? {} : { edgeKinds: argumentsValue.edgeKinds })
+        ...(argumentsValue.edgeKinds === undefined ? {} : { edgeKinds: argumentsValue.edgeKinds }),
+        ...(argumentsValue.cursor === undefined ? {} : { cursor: argumentsValue.cursor }),
+        ...(argumentsValue.signal === undefined ? {} : { signal: argumentsValue.signal })
       });
     } catch (error) {
       return actionableNativeReadError(error);
+    }
+  };
+  const nativeCompleteness = (result, locallyTruncated = false) => ({
+    truncated: Boolean(result?.truncated || result?.nextCursor || locallyTruncated),
+    nextCursor: result?.nextCursor ?? null,
+    locallyTruncated
+  });
+  const nativeQueryAtOffset = async (kind, argumentsValue, offset, limit) => {
+    if (offset === 0) return nativeQuery(kind, { ...argumentsValue, limit });
+    const maxPageCalls = 8;
+    const controller = new AbortController();
+    const deadlineTimer = setTimeout(() => controller.abort(), 1_500);
+    let pageCalls = 0;
+    let reachedOffset = 0;
+    let cursor = argumentsValue.cursor ?? null;
+    let lastResult = null;
+    const seenCursors = new Set(cursor ? [cursor] : []);
+    const incompleteResult = () => ({
+      ...(lastResult ?? {}),
+      results: [],
+      relationships: [],
+      truncated: true,
+      offsetIncomplete: true,
+      reachedOffset,
+      nextCursor: lastResult?.nextCursor ?? cursor
+    });
+    try {
+      while (reachedOffset < offset && pageCalls < maxPageCalls - 1 && !controller.signal.aborted) {
+        const skipLimit = Math.min(100, offset - reachedOffset);
+        try {
+          lastResult = await nativeQuery(kind, { ...argumentsValue, limit: skipLimit, ...(cursor ? { cursor } : {}), signal: controller.signal });
+        } catch (error) {
+          if (controller.signal.aborted) return incompleteResult();
+          throw error;
+        }
+        pageCalls += 1;
+        reachedOffset += lastResult.results?.length ?? 0;
+        if (reachedOffset >= offset) {
+          cursor = lastResult.nextCursor ?? null;
+          break;
+        }
+        if (!lastResult.nextCursor || seenCursors.has(lastResult.nextCursor)) break;
+        cursor = lastResult.nextCursor;
+        seenCursors.add(cursor);
+      }
+      if (reachedOffset < offset || controller.signal.aborted) return incompleteResult();
+      if (!cursor) {
+        return {
+          ...(lastResult ?? {}),
+          results: [],
+          relationships: [],
+          truncated: false,
+          offsetIncomplete: false,
+          reachedOffset,
+          nextCursor: null
+        };
+      }
+      try {
+        const result = await nativeQuery(kind, { ...argumentsValue, limit, cursor, signal: controller.signal });
+        return { ...result, offsetIncomplete: false, reachedOffset };
+      } catch (error) {
+        if (controller.signal.aborted) return incompleteResult();
+        throw error;
+      }
+    } finally {
+      clearTimeout(deadlineTimer);
     }
   };
   return [
@@ -7085,11 +7164,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           edgeKinds: { type: 'array', maxItems: 6, items: { type: 'string', enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
           locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 },
           limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
-          offset: { type: 'integer', minimum: 0, maximum: 10000, default: 0 }
+          offset: { type: 'integer', minimum: 0, maximum: 10000, default: 0 },
+          cursor: { type: 'string', pattern: '^idxcur_[a-f0-9]{32}$' }
         }
       },
       handler: async ({ arguments: args }) => {
-        const input = mcpMapArguments(args, ['query', 'repositoryIds', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset'], 'code.search');
+        const input = mcpMapArguments(args, ['query', 'repositoryIds', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset', 'cursor'], 'code.search');
         const query = mcpStructuralString(input.query, 'code.search query', { required: true, max: 512 });
         const repositoryIds = mcpRepositoryIds(input.repositoryIds, { min: 1, max: 8 });
         const nodeKinds = mcpStructuralKinds(input.nodeKinds, ['file', 'chunk', 'symbol', 'module']);
@@ -7097,10 +7177,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: repositoryIds ? 25 : 50, name: 'limit' });
         const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
+        const cursor = input.cursor === undefined ? null : mcpStructuralString(input.cursor, 'code.search cursor', { required: true, max: 39 });
+        if (cursor && !/^idxcur_[a-f0-9]{32}$/u.test(cursor)) throw new Error('code.search cursor is invalid');
         if (repositoryIds) {
           if (query.length > 160) throw new Error('native repository query exceeds 160 characters');
-          if (nodeKinds?.length || edgeKinds?.length || locatorPrefix || offset !== 0) {
-            throw new Error('code.search repository mode does not support local filters or offset');
+          if (nodeKinds?.length || edgeKinds?.length || locatorPrefix || offset !== 0 || cursor) {
+            throw new Error('code.search repository mode does not support local filters, offset, or cursor');
           }
           const provider = await requireNativeRepositoryProvider();
           const result = await provider.searchRepositories({
@@ -7120,11 +7202,14 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available in preview');
-          const result = await nativeQuery('search', { query, limit: Math.min(50, limit + offset) });
+          if (offset !== 0 && (nodeKinds?.length || locatorPrefix)) {
+            throw new Error('native code.search offset cannot be combined with local result filters; continue with nextCursor');
+          }
+          const result = await nativeQueryAtOffset('search', { query, ...(cursor ? { cursor } : {}) }, offset, limit);
           const results = result.results
             .filter((item) => nativeNodeMatchesKinds(item, nodeKinds))
             .filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix))
-            .slice(offset, offset + limit)
+            .slice(0, limit)
             .map(nativeStructuralNode);
           const resultIds = new Set(results.map((item) => item.id));
           const relationships = (result.relationships ?? [])
@@ -7133,9 +7218,23 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             .map(nativeStructuralRelationship);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.search', workspaceId, generatedAt: fixedNow(),
-            data: { query, results, relationships, resultCount: results.length, source: nativeIndexSource(result) }
+            data: {
+              query,
+              results,
+              relationships,
+              resultCount: results.length,
+              limit,
+              offset,
+              reachedOffset: result.reachedOffset ?? offset,
+              offsetIncomplete: result.offsetIncomplete === true,
+              truncated: Boolean(result.truncated || result.nextCursor),
+              hasMore: Boolean(result.nextCursor),
+              nextCursor: result.nextCursor,
+              source: nativeIndexSource(result)
+            }
           }));
         }
+        if (cursor) throw new Error('code.search cursor requires a current native index');
         const intelligence = await loadIntelligence();
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.search',
@@ -7203,6 +7302,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             .filter((item) => relatedIds.has(item.fromNodeId) && relatedIds.has(item.toNodeId))
             .filter((item) => !edgeKinds || edgeKinds.includes(item.kind))
             .map(nativeStructuralRelationship);
+          const completeness = {
+            selection: nativeCompleteness(selected),
+            neighborhood: nativeCompleteness(neighborhood)
+          };
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.context', workspaceId, generatedAt: fixedNow(),
             data: {
@@ -7210,6 +7313,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
               selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
               related,
               relationships,
+              completeness,
+              truncated: completeness.selection.truncated || completeness.neighborhood.truncated,
               ...(constrained ? { direction, depth, edgeKinds: edgeKinds ?? [] } : {}),
               source: nativeIndexSource(neighborhood)
             }
@@ -7261,9 +7366,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         if (selected.selection === 'native-preview') {
           if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
+          const completeness = nativeCompleteness(result);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.trace', workspaceId, generatedAt: fixedNow(),
-            data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
+            data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -7310,9 +7416,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query, direction, depth, limit });
+          const completeness = nativeCompleteness(result);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
-            data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
+            data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -7345,9 +7452,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const routes = result.results
             .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
             .map(nativeStructuralNode);
+          const completeness = nativeCompleteness(result);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.routes', workspaceId, generatedAt: fixedNow(),
-            data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
+            data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -7385,14 +7493,20 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const impact = [];
           for (const locator of changedLocators) {
             const result = await nativeQuery('impact', { query: locator, limit, depth: 2 });
-            impact.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship) });
+            impact.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
           }
+          const completeness = {
+            search: search ? nativeCompleteness(search) : null,
+            impact: impact.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor }))
+          };
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.map', workspaceId, generatedAt: fixedNow(),
             data: {
               sourceIndex: nativeIndexStatusData(status),
               search: search ? search.results.map(nativeStructuralNode) : [],
               impact,
+              completeness,
+              truncated: Boolean(completeness.search?.truncated || completeness.impact.some((item) => item.truncated)),
               memory: { status: 'use-memory.recall' },
               source: nativeIndexSource(status)
             }
@@ -7447,12 +7561,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const results = [];
           for (const locator of changedLocators) {
             const result = await nativeQuery('impact', { query: locator, depth, limit });
-            results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship) });
+            results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
           }
           const status = selected.status ?? await nativeStatus();
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.impact', workspaceId, generatedAt: fixedNow(),
-            data: { changedLocators, depth, results, source: nativeIndexSource(status) }
+            data: { changedLocators, depth, results, completeness: results.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor })), truncated: results.some((item) => item.truncated), source: nativeIndexSource(status) }
           }));
         }
         const payload = await buildMcpCodeImpactPayload({
@@ -8494,7 +8608,12 @@ function nativeIndexStatusData(result) {
     nodeCount: result.summary.nodeCount,
     edgeCount: result.summary.edgeCount,
     unresolvedCount: result.summary.unresolvedCount,
+    omittedCount: result.summary.omittedCount,
     databaseBytes: result.summary.databaseBytes,
+    diagnostics: (result.diagnostics ?? []).slice(0, 32).map((diagnostic) => ({
+      code: mcpSanitizeString(diagnostic.code, 80),
+      ...(Number.isSafeInteger(diagnostic.count) && diagnostic.count >= 0 ? { count: diagnostic.count } : {})
+    })),
     health: result.health,
     source: nativeIndexSource(result)
   };

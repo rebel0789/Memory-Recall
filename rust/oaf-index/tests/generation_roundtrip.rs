@@ -231,8 +231,9 @@ fn read_queries_are_stable_paginated_and_bounded() {
             &QueryBounds::new(10).with_depth(2),
         )
         .unwrap();
-    assert_eq!(routes.len(), 1);
-    assert_eq!(routes[0].node_ids, vec![caller, "node_one_callee"]);
+    assert_eq!(routes.items.len(), 1);
+    assert_eq!(routes.items[0].node_ids, vec![caller, "node_one_callee"]);
+    assert!(!routes.truncated);
 
     assert!(index.find_nodes("src", &QueryBounds::new(101)).is_err());
     assert!(index
@@ -241,6 +242,70 @@ fn read_queries_are_stable_paginated_and_bounded() {
     assert!(index
         .find_nodes("src", &QueryBounds::new(10).with_cursor("bad\0cursor"))
         .is_err());
+}
+
+#[test]
+fn trace_routes_reports_when_the_route_limit_omits_a_valid_path() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut input = sample_generation(
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "one",
+    );
+    let file = "workspace://src/one.ts";
+    for (canonical_id, qualified_name) in [
+        ("node_one_left", "src/one.ts::left"),
+        ("node_one_right", "src/one.ts::right"),
+        ("node_one_target", "src/one.ts::target"),
+    ] {
+        input.nodes.push(NodeRecord {
+            canonical_id: canonical_id.into(),
+            kind: "function".into(),
+            language_kind: "function".into(),
+            qualified_name: qualified_name.into(),
+            locator: file.into(),
+            start_line: 9,
+            end_line: 10,
+            content_hash: None,
+            visibility: "internal".into(),
+        });
+    }
+    for (canonical_id, source_id, target_id) in [
+        ("edge_one_left", "node_one_caller", "node_one_left"),
+        ("edge_one_right", "node_one_caller", "node_one_right"),
+        ("edge_left_target", "node_one_left", "node_one_target"),
+        ("edge_right_target", "node_one_right", "node_one_target"),
+    ] {
+        input.edges.push(EdgeRecord {
+            canonical_id: canonical_id.into(),
+            source_id: source_id.into(),
+            target_id: target_id.into(),
+            kind: "calls".into(),
+            locator: file.into(),
+            start_line: 9,
+            end_line: 9,
+            resolver: "memory-recall.typed-call".into(),
+            resolver_version: "0.1.0".into(),
+            confidence: 0.95,
+            resolution_class: "typed".into(),
+            stale: false,
+        });
+    }
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer.commit_generation(&input).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let routes = index
+        .trace_routes(
+            "node_one_caller",
+            "node_one_target",
+            &QueryBounds::new(1).with_depth(2),
+        )
+        .unwrap();
+
+    assert_eq!(routes.items.len(), 1);
+    assert!(routes.truncated);
 }
 
 #[test]
