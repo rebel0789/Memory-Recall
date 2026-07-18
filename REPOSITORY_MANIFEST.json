@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-18T12:20:20.383Z",
-  "fileCount": 1185,
-  "totalBytes": 9692101,
+  "generatedAt": "2026-07-18T12:24:43.473Z",
+  "fileCount": 1186,
+  "totalBytes": 9702721,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -912,8 +912,13 @@
     },
     {
       "path": "docs/implementation/MEMORY_RECALL_COMPLETION_MATRIX.md",
-      "bytes": 30635,
-      "sha256": "c3766e0c415c88e9575c0d269c99bb0b5620a48c9f445be7430ada7ae7726565"
+      "bytes": 32969,
+      "sha256": "3411388c61e842198d052e8773248f3d34f1cd1e5fa9ff60ade4eb4f2617a499"
+    },
+    {
+      "path": "docs/implementation/MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md",
+      "bytes": 8286,
+      "sha256": "35a548fc91762d7cf6e94c4c325486d59abcbf601319aa7357ff9c4fde232a19"
     },
     {
       "path": "docs/implementation/OAF-011-context-selection-note.md",

@@ -1,9 +1,14 @@
 # Memory Recall completion matrix
 
-Snapshot date: 2026-07-18  
-Branch: `codex/memory-recall-orientation-workbench`  
-Evidence baseline commit: `dc8fb91`
-Public registry observed: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
+Snapshot date: 2026-07-18
+
+Branch: `codex/memory-recall-orientation-workbench`
+
+Initial matrix commit: `dc8fb91`
+
+Current evidence commit: `7b4b1d07f8f68cbdc0e95a6365eaeb8129466984`
+
+Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
 This is the controlling proof ledger for the polyglot code-intelligence and stable-release goal. A green narrow test does not close a broader row. The original completion criteria remain unchanged.
 
@@ -20,8 +25,8 @@ This is the controlling proof ledger for the polyglot code-intelligence and stab
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| V-1 | Ship one normal stable release, not a beta, preview, RC, or partial package. | Incomplete | `package.json` says `1.1.1`; `PROJECT_STATUS.json` and release documents still call it a patch candidate/readiness artifact; no release is authorized. | Freeze the implementation, choose the stable version after compatibility audit, and pass every final gate before publication. |
-| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...HEAD` changes 343 files with 89,045 insertions and 2,391 deletions; `main` and npm are `1.1.0`, while the worktree is labeled `1.1.1`. | Audit every public CLI, MCP, schema, config, install, and output compatibility boundary. Use at least a minor version for backward-compatible feature expansion; use a major version if any public incompatibility remains. |
+| V-1 | Ship one normal stable release, not a beta, preview, RC, or partial package. | Incomplete | `package.json` says `1.1.1`; `PROJECT_STATUS.json` and release documents still call it a patch candidate/readiness artifact; no release is authorized. The compatibility audit rejects a patch and does not choose a replacement version. | Freeze the implementation, re-run the compatibility audit against the exact root tarball, choose the stable line, and pass every final gate before publication. |
+| V-2 | Do not treat the approximately 89,000-line expansion as an assumed patch. | Contradicted | `main...7b4b1d0` changes 350 files with 92,135 insertions and 2,436 deletions. The published baseline is `1.1.0`, while the worktree remains labeled `1.1.1`. `MEMORY_RECALL_SEMVER_COMPATIBILITY_AUDIT.md` identifies breaking distribution, MCP-config, Recall Map wire, default-engine, and shipped Rust-source contracts. | Restore or dual-serve every break before considering a minor line; otherwise use a major stable line after freeze. Do not choose or change the version yet. |
 | V-3 | Preserve the exact original completion criteria. | Proven | This matrix maps the approved polyglot design, the active goal, and the ten stable-release priorities without redefining success. | Keep this ledger current after each slice. |
 
 ## Product target
@@ -78,8 +83,8 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 | L-8 | Entry points are detected for applicable applications and frameworks. | Incomplete | Selected fixtures expose `entry_point`; there is no capability row or three-repository gate per language. | Define applicability and prove real entry points or explicit not-applicable results. |
 | L-9 | Framework routes are detected without documentation/example false positives. | Incomplete | Python FastAPI, Flask, and Django meet a narrow reviewed floor; other applicable language/framework rows are unmeasured. | Add framework-specific truth for applicable languages and explicit unsupported diagnostics elsewhere. |
 | L-10 | Configuration resources and build/package manifests are modeled. | Incomplete | Python config is measured; most config rows are unmeasured. | Define per-language applicability and add reviewed manifest/config truth. |
-| L-11 | Impact is correct for each language. | Incomplete | Phase 4 proves one local TypeScript fixture and Phase 5 one Go path; Phase 2 impact rows are unmeasured. | Prove forward/reverse impact with evidence and decoys on three repositories per applicable language. |
-| L-12 | Search, context, trace, dependencies, and processes work for each language. | Incomplete | Native provider and MCP contracts exist; Phase 4 is one four-file fixture. | Run the full workflow set on the per-language pinned corpus with bounded outputs and task-level truth. |
+| L-11 | Impact is correct for each language. | Incomplete | Phase 4 now runs bounded impact probes on exact pinned JavaScript, TypeScript, and Go repositories, and Phase 5 proves one Go path. These are evidence-bearing probes, not reviewed impact truth across fourteen languages; Phase 2 impact rows remain unmeasured. | Prove forward/reverse impact with evidence and decoys on three repositories per applicable language. |
+| L-12 | Search, context, trace, dependencies, and processes work for each language. | Incomplete | Native provider and MCP contracts exist. Phase 4 runs the workflow families on exact pinned Express, Nest cats-sample, and Gin scopes in addition to the four-file fixture. Eleven languages and task-level truth remain open, and three repositories total do not satisfy the per-language corpus gate. | Run the full workflow set on the per-language pinned corpus with bounded outputs and task-level truth. |
 | L-13 | Results are deterministic and contain no duplicate canonical symbols. | Incomplete | Phase 2 sampled graphs are deterministic with zero recorded duplicates; five repository scopes report omissions and 98 capability rows remain unmeasured. | Re-run determinism/duplicate checks for every completed capability and final packaged binaries. |
 | L-14 | Partial, unsupported, and not-applicable behavior is explicit. | Incomplete | Coverage diagnostics and unmeasured rows are explicit, but the 98 rows have not yet been resolved into supported, unsupported, or genuinely not-applicable outcomes. | Decide applicability row by row and prove the decision from language semantics and product behavior. |
 
@@ -106,11 +111,11 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| I-1 | Deterministic communities on real repositories. | Incomplete | Phase 4 proves `label-propagation-v1` on four files with four communities and a deterministic fingerprint. | Add reviewed community truth and stability metrics on representative pinned repositories and large repos. |
-| I-2 | Bounded entry-to-sink processes on real repositories. | Incomplete | Phase 4 proves one `entry-path-v1` route-to-listener process with complete evidence and minimum-confidence propagation. | Prove correct complete/incomplete paths, multiple entries/sinks, cycles, depth bounds, and language coverage on real repositories. |
-| I-3 | Hybrid local search. | Incomplete | Native exact, lexical, and one-hop structural search passes the local fixture; Phase 3 receipt binds hybrid search to three repositories but has no task-relevance comparison. | Add reviewed query sets, MRR/recall, lexical-only baseline, latency, pagination, and delivered-token measurements on real repositories. |
-| I-4 | Routes, impact, dependencies, trace, and safe graph queries. | Incomplete | Existing MCP tools and Phase 4 fixture prove bounded evidence-bearing projections; real-repository workflow truth is not complete. | Add identical real-repository queries with positive/negative truth and deadlines. |
-| I-5 | Evidence, confidence, pagination, token accounting, and deadlines. | Incomplete | Phase 4 proves relationship evidence, confidence propagation, read-only behavior, and a two-second deadline. Pagination and delivered-token accounting are not jointly proven across all queries. | Add continuation/cursor tests, token budgets, truncation truth, cancellation, and deadline enforcement per query family. |
+| I-1 | Deterministic communities on real repositories. | Incomplete | The Phase 4 receipt at `7b4b1d0` runs `label-propagation-v1` five times on exact pinned Express, Nest cats-sample, and Gin scopes (260 files, 4,564 nodes, 13,640 edges combined), records deterministic results, and proves two non-overlapping cursor pages for every repository. It does not contain reviewed community truth or large-repository stability evidence. | Add reviewed community truth and stability metrics on representative pinned repositories and large repos. |
+| I-2 | Bounded entry-to-sink processes on real repositories. | Incomplete | All three exact repositories return deterministic `entry-path-v1` processes with at least two nodes, canonical relationship evidence, confidence of at least 0.75, continuous pagination, and p95 latency below the two-second deadline. The receipt has no reviewed process ground truth and does not cover cycles, incomplete paths, varied sinks, or representative language breadth. | Prove correct complete/incomplete paths, multiple entries/sinks, cycles, depth bounds, and language coverage on real repositories. |
+| I-3 | Hybrid local search. | Incomplete | Native exact, lexical, and one-hop structural search passes the local fixture. Search is deterministic on Express, Nest, and Gin; each result has a workspace locator, all p95 values are below 74 ms, and receipts record delivered bytes/token estimates plus continuation where present. There is no reviewed relevance set, MRR/recall result, lexical-only comparison, or exact tokenizer measurement. | Add reviewed query sets, MRR/recall, lexical-only baseline, exercised search continuation, and exact delivered-token measurements on representative real repositories. |
+| I-4 | Routes, impact, dependencies, trace, and safe graph queries. | Incomplete | All three exact repositories run every query family deterministically under the two-second deadline. Dependencies, safe query, and trace must traverse at least one real relationship; every returned relationship carries canonical endpoints, locator evidence, and confidence. Generic seeds and the absence of reviewed positive/negative truth prevent a correctness claim. | Add identical real-repository queries with reviewed positive/negative truth, decoys, and deadlines across representative languages. |
+| I-5 | Evidence, confidence, pagination, token accounting, and deadlines. | Incomplete | The fixture proves relationship evidence, confidence propagation, and read queries preserving its SQLite bundle. All three real-repository runs prove located results, evidence-complete relationships, process evidence, community/process cursor continuity, per-query byte/token estimates, and two-second deadlines. Exact token accounting, token budgets, truncation truth, cancellation, and pagination for every query family remain unproven. | Add exact delivered-token accounting, budgets, truncation/cancellation cases, and continuation tests per query family. |
 | I-6 | Preserve exactly twelve MCP tools unless a distinct capability requires another. | Proven | MCP inventory and packed consumer smoke verify twelve read-only tools. Phase 4/5 reuse those tools. | Keep the inventory stable through final packaging. |
 
 ## Phase 5 multi-repository and cross-service intelligence
@@ -167,7 +172,7 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 | 1 | Unify Node and Rust. | Incomplete | Protocol/provider bridge exists; production still has duplicate JS intelligence and divergent defaults. |
 | 2 | Pass fourteen Tier 1 languages. | Incomplete | 56/154 rows meet floor; 98 remain unmeasured. |
 | 3 | Scalable index, watcher, and recovery. | Incomplete | Core SQLite lifecycle passes; cross-platform packaged migration/recovery and million-node scale do not. |
-| 4 | Search, communities, processes, routes, impact, query, and MCP. | Incomplete | Small deterministic fixture passes; real-repository and full budget/pagination proof is missing. |
+| 4 | Search, communities, processes, routes, impact, query, and MCP. | Incomplete | The deterministic fixture and exact pinned Express, Nest cats-sample, and Gin slices pass, including evidence-backed relationship traversal, community/process pagination, all required query families, delivery estimates, and deadlines. The receipt explicitly keeps `phase4IntelligenceProven: false`; reviewed correctness, representative language breadth, large repositories, exact token budgets, cancellation, and full pagination remain missing. |
 | 5 | Multi-repository and cross-service. | Incomplete | One Go cross-repo path and one monorepo fixture are insufficient. |
 | 6 | Signed npm distribution. | Incomplete | The local producer/consumer chain is native-first, transports one exact root tarball, and verifies signed GitHub provenance, file-complete SPDX predicates, npm integrity, and root plus native npm attestation bundles. Remote five-platform proof and publication remain absent. |
 | 7 | Polyglot large-repository UI. | Incomplete | Local UI slices exist; complete packaged native, large-repo, responsive, accessibility, and anti-slop gates are missing. |
@@ -178,7 +183,7 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| R-1 | Full Node CI on frozen implementation. | Incomplete | 802 tests, 208 protocol fixtures, and 144 evaluations passed in the native-first distribution slice; implementation is not frozen. | Run once more only after all required implementation is complete. |
+| R-1 | Full Node CI on frozen implementation. | Incomplete | 803 tests, 208 protocol fixtures, and 144 evaluations passed at `7b4b1d0`; implementation is not frozen. | Run once more only after all required implementation is complete. |
 | R-2 | Full Rust workspace on frozen implementation. | Incomplete | Full Rust workspace passed in the Python-route slice; implementation is not frozen. | Run at final freeze. |
 | R-3 | All five platform package jobs. | Missing | Workflow matrix exists; only darwin-arm64 is locally proven. | Run the GitHub `Rust` workflow `native-artifacts` matrix at the exact frozen commit and retain all receipts. |
 | R-4 | Security and CodeQL. | Incomplete | CodeQL workflow exists; no final frozen-commit result is recorded here. | Run CodeQL and security audit at the frozen commit and bind run URLs/SHAs to release evidence. |
@@ -189,12 +194,11 @@ Phase 2 currently reports 56 `meets-floor` rows and 98 `unmeasured` rows. No row
 
 ## Fastest dependency order
 
-1. Remote-prove the exact root plus five-native artifact chain from one frozen commit.
-2. Finish the semantic-version compatibility audit before changing package versions.
-3. Close the 98 language rows without weakening gates.
-4. Prove Phase 4 workflows on real repositories, then general Phase 5.
-5. Profile and fix the million-node cold build within the existing timeout.
-6. Promote packaged Rust across CLI/MCP/API/web; delete JS intelligence only after proof.
-7. Complete the large-repository browser and anti-slop gates.
-8. Run the real identical-corpus comparison.
-9. Freeze implementation, choose the stable version, obtain five platform receipts, run final audits, and only then request publication authorization.
+1. Keep the local root-plus-five-native artifact chain guarded; defer its remote five-platform run until the implementation is frozen.
+2. Close the 98 language rows without weakening gates.
+3. Finish reviewed Phase 4 correctness on real repositories, then general Phase 5.
+4. Profile and fix the million-node cold build within the existing timeout.
+5. Promote packaged Rust across CLI/MCP/API/web; delete JS intelligence only after proof.
+6. Complete the large-repository browser and anti-slop gates.
+7. Run the real identical-corpus comparison.
+8. Freeze implementation, re-run this semantic-version audit against the exact tarball, choose the stable version, obtain five platform receipts, run final audits, and only then request publication authorization.
