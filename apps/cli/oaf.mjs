@@ -42,7 +42,7 @@ import {
   evaluateMemoryWrite,
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
-import { buildRecallMap, buildRecallMapMemorySummary } from '../../packages/recall-map/src/index.mjs';
+import { buildRecallMapMemorySummary } from '../../packages/recall-map/src/index.mjs';
 import {
   assertSemanticProposalSourcesCurrent,
   assertSemanticSourceBindingsCurrent,
@@ -74,20 +74,9 @@ import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-  buildArchitectureIntelligence,
-  buildCodeContextIntelligence,
-  buildCodeDependenciesIntelligence,
-  buildCodeRoutesIntelligence,
-  buildCodeSearchIntelligence,
-  buildCodeTraceIntelligence,
   buildNativeIndexArchitecture,
   buildNativeIndexSourceGraphPreview,
-  buildPersistentSourceGraphIndex,
-  buildSourceGraphIntelligence,
-  readPersistentSourceGraphIndexStatus,
-  readSourceGraphIndexStatus,
-  refreshPersistentSourceGraphIndex,
-  buildSourceGraphPreview,
+  buildUnavailableSourceGraphPreview,
   nativeIndexReadyForAutomaticRead,
   nativeIndexSource,
   nativeStructuralNode,
@@ -3048,61 +3037,23 @@ async function graphIndexCommand(values) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const requestedEngine = option(values, '--engine') ?? 'native';
-  if (!['native', 'native-preview', 'compatibility'].includes(requestedEngine)) {
-    console.error('graph index --engine must be native, native-preview, or compatibility');
+  if (!['auto', 'native', 'native-preview'].includes(requestedEngine)) {
+    console.error('graph index --engine must be native, native-preview, or auto');
     process.exitCode = 2;
     return;
   }
-  const engine = requestedEngine === 'native-preview' ? 'native' : requestedEngine;
-  const invalidForMode = invalidGraphIndexModeOption(values, modes[0], engine);
+  const invalidForMode = invalidGraphIndexModeOption(values, modes[0]);
   if (invalidForMode) {
     console.error(`graph index ${modes[0]} does not accept ${invalidForMode}`);
     process.exitCode = 2;
     return;
   }
-  if (engine === 'native') {
-    if (option(values, '--out')) {
-      console.error('native source index uses the fixed workspace-local index path');
-      process.exitCode = 2;
-      return;
-    }
-    return nativeGraphIndexCommand(values, { mode: modes[0], root, workspaceId, format, watch });
-  }
-  if (['--doctor', '--repair', '--query'].includes(modes[0])) {
-    console.error(`${modes[0]} requires --engine native`);
+  if (option(values, '--out')) {
+    console.error('native source index uses the fixed workspace-local index path');
     process.exitCode = 2;
     return;
   }
-  const relativePath = option(values, '--out') ?? '.local/source-graph/index.v1.json';
-  const indexOptions = {
-    root,
-    workspaceId,
-    relativePath,
-    maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-    maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
-    clock: fixedNow
-  };
-  try {
-    if (modes[0] === '--status') {
-      const status = await readPersistentSourceGraphIndexStatus(indexOptions);
-      const report = { command: 'graph index status', ...status, safeguards: graphIndexSafeguards({ localFilesWritten: 0 }) };
-      console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphIndexSummary(report));
-      return;
-    }
-    const execute = async () => {
-      const result = modes[0] === '--write'
-        ? await buildPersistentSourceGraphIndex(indexOptions)
-        : await refreshPersistentSourceGraphIndex(indexOptions);
-      const report = compactGraphIndexReport(result);
-      console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphIndexSummary(report));
-      return report;
-    };
-    await execute();
-    if (watch) await watchGraphIndex({ root: path.resolve(root), execute, engine });
-  } catch (error) {
-    console.error(error?.code === 'source_graph_index_invalid' ? 'source_graph_index_invalid' : error.message);
-    process.exitCode = 2;
-  }
+  return nativeGraphIndexCommand(values, { mode: modes[0], root, workspaceId, format, watch });
 }
 
 async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format, watch }) {
@@ -3160,11 +3111,9 @@ async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format
   }
 }
 
-function invalidGraphIndexModeOption(values, mode, engine) {
+function invalidGraphIndexModeOption(values, mode) {
   const base = new Set([mode, '--root', '--workspace', '--format', '--engine']);
-  const allowed = engine === 'compatibility'
-    ? new Set([...base, '--out', '--max-files', '--max-file-bytes', ...(mode === '--refresh' ? ['--watch'] : [])])
-    : mode === '--status' || mode === '--doctor'
+  const allowed = mode === '--status' || mode === '--doctor'
       ? base
       : mode === '--write' || mode === '--refresh'
         ? new Set([...base, '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages', ...(mode === '--refresh' ? ['--watch'] : [])])
@@ -3238,34 +3187,6 @@ function renderGraphRepositoriesSummary(report) {
   ].join('\n');
 }
 
-function compactGraphIndexReport(result) {
-  return {
-    schemaVersion: result.schemaVersion,
-    command: 'graph index',
-    status: result.status,
-    indexLocator: result.indexLocator,
-    graph: {
-      fingerprint: result.graph.graphFingerprint,
-      nodeCount: result.graph.nodes.length,
-      edgeCount: result.graph.edges.length
-    },
-    measurements: result.measurements,
-    safeguards: graphIndexSafeguards({ localFilesWritten: result.measurements.localFilesWritten ?? 1 })
-  };
-}
-
-function graphIndexSafeguards({ localFilesWritten }) {
-  return {
-    readOnly: localFilesWritten === 0,
-    localFilesWritten,
-    networkCalls: 0,
-    modelCalls: 0,
-    externalWritesEnabled: false,
-    rawSourceBodiesIncluded: false,
-    absoluteFilesystemLocationsIncluded: false
-  };
-}
-
 function renderGraphIndexSummary(report) {
   const measurements = report.measurements ?? {};
   const queryLines = report.command === 'graph index query'
@@ -3292,7 +3213,7 @@ function renderGraphIndexSummary(report) {
   ].join('\n');
 }
 
-async function watchGraphIndex({ root, execute, engine = 'compatibility' }) {
+async function watchGraphIndex({ root, execute, engine = 'native' }) {
   let timer = null;
   let running = false;
   let pending = false;
@@ -3348,6 +3269,16 @@ async function recallMapCommand(values) {
       changedLocators,
       query: options.query,
       sqliteLocator: options.sqliteLocator,
+      sourceGraphPreviewBuilder: async (previewOptions) => {
+        try {
+          return await buildCurrentNativeSourceGraphPreview(previewOptions);
+        } catch (error) {
+          return buildUnavailableSourceGraphPreview({
+            ...previewOptions,
+            errorCode: String(error?.code ?? error?.message ?? 'native_index_unavailable')
+          });
+        }
+      },
       clock: fixedNow
     });
     if (options.format === 'json') {
@@ -3358,7 +3289,7 @@ async function recallMapCommand(values) {
       console.log(renderRecallMapSummary({ command: 'recall map', ...map }));
     }
   } catch (error) {
-    console.error(error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
@@ -3569,76 +3500,40 @@ async function graphPreviewBackedCommand(values, {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const requestedEngine = option(values, '--engine') ?? 'native';
-  if (!['auto', 'native', 'native-preview', 'compatibility'].includes(requestedEngine)) {
-    console.error('graph --engine must be native, native-preview, auto, or compatibility');
+  if (!['auto', 'native', 'native-preview'].includes(requestedEngine)) {
+    console.error('graph --engine must be native, native-preview, or auto');
     process.exitCode = 2;
     return;
   }
   try {
-    const maxFiles = strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
-    const maxFileBytes = strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES);
-    const selected = await selectGraphReadEngine({ requestedEngine });
-    const engine = selected.selection;
-    let preview;
-    if (engine === 'native') {
-      const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
-      const provider = new RustCodeIntelligenceProvider();
-      const status = await provider.indexStatus({ root, workspaceId });
-      if (!nativeIndexReadyForAutomaticRead(status)) {
-        const code = nativeIndexRecoveryCode(status);
-        const error = new Error(code);
-        error.code = code;
-        throw error;
-      }
-      preview = await buildNativeIndexSourceGraphPreview({
-        provider,
-        status,
-        root,
-        workspaceId,
-        query,
-        startName,
-        changedLocators,
-        locatorPrefix: option(values, '--locator-prefix'),
-        direction,
-        limit: strictIntegerOption(values, '--limit', 20),
-        offset: strictIntegerOption(values, '--offset', 0),
-        depth: strictIntegerOption(values, '--depth', 2),
-        sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
-        clock: fixedNow
-      });
-    } else {
-      preview = await buildSourceGraphPreview({
-        root,
-        workspaceId,
-        query,
-        startName,
-        changedLocators,
-        nodeKinds: option(values, '--node-kinds'),
-        edgeKinds: option(values, '--edge-kinds'),
-        labelPattern: option(values, '--label-pattern'),
-        locatorPrefix: option(values, '--locator-prefix'),
-        direction,
-        limit: strictIntegerOption(values, '--limit', 20),
-        offset: strictIntegerOption(values, '--offset', 0),
-        depth: strictIntegerOption(values, '--depth', 2),
-        sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
-        maxFiles,
-        maxFileBytes,
-        clock: fixedNow
-      });
-    }
+    const preview = await buildCurrentNativeSourceGraphPreview({
+      root,
+      workspaceId,
+      query,
+      startName,
+      changedLocators,
+      nodeKinds: option(values, '--node-kinds'),
+      edgeKinds: option(values, '--edge-kinds'),
+      locatorPrefix: option(values, '--locator-prefix'),
+      direction,
+      limit: strictIntegerOption(values, '--limit', 20),
+      offset: strictIntegerOption(values, '--offset', 0),
+      depth: strictIntegerOption(values, '--depth', 2),
+      sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
+      clock: fixedNow
+    });
     const baseReport = {
       schemaVersion: '1.0.0',
       command: commandName,
       generatedAt: preview.generatedAt,
       workspaceId: preview.workspaceId,
       engine: {
-        selection: engine,
-        implementation: engine === 'compatibility' ? 'javascript-typescript-compatibility' : 'memory-recall-native',
+        selection: 'native',
+        implementation: 'memory-recall-native',
         previewOnly: false,
         publicDefaultChanged: true,
         requested: requestedEngine,
-        reason: selected.reasonCode
+        reason: requestedEngine === 'native' ? null : 'native_alias'
       },
       graph: compactGraphCommandGraph(preview.graph),
       ...pick(preview),
@@ -3647,23 +3542,31 @@ async function graphPreviewBackedCommand(values, {
     const report = { ...baseReport, measurements: graphCommandMeasurements(preview.measurements, baseReport) };
     console.log(format === 'summary' ? renderSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
-    const code = error?.code ?? error.message;
-    console.error(['auto', 'native', 'native-preview'].includes(requestedEngine)
-      ? strictNativeReadMessage(error)
-      : code);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
 
-async function selectGraphReadEngine({ requestedEngine }) {
-  if (requestedEngine === 'compatibility') {
-    return { selection: 'compatibility', provider: null, reasonCode: 'explicit_compatibility' };
+async function buildCurrentNativeSourceGraphPreview(options) {
+  const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+  const provider = new RustCodeIntelligenceProvider();
+  const status = await provider.indexStatus({ root: options.root, workspaceId: options.workspaceId });
+  if (!nativeIndexReadyForAutomaticRead(status)) {
+    const code = nativeIndexRecoveryCode(status);
+    const error = new Error(code);
+    error.code = code;
+    throw error;
   }
-  return {
-    selection: 'native',
-    provider: null,
-    reasonCode: requestedEngine === 'auto' ? 'native_default_compatibility_alias' : null
-  };
+  return buildNativeIndexSourceGraphPreview({ ...options, provider, status });
+}
+
+async function currentNativeSourceGraphPreviewIfReady(options) {
+  try {
+    return await buildCurrentNativeSourceGraphPreview(options);
+  } catch (error) {
+    if (isNativeIndexRecoveryRequired(error)) return null;
+    throw error;
+  }
 }
 
 function nativeIndexRecoveryCode(status) {
@@ -3701,7 +3604,7 @@ function strictNativeReadMessage(error) {
     return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;
   }
   if (code === 'native_platform_unsupported') {
-    return `${code}: this platform has no supported packaged native engine; use --engine compatibility only for the temporary JS compatibility path`;
+    return `${code}: this platform has no supported packaged native engine`;
   }
   if ([
     'native_engine_checksum_mismatch',
@@ -3711,7 +3614,7 @@ function strictNativeReadMessage(error) {
     'native_engine_version_mismatch',
     'native_platform_package_missing'
   ].includes(code)) {
-    return `${code}: install the matching @memory-recall/native-* package; use --engine compatibility only for the temporary JS compatibility path`;
+    return `${code}: install the matching @memory-recall/native-* package`;
   }
   return code;
 }
@@ -3757,8 +3660,8 @@ function renderGraphStatsSummary(report) {
     `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Nodes: ${summary.nodeCount ?? 0}`,
     `Edges: ${summary.edgeCount ?? 0}`,
     `Call edges: ${edgeKinds.calls ?? 0}`,
@@ -3787,8 +3690,8 @@ function renderGraphSearchSummary(report) {
     `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Results: ${results.length}/${report.search?.total ?? 0}`,
     `Fingerprint: ${report.graph?.graphFingerprint ?? 'unavailable'}`,
     `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
@@ -3835,8 +3738,8 @@ function renderGraphTraceSummary(report) {
     `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Start nodes: ${report.trace?.startNodeIds?.length ?? 0}`,
     `Paths: ${paths.length}`,
     `Direction: ${report.trace?.direction ?? 'unknown'}`,
@@ -3863,8 +3766,8 @@ function renderGraphImpactSummary(report) {
     `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Changed coverage: ${impact.representedChangedLocators?.length ?? 0}/${impact.changedLocators?.length ?? 0}`,
     `Affected symbols: ${symbols.length}`,
     `Impacted edges: ${impact.impactedEdgeIds?.length ?? 0}`,
@@ -5756,7 +5659,16 @@ async function contextPackCommand(values) {
   const userSelectedFiles = options(values, '--include-file');
   try {
     const { changedLocators, detection: changedLocatorDetection } = await resolveChangedLocators(values, { root, workspaceId });
-    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget });
+    const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+      root,
+      workspaceId,
+      query: `${objective} ${step}`,
+      changedLocators,
+      limit: 12,
+      sampleLimit: 1,
+      clock: fixedNow
+    });
+    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget, sourceGraphPreview });
     const markdown = renderContextPackMarkdown(pack);
     const usePlan = buildContextPackUsePlan(pack);
     if (write) {
@@ -6055,31 +5967,32 @@ async function contextGraphPreviewCommand(values) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const query = option(values, '--query') ?? firstPositional(values, new Set(['--format', '--root', '--workspace', '--query', '--trace', '--start-name', '--start-node', '--changed', '--changed-locator', '--changed-locators', '--node-kinds', '--edge-kinds', '--label-pattern', '--locator-prefix', '--direction', '--limit', '--offset', '--depth', '--sample-limit', '--max-files', '--max-file-bytes'])) ?? '';
+  const unsupportedNativeOptions = ['--start-node', '--node-kinds', '--edge-kinds', '--label-pattern', '--max-files', '--max-file-bytes']
+    .filter((flag) => values.includes(flag));
+  if (unsupportedNativeOptions.length) {
+    console.error(`context graph preview does not support ${unsupportedNativeOptions[0]} with the native index`);
+    process.exitCode = 2;
+    return;
+  }
   try {
     const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
-    const preview = await buildSourceGraphPreview({
+    const preview = await buildCurrentNativeSourceGraphPreview({
       root,
       workspaceId,
       query,
       startName: option(values, '--trace') ?? option(values, '--start-name'),
-      startNodeId: option(values, '--start-node'),
       changedLocators: [...changedLocators, ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])],
-      nodeKinds: option(values, '--node-kinds'),
-      edgeKinds: option(values, '--edge-kinds'),
-      labelPattern: option(values, '--label-pattern'),
       locatorPrefix: option(values, '--locator-prefix'),
       direction: option(values, '--direction') ?? 'outbound',
       limit: strictIntegerOption(values, '--limit', 20),
       offset: strictIntegerOption(values, '--offset', 0),
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 12),
-      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
     console.log(format === 'summary' ? renderSourceGraphPreviewSummary(preview) : JSON.stringify(preview, null, 2));
   } catch (error) {
-    console.error(error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
@@ -6097,8 +6010,8 @@ function renderSourceGraphPreviewSummary(preview) {
     `Status: ${preview.status ?? 'ready'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Nodes: ${summary.nodeCount ?? 0}`,
     `Edges: ${summary.edgeCount ?? 0}`,
     `Hotspots: ${hotspots}`,
@@ -6811,8 +6724,8 @@ async function mcpServerCommand(values) {
     return;
   }
   const sourceIndexEngine = option(values, '--engine') ?? 'native';
-  if (!['auto', 'native', 'native-preview', 'compatibility'].includes(sourceIndexEngine)) {
-    console.error('mcp server --engine must be native, native-preview, auto, or compatibility');
+  if (!['auto', 'native', 'native-preview'].includes(sourceIndexEngine)) {
+    console.error('mcp server --engine must be native, native-preview, or auto');
     process.exitCode = 2;
     return;
   }
@@ -6932,22 +6845,6 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
-  const requestedSourceIndexEngine = option(values, '--engine') ?? 'native';
-  const sourceIndexEngine = ['auto', 'native-preview'].includes(requestedSourceIndexEngine)
-    ? 'native'
-    : requestedSourceIndexEngine;
-  let intelligencePromise = null;
-  const loadIntelligence = () => {
-    intelligencePromise ??= buildSourceGraphIntelligence({
-      root,
-      workspaceId,
-      maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-      maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-      engine: 'js',
-      clock: fixedNow
-    });
-    return intelligencePromise;
-  };
   let nativeProviderPromise = null;
   const loadNativeProvider = () => {
     nativeProviderPromise ??= import('../../providers/native/code-intelligence-rust/src/index.mjs')
@@ -6955,7 +6852,6 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     return nativeProviderPromise;
   };
   const actionableNativeReadError = (error) => {
-    if (sourceIndexEngine !== 'native') throw error;
     throw new Error(strictNativeReadMessage(error));
   };
   const nativeStatus = async () => {
@@ -6967,9 +6863,6 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
   };
   let nativeRepositoryProviderPromise = null;
   const requireNativeRepositoryProvider = () => {
-    if (sourceIndexEngine !== 'native') {
-      throw new Error('cross-repository access requires --engine native');
-    }
     nativeRepositoryProviderPromise ??= loadNativeProvider()
       .then(async (provider) => {
         const health = await provider.health();
@@ -6981,16 +6874,6 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       });
     return nativeRepositoryProviderPromise;
   };
-  const selectStructuralEngine = async () => {
-    return sourceIndexEngine === 'compatibility'
-      ? { selection: 'compatibility', status: null, reasonCode: 'explicit_compatibility' }
-      : { selection: 'native', status: null, reasonCode: null };
-  };
-  const jsFallbackSource = (source) => ({
-    ...source,
-    engine: 'compatibility',
-    reason: 'explicit_compatibility'
-  });
   const nativeQuery = async (kind, argumentsValue = {}) => {
     try {
       return await (await loadNativeProvider()).queryIndex({
@@ -7104,23 +6987,13 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       handler: async ({ arguments: args }) => {
         const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          const [communities, processes] = await Promise.all([
-            nativeQuery('communities', { limit }),
-            nativeQuery('processes', { depth: 4, limit })
-          ]);
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'repo.architecture', workspaceId, generatedAt: fixedNow(),
-            data: buildNativeIndexArchitecture(communities, processes, limit)
-          }));
-        }
-        const intelligence = await loadIntelligence();
+        const [communities, processes] = await Promise.all([
+          nativeQuery('communities', { limit }),
+          nativeQuery('processes', { depth: 4, limit })
+        ]);
         return mcpToolJsonResult(mcpStructuralPayload({
-          command: 'repo.architecture',
-          workspaceId,
-          generatedAt: fixedNow(),
-          data: { ...buildArchitectureIntelligence(intelligence.graph, { limit }), source: jsFallbackSource(intelligence.source, selected) }
+          command: 'repo.architecture', workspaceId, generatedAt: fixedNow(),
+          data: buildNativeIndexArchitecture(communities, processes, limit)
         }));
       }
     },
@@ -7151,22 +7024,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           }));
         }
         if (input.limit !== undefined) throw new Error('repo.index_status limit requires repository scope');
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          const result = selected.status ?? await nativeStatus();
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
-            data: nativeIndexStatusData(result)
-          }));
-        }
-        const data = selected.status
-          ? nativeIndexStatusData(selected.status)
-          : await readSourceGraphIndexStatus({ root });
+        const result = await nativeStatus();
         return mcpToolJsonResult(mcpStructuralPayload({
-          command: 'repo.index_status',
-          workspaceId,
-          generatedAt: fixedNow(),
-          data
+          command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
+          data: nativeIndexStatusData(result)
         }));
       }
     },
@@ -7227,51 +7088,37 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             data: nativeRepositorySearchData(result, query, repositoryIds)
           }));
         }
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          if (query.length > 160) throw new Error('native index query exceeds 160 characters');
-          if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available in preview');
-          if (offset !== 0 && (nodeKinds?.length || locatorPrefix)) {
-            throw new Error('native code.search offset cannot be combined with local result filters; continue with nextCursor');
-          }
-          const result = await nativeQueryAtOffset('search', { query, ...(cursor ? { cursor } : {}) }, offset, limit);
-          const results = result.results
-            .filter((item) => nativeNodeMatchesKinds(item, nodeKinds))
-            .filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix))
-            .slice(0, limit)
-            .map(nativeStructuralNode);
-          const resultIds = new Set(results.map((item) => item.id));
-          const relationships = (result.relationships ?? [])
-            .filter((item) => resultIds.has(item.fromNodeId) && resultIds.has(item.toNodeId))
-            .slice(0, limit)
-            .map(nativeStructuralRelationship);
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.search', workspaceId, generatedAt: fixedNow(),
-            data: {
-              query,
-              results,
-              relationships,
-              resultCount: results.length,
-              limit,
-              offset,
-              reachedOffset: result.reachedOffset ?? offset,
-              offsetIncomplete: result.offsetIncomplete === true,
-              truncated: Boolean(result.truncated || result.nextCursor),
-              hasMore: Boolean(result.nextCursor),
-              nextCursor: result.nextCursor,
-              source: nativeIndexSource(result)
-            }
-          }));
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available');
+        if (offset !== 0 && (nodeKinds?.length || locatorPrefix)) {
+          throw new Error('native code.search offset cannot be combined with local result filters; continue with nextCursor');
         }
-        if (cursor) throw new Error('code.search cursor requires a current native index');
-        const intelligence = await loadIntelligence();
+        const result = await nativeQueryAtOffset('search', { query, ...(cursor ? { cursor } : {}) }, offset, limit);
+        const results = result.results
+          .filter((item) => nativeNodeMatchesKinds(item, nodeKinds))
+          .filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix))
+          .slice(0, limit)
+          .map(nativeStructuralNode);
+        const resultIds = new Set(results.map((item) => item.id));
+        const relationships = (result.relationships ?? [])
+          .filter((item) => resultIds.has(item.fromNodeId) && resultIds.has(item.toNodeId))
+          .slice(0, limit)
+          .map(nativeStructuralRelationship);
         return mcpToolJsonResult(mcpStructuralPayload({
-          command: 'code.search',
-          workspaceId,
-          generatedAt: fixedNow(),
+          command: 'code.search', workspaceId, generatedAt: fixedNow(),
           data: {
-            ...buildCodeSearchIntelligence(intelligence.graph, { query, nodeKinds, edgeKinds, locatorPrefix, limit, offset }),
-            source: jsFallbackSource(intelligence.source, selected)
+            query,
+            results,
+            relationships,
+            resultCount: results.length,
+            limit,
+            offset,
+            reachedOffset: result.reachedOffset ?? offset,
+            offsetIncomplete: result.offsetIncomplete === true,
+            truncated: Boolean(result.truncated || result.nextCursor),
+            hasMore: Boolean(result.nextCursor),
+            nextCursor: result.nextCursor,
+            source: nativeIndexSource(result)
           }
         }));
       }
@@ -7307,52 +7154,41 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const depth = mcpStrictBoundedInteger(input.depth, 1, { min: 1, max: 3, name: 'depth' });
         const edgeKinds = mcpStructuralKinds(input.edgeKinds, CODE_INTELLIGENCE_EDGE_KINDS, { minItems: 1, maxItems: 16, unique: true });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        const selectedEngine = await selectStructuralEngine();
         if (constrained) {
-          if (selectedEngine.selection !== 'native') {
-            throw new Error('code.context constraints require a current native index; run recall graph index --write --engine native --root . --format summary');
-          }
-          const status = selectedEngine.status ?? await nativeStatus();
+          const status = await nativeStatus();
           if (!nativeIndexReadyForAutomaticRead(status)) {
             throw new Error('code.context constraints require a current native index; refresh it with recall graph index --refresh --engine native --root . --format summary');
           }
         }
-        if (selectedEngine.selection === 'native') {
-          if (query.length > 160) throw new Error('native index query exceeds 160 characters');
-          const [selected, neighborhood] = await Promise.all([
-            nativeQuery('exact', { query, limit: 1 }),
-            constrained
-              ? nativeQuery('dependencies', { query, direction, depth, edgeKinds, limit })
-              : nativeQuery('neighborhood', { query, limit, depth: 1 })
-          ]);
-          const related = neighborhood.results.map(nativeStructuralNode);
-          const relatedIds = new Set(related.map((item) => item.id));
-          const relationships = (neighborhood.relationships ?? [])
-            .filter((item) => relatedIds.has(item.fromNodeId) && relatedIds.has(item.toNodeId))
-            .filter((item) => !edgeKinds || edgeKinds.includes(item.kind))
-            .map(nativeStructuralRelationship);
-          const completeness = {
-            selection: nativeCompleteness(selected),
-            neighborhood: nativeCompleteness(neighborhood)
-          };
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.context', workspaceId, generatedAt: fixedNow(),
-            data: {
-              query,
-              selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
-              related,
-              relationships,
-              completeness,
-              truncated: completeness.selection.truncated || completeness.neighborhood.truncated,
-              ...(constrained ? { direction, depth, edgeKinds: edgeKinds ?? [] } : {}),
-              source: nativeIndexSource(neighborhood)
-            }
-          }));
-        }
-        const intelligence = await loadIntelligence();
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        const [selected, neighborhood] = await Promise.all([
+          nativeQuery('exact', { query, limit: 1 }),
+          constrained
+            ? nativeQuery('dependencies', { query, direction, depth, edgeKinds, limit })
+            : nativeQuery('neighborhood', { query, limit, depth: 1 })
+        ]);
+        const related = neighborhood.results.map(nativeStructuralNode);
+        const relatedIds = new Set(related.map((item) => item.id));
+        const relationships = (neighborhood.relationships ?? [])
+          .filter((item) => relatedIds.has(item.fromNodeId) && relatedIds.has(item.toNodeId))
+          .filter((item) => !edgeKinds || edgeKinds.includes(item.kind))
+          .map(nativeStructuralRelationship);
+        const completeness = {
+          selection: nativeCompleteness(selected),
+          neighborhood: nativeCompleteness(neighborhood)
+        };
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.context', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeContextIntelligence(intelligence.graph, { query, limit }), source: jsFallbackSource(intelligence.source, selectedEngine) }
+          data: {
+            query,
+            selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
+            related,
+            relationships,
+            completeness,
+            truncated: completeness.selection.truncated || completeness.neighborhood.truncated,
+            ...(constrained ? { direction, depth, edgeKinds: edgeKinds ?? [] } : {}),
+            source: nativeIndexSource(neighborhood)
+          }
         }));
       }
     },
@@ -7391,20 +7227,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             data: nativeCrossRepositoryData(result, crossRepository)
           }));
         }
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
-          const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
-          const completeness = nativeCompleteness(result);
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.trace', workspaceId, generatedAt: fixedNow(),
-            data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
-          }));
-        }
-        const intelligence = await loadIntelligence();
+        if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
+        const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
+        const completeness = nativeCompleteness(result);
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.trace', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeTraceIntelligence(intelligence.graph, { symbol, direction, depth, limit, locatorPrefix }), source: jsFallbackSource(intelligence.source, selected) }
+          data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
         }));
       }
     },
@@ -7441,20 +7269,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             data: nativeCrossRepositoryData(result, crossRepository)
           }));
         }
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          if (query.length > 160) throw new Error('native index query exceeds 160 characters');
-          const result = await nativeQuery('dependencies', { query, direction, depth, limit });
-          const completeness = nativeCompleteness(result);
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
-            data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
-          }));
-        }
-        const intelligence = await loadIntelligence();
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        const result = await nativeQuery('dependencies', { query, direction, depth, limit });
+        const completeness = nativeCompleteness(result);
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeDependenciesIntelligence(intelligence.graph, { query, direction, depth, limit }), source: jsFallbackSource(intelligence.source, selected) }
+          data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
         }));
       }
     },
@@ -7475,22 +7295,14 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const input = mcpMapArguments(args, ['query', 'limit'], 'code.routes');
         const query = mcpStructuralString(input.query, 'code.routes query', { required: false, max: 240 });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          const result = await nativeQuery('routes', { limit });
-          const routes = result.results
-            .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
-            .map(nativeStructuralNode);
-          const completeness = nativeCompleteness(result);
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.routes', workspaceId, generatedAt: fixedNow(),
-            data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
-          }));
-        }
-        const intelligence = await loadIntelligence();
+        const result = await nativeQuery('routes', { limit });
+        const routes = result.results
+          .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+          .map(nativeStructuralNode);
+        const completeness = nativeCompleteness(result);
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.routes', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeRoutesIntelligence(intelligence.graph, { query, limit }), source: jsFallbackSource(intelligence.source, selected) }
+          data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
         }));
       }
     },
@@ -7510,14 +7322,12 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
           const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
           mcpMapClient(input.client);
           const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
           const query = mcpMapQuery(input.query);
           const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-          const status = selected.status ?? await nativeStatus();
+          const status = await nativeStatus();
           const search = query ? await nativeQuery('exact', { query, limit }) : null;
           const impact = [];
           for (const locator of changedLocators) {
@@ -7570,18 +7380,6 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           });
           payload.data.safeguards = payload.safeguards;
           return mcpToolJsonResult(payload);
-        }
-        const payload = await buildMcpRepoMapPayload({
-          values,
-          root,
-          workspaceId,
-          generatedAt: fixedNow(),
-          args
-        });
-        return mcpToolJsonResult({
-          ...payload,
-          data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }) }
-        });
       }
     },
     {
@@ -7613,33 +7411,19 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             data: nativeCrossRepositoryData(result, crossRepository)
           }));
         }
-        const selected = await selectStructuralEngine();
-        if (selected.selection === 'native') {
-          const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
-          const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
-          const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-          const results = [];
-          for (const locator of changedLocators) {
-            const result = await nativeQuery('impact', { query: locator, depth, limit });
-            results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
-          }
-          const status = selected.status ?? await nativeStatus();
-          return mcpToolJsonResult(mcpStructuralPayload({
-            command: 'code.impact', workspaceId, generatedAt: fixedNow(),
-            data: { changedLocators, depth, results, completeness: results.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor })), truncated: results.some((item) => item.truncated), source: nativeIndexSource(status) }
-          }));
+        const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const results = [];
+        for (const locator of changedLocators) {
+          const result = await nativeQuery('impact', { query: locator, depth, limit });
+          results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
         }
-        const payload = await buildMcpCodeImpactPayload({
-          values,
-          root,
-          workspaceId,
-          generatedAt: fixedNow(),
-          args
-        });
-        return mcpToolJsonResult({
-          ...payload,
-          data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }) }
-        });
+        const status = await nativeStatus();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.impact', workspaceId, generatedAt: fixedNow(),
+          data: { changedLocators, depth, results, completeness: results.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor })), truncated: results.some((item) => item.truncated), source: nativeIndexSource(status) }
+        }));
       }
     },
     {
@@ -7733,22 +7517,19 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        let sourceGraphPreview = null;
-        if (sourceIndexEngine === 'native') {
-          const objective = mcpRequiredString(args.objective, 'objective', 500);
-          const step = mcpRequiredString(args.step, 'step', 500);
-          const [provider, status] = await Promise.all([loadNativeProvider(), nativeStatus()]);
-          sourceGraphPreview = await buildNativeIndexSourceGraphPreview({
-            provider,
-            status,
-            root,
-            workspaceId,
-            query: `${objective} ${step}`,
-            limit: 12,
-            sampleLimit: 1,
-            clock: () => generatedAt
-          });
-        }
+        const objective = mcpRequiredString(args.objective, 'objective', 500);
+        const step = mcpRequiredString(args.step, 'step', 500);
+        const [provider, status] = await Promise.all([loadNativeProvider(), nativeStatus()]);
+        const sourceGraphPreview = await buildNativeIndexSourceGraphPreview({
+          provider,
+          status,
+          root,
+          workspaceId,
+          query: `${objective} ${step}`,
+          limit: 12,
+          sampleLimit: 1,
+          clock: () => generatedAt
+        });
         return mcpToolTextResult(await buildMcpContextPackToolText({
           root,
           workspaceId,
@@ -7759,77 +7540,6 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       }
     }
   ];
-}
-
-async function buildMcpRepoMapPayload({ values, root, workspaceId, generatedAt, args }) {
-  const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
-  mcpMapClient(input.client);
-  const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
-  const query = mcpMapQuery(input.query);
-  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-  const report = await buildMcpRecallMapReport({
-    values,
-    root,
-    workspaceId,
-    generatedAt,
-    changedLocators,
-    query,
-    depth: 2,
-    limit
-  });
-  return mcpNoWritePayload({
-    command: 'repo.map',
-    workspaceId,
-    generatedAt,
-    data: report
-  });
-}
-
-async function buildMcpCodeImpactPayload({ values, root, workspaceId, generatedAt, args }) {
-  const input = mcpMapArguments(args, ['changed', 'depth', 'limit'], 'code.impact');
-  const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
-  const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
-  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-  const report = await buildMcpRecallMapReport({
-    values,
-    root,
-    workspaceId,
-    generatedAt,
-    changedLocators,
-    query: '',
-    depth,
-    limit
-  });
-  return mcpNoWritePayload({
-    command: 'code.impact',
-    workspaceId,
-    generatedAt,
-    data: {
-      schemaVersion: report.schemaVersion,
-      reportVersion: report.reportVersion,
-      ...report.architecture.impact,
-      safeguards: report.safeguards
-    }
-  });
-}
-
-async function buildMcpRecallMapReport({ values, root, workspaceId, generatedAt, changedLocators, query, depth, limit }) {
-  const sqlitePath = await resolveWorkspaceSqlitePath(
-    root,
-    option(values, '--sqlite') ?? '.local/memory.sqlite',
-    'mcp server',
-    { mustExist: false }
-  );
-  return buildRecallMap({
-    root,
-    workspaceId,
-    changedLocators,
-    query,
-    depth,
-    limit,
-    clock: () => generatedAt,
-    sqliteLocator: sqlitePath.relative
-  });
 }
 
 function mcpMapArguments(args, allowedKeys, toolName) {
@@ -9315,7 +9025,7 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     warnings: [
       'Dry-run is the default; Memory Recall writes home config only with --apply and matching --confirm.',
       'mcp install configures the packaged native engine but never builds or refreshes an index. Run indexBuildCommand explicitly before using structural tools.',
-      'Structural tools fail with an actionable build, refresh, or package error instead of silently scanning through the temporary JS compatibility path. The MCP server remains local stdio and read-only.'
+      'Structural tools fail with an actionable build, refresh, repair, or package error. The MCP server remains local stdio and read-only.'
     ]
   };
 }
@@ -10299,6 +10009,15 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
   const generatedAt = fixedNow();
   const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
+  const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+    root,
+    workspaceId,
+    query: `${objective} ${step}`,
+    changedLocators,
+    limit: 12,
+    sampleLimit: 1,
+    clock: () => generatedAt
+  });
   const pack = await buildContextPack({
     root,
     harnesses: sourceHarnesses,
@@ -10309,6 +10028,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: () => generatedAt
   });
   const usePlan = buildContextPackUsePlan(pack);
@@ -10855,6 +10575,15 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
   const largeContext = buildLargeContextMeasurement({ values, changedLocators, detection });
   const started = process.hrtime.bigint();
+  const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+    root,
+    workspaceId,
+    query: `${objective} ${step}`,
+    changedLocators,
+    limit: 12,
+    sampleLimit: 1,
+    clock: () => generatedAt
+  });
   const pack = await buildContextPack({
     root,
     harnesses: sourceHarnesses,
@@ -10865,6 +10594,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: () => generatedAt
   });
   const buildDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
@@ -11849,14 +11579,21 @@ function dedupeMemoryIngestEpisodes(episodes) {
 }
 
 async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, projectSubject) {
-  const preview = await buildSourceGraphPreview({
-    root,
-    workspaceId,
-    query: 'memory context mcp',
-    sampleLimit: 12,
-    maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-    clock: () => generatedAt
-  });
+  let preview;
+  try {
+    preview = await buildCurrentNativeSourceGraphPreview({
+      root,
+      workspaceId,
+      query: 'memory context mcp',
+      sampleLimit: 12,
+      clock: () => generatedAt
+    });
+  } catch (error) {
+    // Memory ingestion is useful before a repository has been indexed. It must
+    // not manufacture graph facts or fall back to the retired JS engine.
+    if (isNativeIndexRecoveryRequired(error)) return [];
+    throw error;
+  }
   const summary = preview.graph?.summary ?? {};
   const facts = [
     factTriple(projectSubject, 'source_graph_files', `files_${Math.max(0, Number(summary.fileCount ?? 0))}`),
@@ -11868,6 +11605,17 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, pro
     if (label) facts.push(factTriple(projectSubject, 'source_graph_hub', label));
   }
   return facts;
+}
+
+function isNativeIndexRecoveryRequired(error) {
+  return [
+    'source_index_build_required',
+    'source_index_refresh_required',
+    'source_index_repair_required',
+    'source_index_migration_required',
+    'source_index_wrong_repository',
+    'source_index_schema_newer'
+  ].includes(String(error?.code ?? error?.message ?? ''));
 }
 
 function factTriple(subject, predicate, object) {

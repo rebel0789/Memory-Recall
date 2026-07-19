@@ -15,9 +15,7 @@ import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildNativeIndexSourceGraphPreview,
-  buildSourceGraphPreview,
   buildUnavailableSourceGraphPreview,
-  createSourceGraphSnapshotService,
   nativeIndexReadyForAutomaticRead
 } from '../../../packages/source-graph/src/index.mjs';
 import { buildRecallMap } from '../../../packages/recall-map/src/index.mjs';
@@ -699,7 +697,7 @@ export function createControlApiServer({
   memoryProvider = null,
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
-  sourceGraphSnapshotService = null,
+  sourceGraphSnapshotService: _sourceGraphSnapshotService = null,
   codeIntelligenceProvider = undefined,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
@@ -721,13 +719,8 @@ export function createControlApiServer({
     decisionIdFactory: () => `poldet_${randomUUID()}`
   });
   const streams = new Set();
-  const sourceSnapshots = sourceGraphSnapshotService ?? createSourceGraphSnapshotService();
-  const ownsSourceSnapshots = !sourceGraphSnapshotService;
-  const nativeCodeIntelligenceProvider = codeIntelligenceProvider === null
-    ? null
-    : codeIntelligenceProvider ?? new RustCodeIntelligenceProvider();
+  const nativeCodeIntelligenceProvider = codeIntelligenceProvider ?? new RustCodeIntelligenceProvider();
   const buildControlSourceGraphPreview = async (options) => {
-    if (!nativeCodeIntelligenceProvider) return buildSourceGraphPreview(options);
     try {
       const status = await nativeCodeIntelligenceProvider.indexStatus({
         root: options.root,
@@ -765,10 +758,6 @@ export function createControlApiServer({
       sendError(response, mapError(error), correlationId, { logger, started, operationId: error.operationId ?? null });
     }
   });
-  server.once('close', () => {
-    if (ownsSourceSnapshots) sourceSnapshots.close();
-  });
-
   async function handleApi({ request, response, correlationId, started }) {
     enforceHost(request, allowedHosts);
     enforceUrlAndHeaderLimits(request, effectiveLimits);
@@ -873,7 +862,6 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.query.changed ? [context.query.changed] : [],
           query: context.query.query ?? '',
-          sourceGraphSnapshotService: sourceSnapshots,
           sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
           clock
         });
@@ -893,7 +881,6 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.body.changedLocators,
           query: context.body.query ?? '',
-          sourceGraphSnapshotService: sourceSnapshots,
           sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
           refreshSourceGraph: context.body.refresh === true,
           clock
@@ -988,16 +975,24 @@ export function createControlApiServer({
         return compileContext(context.body.request, context.body.records);
       case 'buildContextPack': {
         const targetHarness = context.body.targetHarness ?? 'generic';
+        const changedLocators = context.body.changedLocators ?? [];
         const pack = await buildContextPack({
           root: sourceGraphRoot,
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
-          changedLocators: context.body.changedLocators ?? [],
+          changedLocators,
           workspaceId: context.workspaceId,
           targetHarness,
           objective: context.body.objective,
           step: context.body.step,
           tokenBudget: context.body.tokenBudget ?? 4096,
+          sourceGraphPreview: await buildControlSourceGraphPreview({
+            root: sourceGraphRoot,
+            workspaceId: context.workspaceId,
+            query: `${context.body.objective} ${context.body.step}`,
+            changedLocators,
+            clock
+          }),
           clock
         });
         const transportPack = redactContextPackForApiTransport(pack);
@@ -1015,16 +1010,24 @@ export function createControlApiServer({
       }
       case 'pinContextPack': {
         const targetHarness = context.body.targetHarness ?? 'generic';
+        const changedLocators = context.body.changedLocators ?? [];
         const pack = await buildContextPack({
           root: sourceGraphRoot,
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
-          changedLocators: context.body.changedLocators ?? [],
+          changedLocators,
           workspaceId: context.workspaceId,
           targetHarness,
           objective: context.body.objective,
           step: context.body.step,
           tokenBudget: context.body.tokenBudget ?? 4096,
+          sourceGraphPreview: await buildControlSourceGraphPreview({
+            root: sourceGraphRoot,
+            workspaceId: context.workspaceId,
+            query: `${context.body.objective} ${context.body.step}`,
+            changedLocators,
+            clock
+          }),
           clock
         });
         const transportPack = redactContextPackForApiTransport(pack);
@@ -1105,7 +1108,6 @@ export function createControlApiServer({
           sampleLimit: context.body.sampleLimit ?? 12,
           maxFiles: context.body.maxFiles ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
           maxFileBytes: context.body.maxFileBytes ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-          snapshotService: sourceSnapshots,
           refresh: context.body.refresh === true,
           clock
         });

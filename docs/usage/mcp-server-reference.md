@@ -125,7 +125,7 @@ Before each structural tool call, native mode checks the packaged binary and the
 prebuilt index. It reads results only when the index is healthy, ready, current,
 and has a committed generation. Absent, stale, invalid, or unavailable state
 returns an actionable error. It never builds, refreshes, repairs, or silently
-mixes engines. The temporary JS/TS path requires `--engine compatibility`.
+switches engines.
 
 In native mode, `repo.architecture` derives groups with
 `label-propagation-v1` and entry-to-sink paths with `entry-path-v1`. Each

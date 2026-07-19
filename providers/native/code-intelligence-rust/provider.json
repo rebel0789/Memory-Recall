@@ -45,6 +45,6 @@
     "Runs one bounded local subprocess per graph or source-index request.",
     "Requires a verified native binary and never compiles Rust or falls back to a cloud service.",
     "Returns provider-neutral structural metadata without source bodies or absolute paths. Source-index writers require explicit local intent, and repair requires a matching doctor fingerprint.",
-    "The verified packaged Rust engine is the production default. JavaScript and TypeScript compatibility intelligence is explicit and temporary."
+    "The verified packaged Rust engine is the only production code-intelligence implementation."
   ]
 }

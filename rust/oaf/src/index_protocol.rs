@@ -1391,8 +1391,23 @@ fn execute_query(
         }
         "dependencies" | "impact" => {
             let seed = find_seed(index, arguments, &bounds)?;
+            let traversal_bounds = if arguments.kind == "impact" && seed.kind == "file" {
+                // A file's first edge only reaches its structural module. Count
+                // that envelope separately so depth one includes declarations
+                // in the changed file as well as direct reverse impact.
+                QueryBounds {
+                    max_depth: bounds.max_depth.saturating_add(1).min(5),
+                    ..bounds.clone()
+                }
+            } else {
+                bounds.clone()
+            };
             let direction = if arguments.kind == "impact" {
-                EdgeDirection::Incoming
+                if seed.kind == "file" {
+                    EdgeDirection::Both
+                } else {
+                    EdgeDirection::Incoming
+                }
             } else {
                 match arguments.direction.as_deref().unwrap_or("both") {
                     "inbound" => EdgeDirection::Incoming,
@@ -1404,11 +1419,11 @@ fn execute_query(
                 index.dependency_neighborhood_with_kinds(
                     &seed.canonical_id,
                     direction,
-                    &bounds,
+                    &traversal_bounds,
                     edge_kinds,
                 )?
             } else {
-                index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?
+                index.dependency_neighborhood(&seed.canonical_id, direction, &traversal_bounds)?
             };
             let truncated = graph.truncated;
             Ok(QueryOutput::records(
@@ -1456,10 +1471,12 @@ fn execute_query(
         }
         "communities" => {
             let projection = index.communities(&bounds)?;
-            let truncated = projection.truncated;
+            let mut truncated = projection.truncated;
             let results = nodes_to_results(projection.nodes, index)?;
             let relationships = edges_to_results(projection.edges, index)?;
-            let communities = projection_values(projection.items, &results, &relationships)?;
+            let (communities, omitted_evidence) =
+                projection_values(projection.items, &results, &relationships)?;
+            truncated |= omitted_evidence;
             Ok(QueryOutput {
                 results,
                 relationships,
@@ -1471,10 +1488,12 @@ fn execute_query(
         }
         "processes" => {
             let projection = index.processes(&bounds)?;
-            let truncated = projection.truncated;
+            let mut truncated = projection.truncated;
             let results = nodes_to_results(projection.nodes, index)?;
             let relationships = edges_to_results(projection.edges, index)?;
-            let processes = projection_values(projection.items, &results, &relationships)?;
+            let (processes, omitted_evidence) =
+                projection_values(projection.items, &results, &relationships)?;
+            truncated |= omitted_evidence;
             Ok(QueryOutput {
                 results,
                 relationships,
@@ -1492,7 +1511,7 @@ fn projection_values<T: serde::Serialize>(
     items: Vec<T>,
     results: &[Value],
     relationships: &[Value],
-) -> Result<Vec<Value>> {
+) -> Result<(Vec<Value>, bool)> {
     let node_ids = results
         .iter()
         .filter_map(|value| value.get("id").and_then(Value::as_str))
@@ -1505,46 +1524,43 @@ fn projection_values<T: serde::Serialize>(
         .into_iter()
         .map(serde_json::to_value)
         .collect::<serde_json::Result<Vec<_>>>()?;
-    for value in &mut values {
+    let mut omitted_evidence = false;
+    values.retain_mut(|value| {
         if let Some(label) = value.get_mut("label") {
             *label = Value::String(safe_label(label.as_str().unwrap_or("unknown")));
         }
         if let Some(sink_kind) = value.get_mut("sinkKind") {
             *sink_kind = Value::String(safe_code(sink_kind.as_str().unwrap_or("unknown")));
         }
-        let referenced_nodes = value
-            .get("nodeIds")
-            .and_then(Value::as_array)
-            .context("source_index_projection_nodes_missing")?;
-        let referenced_relationships = value
-            .get("relationshipIds")
-            .and_then(Value::as_array)
-            .context("source_index_projection_relationships_missing")?;
-        if referenced_nodes
+        let Some(referenced_nodes) = value.get("nodeIds").and_then(Value::as_array) else {
+            omitted_evidence = true;
+            return false;
+        };
+        let Some(referenced_relationships) = value.get("relationshipIds").and_then(Value::as_array)
+        else {
+            omitted_evidence = true;
+            return false;
+        };
+        let complete = !referenced_nodes
             .iter()
             .any(|id| id.as_str().is_none_or(|id| !node_ids.contains(id)))
-            || referenced_relationships
+            && !referenced_relationships
                 .iter()
                 .any(|id| id.as_str().is_none_or(|id| !relationship_ids.contains(id)))
-        {
-            bail!("source_index_projection_evidence_missing");
+            && ["entryNodeId", "sinkNodeId"].into_iter().all(|field| {
+                !value
+                    .get(field)
+                    .is_some_and(|id| id.as_str().is_none_or(|id| !node_ids.contains(id)))
+            })
+            && !value
+                .get("entryRelationshipId")
+                .is_some_and(|id| id.as_str().is_none_or(|id| !relationship_ids.contains(id)));
+        if !complete {
+            omitted_evidence = true;
         }
-        for field in ["entryNodeId", "sinkNodeId"] {
-            if value
-                .get(field)
-                .is_some_and(|id| id.as_str().is_none_or(|id| !node_ids.contains(id)))
-            {
-                bail!("source_index_projection_evidence_missing");
-            }
-        }
-        if value
-            .get("entryRelationshipId")
-            .is_some_and(|id| id.as_str().is_none_or(|id| !relationship_ids.contains(id)))
-        {
-            bail!("source_index_projection_evidence_missing");
-        }
-    }
-    Ok(values)
+        complete
+    });
+    Ok((values, omitted_evidence))
 }
 
 fn find_seed(
@@ -1554,12 +1570,17 @@ fn find_seed(
 ) -> Result<NodeRecord> {
     let query = query_seed(arguments)?;
     let seed_bounds = query_bounds_without_cursor(bounds, bounds.limit);
-    if let Some(node) = index
-        .find_exact_nodes(query, &seed_bounds)?
-        .items
-        .into_iter()
-        .next()
-    {
+    if let Some(locator) = arguments.locator.as_deref() {
+        let locator_matches = index.find_nodes(locator, &seed_bounds)?.items;
+        if let Some(node) = locator_matches
+            .into_iter()
+            .find(|node| node.kind == "file" && node.locator.starts_with(locator))
+        {
+            return Ok(node);
+        }
+    }
+    let exact = index.find_exact_nodes(query, &seed_bounds)?.items;
+    if let Some(node) = exact.into_iter().next() {
         return Ok(node);
     }
     index
@@ -1899,7 +1920,7 @@ fn valid_locator(value: &str) -> bool {
         && !value.contains("..")
         && value
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"_.$:/#@+-".contains(&byte))
+            .all(|byte| byte.is_ascii_alphanumeric() || b"_.$:/#@+-[]".contains(&byte))
 }
 
 fn valid_safe_code(value: &str) -> bool {
@@ -2246,6 +2267,22 @@ mod tests {
             .unwrap()
             .starts_with("workspace://src/index.ts#L"));
 
+        let phrase_search = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "search", "query": "main utility workflow", "limit": 20 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert!(phrase_search["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"] == "mainUtility"));
+
         let full_lexical_page = execute_request(
             parse_request(request(
                 "index.query",
@@ -2584,6 +2621,33 @@ mod tests {
             .unwrap()
             .iter()
             .any(|item| item["label"].as_str().unwrap().contains("leaf")));
+
+        let changed_file_impact = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "impact", "locator": "workspace://src/index.ts", "depth": 1, "limit": 10 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        let impact_labels = changed_file_impact["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item["label"].as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            impact_labels.contains(&"main"),
+            "{}",
+            changed_file_impact["result"]
+        );
+        assert!(
+            impact_labels.contains(&"helper"),
+            "{}",
+            changed_file_impact["result"]
+        );
 
         let healthy_doctor = execute_request(
             parse_request(request("index.doctor", json!({}))).unwrap(),

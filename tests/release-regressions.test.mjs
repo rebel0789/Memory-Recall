@@ -21,13 +21,15 @@ test('packed native intelligence preview has an isolated consumer gate and runti
   for (const required of [
     'providers/native/code-intelligence-rust/provider.json',
     'providers/native/code-intelligence-rust/src/index.mjs',
-    'packages/source-graph/src/native-compatibility.mjs',
+    'packages/source-graph/src/native-index-projection.mjs',
     'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
     'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
     'packages/protocol/schemas/code-intelligence-graph.schema.json'
   ]) assert.equal(paths.has(required), true, required);
 
   for (const forbiddenPrefix of [
+    'providers/native/context-candidate-ast-code/',
+    'providers/native/context-candidate-graph/',
     'rust/target/',
     'evals/code-intelligence/results/'
   ]) assert.equal([...paths].some((filePath) => filePath.startsWith(forbiddenPrefix)), false, forbiddenPrefix);

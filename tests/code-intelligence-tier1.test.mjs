@@ -7,7 +7,6 @@ const readJson = async (file) => JSON.parse(await readFile(new URL(file, root), 
 
 test('Phase 2 Tier 1 summary keeps every case, resource bound, and public boundary explicit', async () => {
   const summary = await readJson('evals/code-intelligence/results/phase2-tier1-summary.json');
-  const baseline = await readJson('evals/code-intelligence/results/phase0-baseline.json');
 
   assert.equal(summary.phase, 2);
   assert.equal(summary.gateDecision, 'pass');
@@ -168,10 +167,6 @@ test('Phase 2 Tier 1 summary keeps every case, resource bound, and public bounda
   assert.equal(summary.claims.parity, false);
   assert.equal(summary.claims.leadership, false);
   assert.equal(summary.claims.allTier1CapabilitiesMeetFloor, false);
-  assert.equal(baseline.competitors.gitnexus.status, 'unmeasured');
-  assert.equal(baseline.competitors.codebaseMemoryMcp.status, 'unmeasured');
-  assert.equal(baseline.claims.parity, false);
-  assert.equal(baseline.claims.leadership, false);
   assert.equal(summary.safeguards.networkCalls, 0);
   assert.equal(summary.safeguards.modelCalls, 0);
   assert.equal(summary.safeguards.canonicalMemoryWrites, 0);

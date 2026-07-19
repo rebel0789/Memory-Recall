@@ -150,8 +150,7 @@ consumerSmoke: try {
       'src',
       'index.mjs'
     );
-    must((await stat(legacyIntelligence)).isFile(), 'installed package contains the legacy JS intelligence implementation');
-    await writeFile(legacyIntelligence, "throw new Error('legacy_js_intelligence_invoked');\n");
+    must(await stat(legacyIntelligence).catch(() => null) === null, 'installed package excludes the retired JS intelligence implementation');
   }
   const { RustCodeIntelligenceProvider } = await import(providerUrl);
   assertCommandUnavailable('cargo', isolatedEnvironment);
@@ -511,7 +510,7 @@ consumerSmoke: try {
     { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'Understand launchSmoke', step: 'Inspect the packed native MCP proof', budget: 1024, limit: 10 } } },
     { jsonrpc: '2.0', id: 14, method: 'tools/call', params: { name: 'context.pack', arguments: { objective: 'launchSmoke', step: 'launchSmoke', budget: 1024 } } }
   ];
-  const legacyGraphBuilder = path.join(
+  const retiredGraphBuilder = path.join(
     packageRoot,
     'providers',
     'native',
@@ -519,28 +518,14 @@ consumerSmoke: try {
     'src',
     'index.mjs'
   );
-  const legacyGraphBuilderBody = await readFile(legacyGraphBuilder, 'utf8');
-  const legacyGraphBuilderSignature = 'export async function buildJsTsSourceGraph(options = {}) {';
-  must(legacyGraphBuilderBody.includes(legacyGraphBuilderSignature), 'packed package contains the legacy graph builder instrumentation point');
-  await writeFile(
-    legacyGraphBuilder,
-    legacyGraphBuilderBody.replace(
-      legacyGraphBuilderSignature,
-      `${legacyGraphBuilderSignature}\n  throw new Error('legacy_js_intelligence_invoked');`
-    )
-  );
-  let packedMcpRun;
-  try {
-    packedMcpRun = run(installedMcpServer.command, installedMcpServer.args, {
-      cwd: cliWorkspace,
-      env: isolatedEnvironment,
-      input: packedMcpRequests.map((request) => JSON.stringify(request)).join('\n'),
-      maxBuffer: 4 * 1024 * 1024,
-      timeout: 60_000
-    });
-  } finally {
-    await writeFile(legacyGraphBuilder, legacyGraphBuilderBody);
-  }
+  must(await stat(retiredGraphBuilder).catch(() => null) === null, 'packed package excludes the retired JS graph builder');
+  const packedMcpRun = run(installedMcpServer.command, installedMcpServer.args, {
+    cwd: cliWorkspace,
+    env: isolatedEnvironment,
+    input: packedMcpRequests.map((request) => JSON.stringify(request)).join('\n'),
+    maxBuffer: 4 * 1024 * 1024,
+    timeout: 60_000
+  });
   const packedMcpResponses = packedMcpRun.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
   const listedPackedTools = packedMcpResponses.find((entry) => entry.id === 2)?.result?.tools ?? [];
   must(listedPackedTools.length === mcpToolNames.length, 'packed native MCP exposes exactly twelve tools');
@@ -590,7 +575,7 @@ consumerSmoke: try {
     packedToolPayloads.get('context.pack').data?.sourceGraph?.results?.some((item) => (
       item.label === 'launchSmoke' && item.reasonCodes?.includes('native_index_match')
     )),
-    'packed context.pack consumes the native projection while the legacy JS graph builder is poisoned'
+    'packed context.pack consumes the native projection after the retired JS graph paths are removed'
   );
   must(
     !packedMcpRun.stdout.includes(cliWorkspace) && !packedMcpRun.stdout.includes('javascript-typescript-compatibility'),
@@ -774,16 +759,25 @@ function verifyRootPackagePaths(paths) {
     'providers/native/code-intelligence-rust/provider.json',
     'providers/native/code-intelligence-rust/src/index.mjs',
     'providers/native/code-intelligence-rust/src/binary-resolver.mjs',
-    'packages/source-graph/src/native-compatibility.mjs',
+    'packages/source-graph/src/native-index-projection.mjs',
     'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
     'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
     'packages/protocol/schemas/code-intelligence-graph.schema.json'
   ]) must(installedPaths.has(required), `package includes ${required}`);
   for (const forbiddenPrefix of [
+    'providers/native/context-candidate-ast-code/',
+    'providers/native/context-candidate-graph/',
     'rust/target/',
     'evals/code-intelligence/results/',
     'tests/'
   ]) must(!paths.some((filePath) => filePath.startsWith(forbiddenPrefix)), `package excludes ${forbiddenPrefix}`);
+  for (const retired of [
+    'packages/source-graph/src/index-store.mjs',
+    'packages/source-graph/src/intelligence.mjs',
+    'packages/source-graph/src/native-compatibility.mjs',
+    'packages/source-graph/src/orientation.mjs',
+    'packages/source-graph/src/snapshot-service.mjs'
+  ]) must(!installedPaths.has(retired), `package excludes ${retired}`);
   must(!installedPaths.has('scripts/native-code-intelligence-consumer-smoke.mjs'), 'package excludes checkout-only native consumer smoke');
 }
 

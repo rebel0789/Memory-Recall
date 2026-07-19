@@ -26,13 +26,13 @@ test('context recall eval gates the target budget without treating it as the onl
     '--dataset',
     'evals/context-recall/oaf-repo-gold.v1.json',
     '--mode',
-    'compiler-code-search',
+    'lexical-pack',
     '--budgets',
     '8000,12000'
   ]);
 
   assert.equal(report.gateDecision, 'pass');
-  assert.equal(report.mode, 'compiler-code-search');
+  assert.equal(report.mode, 'lexical-pack');
   assert.equal(report.gate.budget, 8000);
   assert.equal(report.gate.minPassingBudget, 8000);
   assert(report.suiteDurationMs >= 0);
@@ -67,7 +67,7 @@ test('context recall eval scores anonymous baseline results against the same gat
     '--dataset',
     'evals/context-recall/oaf-repo-gold.v1.json',
     '--mode',
-    'compiler-code-search',
+    'lexical-pack',
     '--mode',
     'external-baseline-json',
     '--baseline-results',

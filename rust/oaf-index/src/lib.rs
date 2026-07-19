@@ -657,32 +657,39 @@ impl SourceIndex {
         };
         let cursor = bounds.cursor.as_deref().unwrap_or("");
         let terms = search_terms(query);
-        let predicates = terms
-            .iter()
-            .enumerate()
-            .map(|(index, _)| {
-                let parameter = index + 3;
-                format!("(lower(qualified_name) LIKE ?{parameter} ESCAPE '\\' OR lower(locator) LIKE ?{parameter} ESCAPE '\\')")
-            })
-            .collect::<Vec<_>>()
-            .join(" AND ");
-        let limit_parameter = terms.len() + 3;
-        let sql = format!(
-            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND {predicates} ORDER BY canonical_id LIMIT ?{limit_parameter}"
-        );
-        let mut parameters = Vec::with_capacity(terms.len() + 3);
-        parameters.push(SqlValue::Integer(generation_id));
-        parameters.push(SqlValue::Text(cursor.to_string()));
-        parameters.extend(
-            terms
-                .into_iter()
-                .map(|term| SqlValue::Text(format!("%{}%", escape_like(&term)))),
-        );
-        parameters.push(SqlValue::Integer(count_i64(bounds.limit + 1)?));
-        let mut statement = self.connection.prepare(&sql)?;
-        let items = statement
-            .query_map(params_from_iter(parameters.iter()), row_to_node)?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let query_with = |connector: &str| -> Result<Vec<NodeRecord>> {
+            let predicates = terms
+                .iter()
+                .enumerate()
+                .map(|(index, _)| {
+                    let parameter = index + 3;
+                    format!("(lower(qualified_name) LIKE ?{parameter} ESCAPE '\\' OR lower(locator) LIKE ?{parameter} ESCAPE '\\')")
+                })
+                .collect::<Vec<_>>()
+                .join(connector);
+            let limit_parameter = terms.len() + 3;
+            let sql = format!(
+                "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND {predicates} ORDER BY canonical_id LIMIT ?{limit_parameter}"
+            );
+            let mut parameters = Vec::with_capacity(terms.len() + 3);
+            parameters.push(SqlValue::Integer(generation_id));
+            parameters.push(SqlValue::Text(cursor.to_string()));
+            parameters.extend(
+                terms
+                    .iter()
+                    .map(|term| SqlValue::Text(format!("%{}%", escape_like(term)))),
+            );
+            parameters.push(SqlValue::Integer(count_i64(bounds.limit + 1)?));
+            let mut statement = self.connection.prepare(&sql)?;
+            let items = statement
+                .query_map(params_from_iter(parameters.iter()), row_to_node)?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(items)
+        };
+        let mut items = query_with(" AND ")?;
+        if items.is_empty() && terms.len() > 1 {
+            items = query_with(" OR ")?;
+        }
         ensure_deadline(started, bounds)?;
         bounded_page(items, bounds)
     }

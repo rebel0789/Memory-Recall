@@ -38,7 +38,7 @@
         "repositoryId": { "$ref": "#/$defs/repositoryId" },
         "kind": { "$ref": "#/$defs/safeCode" },
         "label": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9_.$:/#@ +()<>,-]+$" },
-        "locator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
+        "locator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+\\[\\]-]+(?:/[A-Za-z0-9._@+\\[\\]-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "generation": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
       }
@@ -70,7 +70,7 @@
         "targetRepositoryId": { "$ref": "#/$defs/repositoryId" },
         "fromNodeId": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" },
         "toNodeId": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" },
-        "evidenceLocator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
+        "evidenceLocator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+\\[\\]-]+(?:/[A-Za-z0-9._@+\\[\\]-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
         "evidenceNativeRelationshipIds": {
           "type": "array",
           "minItems": 1,

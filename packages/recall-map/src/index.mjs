@@ -10,8 +10,7 @@ import { inspectRepositoryIdentity } from '../../harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-  NATIVE_INDEX_LANGUAGES,
-  buildSourceGraphPreview
+  NATIVE_INDEX_LANGUAGES
 } from '../../source-graph/src/index.mjs';
 
 const REPORT_VERSION = 'memory-recall-map-1.1.0';
@@ -65,7 +64,7 @@ export async function buildRecallMap({
   clock = () => new Date().toISOString(),
   sqliteLocator = SQLITE_LOCATOR,
   sourceGraphSnapshotService = null,
-  sourceGraphPreviewBuilder = buildSourceGraphPreview,
+  sourceGraphPreviewBuilder = null,
   refreshSourceGraph = false
 } = {}) {
   const requestedRoot = normalizeRoot(root);
@@ -86,6 +85,9 @@ export async function buildRecallMap({
   const requestedLimit = normalizeMapBoundedInteger(limit, DEFAULT_MAP_LIMIT, 1, MAX_MAP_REQUEST_LIMIT, 'recall_map_limit_invalid');
   const safeLimit = Math.min(requestedLimit, MAX_ARCHITECTURE_ITEMS);
   const sqlitePath = resolveSqlitePath(workspace.root, sqliteLocator);
+  if (typeof sourceGraphPreviewBuilder !== 'function') {
+    throw new Error('recall_map_source_graph_preview_required');
+  }
   const preview = await sourceGraphPreviewBuilder({
     root: workspace.status === 'available' ? workspace.root : requestedRoot,
     workspaceId: safeWorkspaceId,

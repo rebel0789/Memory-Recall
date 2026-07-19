@@ -500,24 +500,8 @@ async function runInstalledNativeWorkbenchSmoke() {
       && mcpRelationshipIds.has(item.entryRelationshipId)
     ));
     must(mcpProcess, `installed MCP repo.architecture did not return an evidence-backed process: ${JSON.stringify(mcpArchitecture.data?.processes ?? [])}`);
-    const legacyGraphPath = path.join(packageRoot, 'providers', 'native', 'context-candidate-ast-code', 'src', 'index.mjs');
-    const legacyGraphSource = await readFile(legacyGraphPath, 'utf8');
-    const legacyGraphImplementation = `export async function buildJsTsSourceGraph(options = {}) {
-  const index = await buildJsTsSourceIndex(options);
-  return buildSourceGraphFromIndex(index, {
-    builtAt: safeTimestamp(options.clock),
-    maxNodes: options.maxNodes,
-    maxEdges: options.maxEdges
-  });
-}`;
-    must(legacyGraphSource.includes(legacyGraphImplementation), 'installed legacy JS graph implementation is recognizable');
-    await writeFile(
-      legacyGraphPath,
-      legacyGraphSource.replace(
-        legacyGraphImplementation,
-        'export async function buildJsTsSourceGraph(){ throw new Error("legacy_js_graph_builder_invoked"); }'
-      )
-    );
+    const retiredGraphPath = path.join(packageRoot, 'providers', 'native', 'context-candidate-ast-code', 'src', 'index.mjs');
+    must(await stat(retiredGraphPath).catch(() => null) === null, 'installed package excludes the retired JS graph implementation');
 
     const port = await freePort();
     server = spawn(process.execPath, [installedCli, 'serve'], {

@@ -15,7 +15,7 @@
           "evidence": [
             {
               "class": "implementation",
-              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+              "path": "providers/native/code-intelligence-rust/src/index.mjs"
             }
           ],
           "limitations": [

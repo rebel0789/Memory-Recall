@@ -33,7 +33,7 @@ Run this in the repository you want to understand:
 recall map --root . --sqlite .local/memory.sqlite --format summary
 ```
 
-It reports bounded JS/TS static coverage, top entry points, changed-file impact,
+It reports bounded native index coverage, top entry points, changed-file impact,
 and the separate status of ACTIVE facts and PENDING proposals. It does not write
 files, call a model, use network access, enable adapters, or print raw source or
 memory bodies. Add `--changed path/to/file.ts` repeatedly for reviewed files, or

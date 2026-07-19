@@ -39,16 +39,16 @@ Node.js remains the production CLI and transport layer. Packaged Rust owns the
 production code-intelligence path. Graph commands, MCP, Control API, and web
 default to a healthy current SQLite index and fail closed with the exact build,
 refresh, repair, schema, target, or package action when native state is not
-usable. `auto` and `native-preview` remain strict native aliases; neither can
-select JS. The temporary JS/TS path requires explicit `compatibility` selection.
+usable. `auto` and `native-preview` remain strict native aliases; no JavaScript
+intelligence path is available.
 
 The current registry release does not ship the new binary. This source checkout
 contains five optional platform-package templates and a resolver that verifies
 package identity, target, path containment, SHA-256, executable availability,
 and exact binary version before use. The macOS arm64 package path passes an
 isolated local packed-install gate, including explicit first-run indexing and
-all twelve MCP tools while the legacy JS graph builder is instrumented to fail
-if invoked. The other targets, signing, stable publication, and
+all twelve MCP tools while installed-package checks prove the retired JS graph
+paths are absent. The other targets, signing, stable publication, and
 published-package proof remain open.
 Unsupported or unmeasured language capabilities remain labeled as such.
 
@@ -316,9 +316,8 @@ The recorded local pass is macOS arm64 only. It does not prove macOS x64,
 Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
 trusted-publisher ownership for the scoped packages, public installation, or a
 cross-platform native release. It proves same-version removal/reinstall
-survivability, not downgrade compatibility with an older release. The explicit
-JS compatibility path remains frozen until the packaged native gates allow its
-deletion.
+survivability, not downgrade compatibility with an older release. The duplicate
+JavaScript intelligence path is removed from the source and packed root package.
 
 The Rust CI workflow defines native-runner packaging lanes for those five
 targets. Each lane checks the runner architecture, builds the locked release
@@ -327,35 +326,9 @@ that exact tarball into the installed root-plus-native consumer gate. The
 workflow definition is not cross-platform proof by itself: the four non-local
 lanes remain pending until their hosted runs complete successfully.
 
-## Phase 1 evidence
+## Retired JavaScript comparison receipts
 
-The reproducible receipt is
-[`phase1-js-ts-compatibility.json`](../../evals/code-intelligence/results/phase1-js-ts-compatibility.json).
-It covers TypeScript and JavaScript fixtures, a bounded scope from the pinned
-TypeScript compiler commit, and the full pinned Express commit. Both engines
-run twice per case under the same file, byte, node, and edge limits.
-
-The boundary gate passes: all four cases complete, fingerprints are stable, the
-two real repositories match their pinned commits, and no engine network, model,
-memory, or workspace write is reported. The compatibility measurements do not
-pass the published accuracy floor. The real-repository results show unresolved
-native import and call gaps. At the time of Phase 1, `native-preview` remained
-explicit and non-default. The current native runtime default does not change
-that historical benchmark result: status remains `unmeasured`, and no parity
-claim is made.
-
-Reproduce the stored evidence from a source checkout with a local release
-binary:
-
-```bash
-node scripts/code-intelligence-phase1-compatibility.mjs --check
-```
-
-## Earlier baseline
-
-The clean current-state receipt is
-[`phase0-baseline.json`](../../evals/code-intelligence/results/phase0-baseline.json).
-It records successful public JS/TS tests, the Rust build and test suite, and the
-existing Rust ingest, typed-call, and incremental harnesses. It stores command
-hashes and measurements, not raw command output. Competitor performance remains
-unmeasured, so neither receipt proves parity or leadership.
+The former Phase 0 baseline and Phase 1 JavaScript-versus-Rust comparison were
+removed with the duplicate JavaScript intelligence implementation. They are not
+current evidence. Tier 1 support, cross-repository behavior, and competitor
+parity remain explicitly unmeasured where their active gates are incomplete.

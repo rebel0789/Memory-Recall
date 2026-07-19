@@ -3,7 +3,7 @@
 `recall map` is the first explicit read-only command for understanding a local
 repository. Production graph and web reads use the packaged Rust engine and a
 healthy current local SQLite index. Missing or stale native state is shown as a
-bounded recovery state; it never silently invokes the temporary JS/TS engine.
+bounded recovery state; it never silently invokes another intelligence engine.
 Source metadata stays separate from the governed local SQLite memory store.
 
 Run it from the repository you want to inspect:

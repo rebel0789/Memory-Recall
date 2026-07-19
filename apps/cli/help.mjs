@@ -66,7 +66,7 @@ Usage:
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
   oaf graph stats --root . --format summary
   oaf graph stats --root . --engine native --format summary
-  oaf graph search --root . --query "main" --engine compatibility --format json
+  oaf graph search --root . --query "main" --engine native --format json
   oaf graph search --root . --query "route registration hooks" --format summary
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
@@ -127,7 +127,6 @@ Usage:
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
   oaf mcp server --read-only --engine native --root . --stdio
-  oaf mcp server --read-only --engine compatibility --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
   oaf mcp uninstall --client claude-code --dry-run --format json
@@ -173,10 +172,10 @@ Options:
   --sqlite <workspace-relative path>  Local SQLite memory store; defaults to .local/memory.sqlite.
   --changed <path>                    Add a reviewed changed workspace path; repeatable.
   --changed-from-git                  Detect changed paths with local git only.
-  --query <text>                      Search the bounded JS/TS source graph.
+  --query <text>                      Search the current bounded native source index.
   --format <json|summary|markdown>    Emit the full safe report or a compact rendering.
 
-Builds a bounded local repository map from the implemented JS/TS static graph
+Builds a bounded local repository map from the current native SQLite source index
 and the governed local SQLite memory store. It does not write files, call
 models, use network access, enable external adapters, or expose raw source
 bodies.`],
@@ -262,17 +261,15 @@ Usage:
   oaf graph index --repair --confirm <repairPlanFingerprint> --engine native --root . --format summary
 
 Options for read commands:
-  --engine <native|native-preview|auto|compatibility>  Use native, a strict native alias, or the temporary JS compatibility path.
+  --engine <native|native-preview|auto>  Use the packaged native engine. The other spellings are strict native aliases.
 
 Graph read commands return bounded locator-only stats, search, trace, or
 changed-file impact reports. Native is the default and requires the verified
 platform package plus a current local SQLite index. Missing or stale native
 state returns the exact build, refresh, repair, or package action. The former
-auto and native-preview spellings remain strict native aliases and never select
-JS. Compatibility mode runs the temporary JS path or both engines for comparison
-without claiming parity. Index writes are explicit. Native stores its versioned
-SQLite index under .local/source-index; the compatibility index remains under
-.local/source-graph. Both store metadata only; raw source bodies are not included.
+auto and native-preview spellings remain strict native aliases. Index writes
+are explicit. Native stores its versioned SQLite index under .local/source-index.
+It stores metadata only; raw source bodies are not included.
 MCP reads the index but never builds or refreshes it.
 No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
@@ -400,7 +397,6 @@ Usage:
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp server --read-only --root . --stdio
   oaf mcp server --read-only --engine native --root . --stdio
-  oaf mcp server --read-only --engine compatibility --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp install --client claude-code --dry-run --format json
@@ -417,7 +413,7 @@ refreshes an index. Run the explicit writer when wanted:
   oaf graph index --write --engine native --root . --format summary
 Native mode reads only a current, healthy prebuilt .local/source-index database
 and returns an actionable error otherwise. It never builds, refreshes, or falls
-back to JS. The temporary JS path requires --engine compatibility.`],
+back to a source scan.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

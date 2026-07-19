@@ -124,13 +124,8 @@
         "tests/context-compiler.test.mjs",
         "tests/context-candidate-sources.test.mjs",
         "tests/native-memory-profile-context.test.mjs",
-        "tests/ast-code-candidate-source.test.mjs",
-        "tests/source-graph-preview.test.mjs",
-        "tests/source-graph-index-store.test.mjs",
         "tests/cli-graph-index.test.mjs",
         "tests/mcp-code-intelligence.test.mjs",
-        "tests/recall-map-ranking.test.mjs",
-        "evals/recall-map/architecture-ranking.v1.json",
         "tests/cli.test.mjs",
         "tests/control-api-boundary.test.mjs",
         "packages/protocol/schemas/candidate-source-request.schema.json",
@@ -140,8 +135,7 @@
         "packages/protocol/schemas/source-graph-preview.schema.json",
         "packages/protocol/src/source-graph-locator.mjs",
         "packages/source-graph/src/index.mjs",
-        "packages/source-graph/src/index-store.mjs",
-        "packages/source-graph/src/intelligence.mjs",
+        "packages/source-graph/src/native-index-projection.mjs",
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
         "packages/protocol/schemas/context-selection-result.schema.json",
@@ -152,36 +146,36 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Native exact, lexical, AST-code, and graph locator candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 512 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "Native exact and lexical context candidate sources are retained; repository structure and context-pack graph hints come only from the packaged Rust SQLite index",
         "Context views are opt-in deterministic local representations for noisy selected records and tool output; they preserve original/view hashes and token accounting but do not replace canonical source or memory state",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
-        "Native source graph is read-only derived metadata; graph candidate records are locator-only and it is not canonical source state, a graph database, or persisted memory; an optional explicit local structural index can cache it across processes",
+        "Native source-graph projections are read-only, locator-only derived metadata from the explicit local SQLite index; they are not canonical source or memory state",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
       ]
     },
     {
       "id": "source.graph-index",
-      "name": "Persistent incremental JS/TS source index",
+      "name": "Persistent incremental polyglot Rust source index",
       "status": "implemented",
       "evidence": [
         "apps/cli/oaf.mjs",
-        "packages/source-graph/src/index-store.mjs",
-        "packages/source-graph/src/intelligence.mjs",
-        "providers/native/context-candidate-ast-code/src/index.mjs",
-        "tests/source-graph-index-store.test.mjs",
+        "rust/oaf-index/src/lib.rs",
+        "rust/oaf-index/src/store.rs",
+        "providers/native/code-intelligence-rust/src/index.mjs",
+        "packages/source-graph/src/native-index-projection.mjs",
+        "tests/native-code-intelligence-index.test.mjs",
         "tests/cli-graph-index.test.mjs",
         "tests/mcp-code-intelligence.test.mjs",
         "docs/usage/mcp-server-reference.md",
         "docs/usage/support-matrix.md"
       ],
       "limitations": [
-        "The default index is bounded to 1,000 supported JS/TS-family files, 512 KiB per file, 20,000 graph nodes, and 50,000 graph edges; larger limits do not imply million-node support",
-        "Index writes require explicit graph index --write or --refresh; MCP only reads a current index and falls back to a bounded scan when it is stale",
-        "Incremental refresh reuses unchanged per-file structural shards and reparses changed or added files; ignore-rule, parser-version, or scan-setting changes trigger a full rebuild",
-        "The index contains hashes, locators, structural parse metadata, and a sanitized graph; it contains no raw source bodies or absolute workspace paths",
-        "No non-JS/TS, semantic embedding, cross-repository, remote, or graph-database index is claimed"
+        "Index writes require an explicit graph index writer command; all CLI, MCP, Control API, and web reads require a healthy current committed generation and fail closed otherwise",
+        "Incremental refresh reuses unchanged file records and reparses changed, added, renamed, or deleted files with bounded dependency invalidation",
+        "The index contains hashes, locators, structural parse metadata, and evidence; it contains no raw source bodies or absolute workspace paths",
+        "The fourteen shipped parsers remain honestly capability-bounded; semantic embeddings, remote indexes, and a graph database are not claimed"
       ]
     },
     {
@@ -192,13 +186,8 @@
         "packages/context-compiler/src/index.mjs",
         "providers/native/context-candidate-exact/provider.json",
         "providers/native/context-candidate-lexical/provider.json",
-        "providers/native/context-candidate-ast-code/provider.json",
-        "providers/native/context-candidate-graph/provider.json",
         "providers/native/catalog.json",
         "tests/context-candidate-sources.test.mjs",
-        "tests/ast-code-candidate-source.test.mjs",
-        "tests/source-graph-preview.test.mjs",
-        "tests/recall-map-ranking.test.mjs",
         "packages/adapter-contracts/src/index.mjs",
         "packages/protocol/schemas/candidate-source-descriptor.schema.json",
         "packages/protocol/schemas/candidate-source-hit.schema.json",
@@ -211,8 +200,8 @@
         "docs/architecture/context-compiler.md"
       ],
       "limitations": [
-        "Only native exact, lexical, AST-code, and graph locator sources are implemented and enabled",
-        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; graph source emits locator-only derived JS/TS graph hits; preview facade input and ranking output share the strict source-graph locator and label grammars; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; coverage distinguishes declared out-of-scope directories from source-relevant excluded trees and records unreadable source directories as partial static scope without hiding readable siblings; it is not a full semantic parser, language server, graph database, or executor",
+        "Only native exact and lexical candidate sources are enabled; code-intelligence candidates and source-graph previews are projections of the packaged Rust SQLite index",
+        "Context Compiler consumes locator-only native index evidence and never receives raw source bodies; missing, stale, corrupt, or unavailable indexes remain explicit rather than selecting another intelligence engine",
         "Vector, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
@@ -234,7 +223,7 @@
         "docs/usage/recall-map.md"
       ],
       "limitations": [
-        "CLI only: Recall Map composes the existing bounded JS/TS static source graph and governed local SQLite memory status; it does not create a missing SQLite store or persist a graph.",
+        "Recall Map composes the healthy current native SQLite index and governed local SQLite memory status; it does not create a missing SQLite store or persist a graph.",
         "The command is read-only and local-only: no workspace writes, canonical-memory mutation, model or network calls, external adapters, raw source bodies, or absolute workspace paths are emitted.",
         "Recall Map API, browser, and MCP map surfaces are not implied by this CLI capability."
       ]
@@ -358,7 +347,7 @@
         "docs/implementation/OAF-031-context-intake-preview-note.md"
       ],
       "limitations": [
-        "Generates schema-validated local handoff reports from explicit source-family selections over documented harness project files, explicit user-selected relative files, compact native JS/TS source-graph hints, a utility read plan, and a copyable launch prompt",
+        "Generates schema-validated local handoff reports from explicit source-family selections over documented harness project files, explicit user-selected relative files, compact native source-graph hints, a utility read plan, and a copyable launch prompt",
         "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
         "Utility read plans record required local reads, changed-locator coverage, graph-hint coverage, redacted content hashes for safely readable changed files, aggregate changed-source byte/token counts, unavailable-hash reasons for missing or unsafe changed files, explicit user-selected files omitted by budget, and source-selection reduction without embedding raw source bodies",
         "Context packs preserve requested source families, user-selected locators, and changed locators in schema-backed requestedInputs, and reject secret-like or absolute-path objective and step text before rendering handoff markdown",
@@ -1080,8 +1069,6 @@
         "evals/code-intelligence/capability-matrix.v1.json",
         "evals/code-intelligence/corpus.v1.json",
         "evals/code-intelligence/benchmark-gates.v1.json",
-        "evals/code-intelligence/results/phase0-baseline.json",
-        "evals/code-intelligence/results/phase1-js-ts-compatibility.json",
         "evals/code-intelligence/results/phase2-batch-a.json",
         "evals/code-intelligence/results/phase2-batch-b.json",
         "evals/code-intelligence/results/phase2-batch-c.json",
@@ -1096,8 +1083,6 @@
         "providers/native/code-intelligence-rust/src/binary-resolver.mjs",
         "scripts/package-native-platform.mjs",
         "scripts/native-code-intelligence-consumer-smoke.mjs",
-        "packages/source-graph/src/native-compatibility.mjs",
-        "scripts/code-intelligence-phase1-compatibility.mjs",
         "scripts/code-intelligence-phase2-tier1.mjs",
         "scripts/code-intelligence-phase3-index.mjs",
         "scripts/code-intelligence-phase4-intelligence.mjs",
@@ -1116,11 +1101,11 @@
         "rust/oaf-ingest/src/lib.rs",
         "rust/oaf/src/index_protocol.rs",
         "rust/oaf-index/tests/community_process_projection.rs",
-        "tests/source-graph-native-compatibility.test.mjs"
+        "tests/native-code-intelligence-consumer-smoke.test.mjs"
       ],
       "limitations": [
-        "Graph, MCP, Control API, and web reads default to verified packaged Rust and a healthy current committed SQLite index. Missing, stale, corrupt, mismatched, or unavailable native state fails closed with an exact build, refresh, repair, schema, target, or package action. The frozen JS/TS implementation requires explicit compatibility selection.",
-        "The current registry release does not ship the new Rust binary. This source checkout has exact-version optional package templates, a verified resolver, and a five-native-runner packaging gate; the workflow, command-line publisher, and exported root publisher fail closed unless an exact signed five-package artifact directory passes version, commit, registry integrity, provenance, and npm signature verification immediately before the root lookup or publication. The macOS arm64 root-plus-platform packed install passes without Cargo or rustc, including explicit first-run indexing and all twelve MCP tools while the legacy JS graph builder is instrumented to fail if invoked; the four hosted target runs, real signed attestations, publication, and published-package promotion remain unproven.",
+        "Graph, MCP, Control API, and web reads use verified packaged Rust and a healthy current committed SQLite index. Missing, stale, corrupt, mismatched, or unavailable native state fails closed with an exact build, refresh, repair, schema, target, or package action; no JavaScript intelligence fallback remains.",
+        "The current registry release does not ship the new Rust binary. This source checkout has exact-version optional package templates, a verified resolver, and a five-native-runner packaging gate; the workflow, command-line publisher, and exported root publisher fail closed unless an exact signed five-package artifact directory passes version, commit, registry integrity, provenance, and npm signature verification immediately before the root lookup or publication. The macOS arm64 root-plus-platform packed install passes without Cargo or rustc, including explicit first-run indexing, all twelve MCP tools, and installed-package absence checks for the retired JavaScript source-graph paths; the four hosted target runs, real signed attestations, publication, and published-package promotion remain unproven.",
         "Phase 2 covers 14 fixtures and all 43 pinned Tier 1 repositories; 75 capability rows meet the sampled floor, 78 applicable rows remain unmeasured, no row has a recorded floor failure, and C heritage is the single not-applicable row. Reviewed imports preserve full coordinates across all fourteen Tier 1 language fixtures plus three pinned repositories per language. Go, Rust, and Dart exports meet the sampled floor across one fixture and three pinned repositories per language. Dart calls and heritage, Kotlin calls and types, and C++ types retain their reviewed sampled floors. C++ heritage now meets the sampled floor for direct base specifiers: template arguments and body references are explicit negative decoys, while template substitution, alias expansion, dependent names, and compiler-equivalent inheritance analysis remain unmeasured. Generic substitution, compiler-equivalent analysis, grouped PHP imports, broader framework or monorepo resolution, and the remaining applicable capability rows remain unmeasured. Every Tier 1 language remains overall unmeasured; missing rows remain explicit, and no competitor, parity, or leadership claim is made.",
         "Five bounded repository scopes report explicit node or edge omissions; their available evidence is partial and no scale claim is made.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
@@ -1128,7 +1113,7 @@
         "Phase 4 adds deterministic bounded exact, lexical, and one-hop structural search plus communities, evidence-backed entry-to-sink processes, and constrained direction/depth/edge-kind traversal through the existing native MCP tools. Its local fixture proves deterministic output, relationship evidence, read-only behavior, and the two-second query deadline; it does not prove per-language process support, competitor parity, leadership, multi-repository behavior, or million-node scale.",
         "The Phase 5 fixtures prove bounded cross-service evidence inside one repository and an experimental exact Go path across two explicitly registered repositories. The Rust-owned SQLite registry supports bounded search across up to eight indexes; exact Go module evidence drives dependencies, one entry-to-service trace, and reverse impact through the existing twelve MCP tools, with same-name wrong-module decoy rejection. General cross-repository and cross-language resolution, competitor parity, and scale remain unproven.",
         "Native index.status now performs a bounded, read-only source-hash comparison against the active SQLite generation and reports source changes or unverified bounds as stale. Persisted node, edge, or file omissions remain partial. Normal queries remain SQLite-only, indexes created before scan-scope persistence require a rebuild for verified freshness, and historical custom max-file-byte settings can conservatively produce false-stale results because that setting is not yet persisted.",
-        "Default MCP and the strict auto/native-preview aliases recheck native index freshness before each structural tool call. They use only a healthy current committed generation; every other native state fails with an actionable bounded error. They never build, refresh, repair, or silently select JS. Explicit compatibility mode is temporary.",
+        "Default MCP and the strict auto/native-preview aliases recheck native index freshness before each structural tool call. They use only a healthy current committed generation; every other native state fails with an actionable bounded error. They never build, refresh, repair, or select a JavaScript intelligence path.",
         "The local Phase 6 distribution gate proves current-platform package discovery, compiler-free 14-language parsing without the legacy JS intelligence module, installed SQLite lifecycle, confirmed MCP config install/removal with private backups and neighbor preservation, package removal with workspace-state preservation, and same-version exact-tarball reinstall on macOS arm64. CI defines the same package gate for all five initial targets, but the four non-local lanes have not run here; signed or published packages, cross-version downgrade, and cross-platform release readiness remain unproven."
       ]
     }
@@ -1157,10 +1142,8 @@
       "npm run consumer:browser-smoke",
       "node --test tests/code-intelligence-contract.test.mjs",
       "node scripts/pin-code-intelligence-corpus.mjs --check",
-      "node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json",
       "node scripts/rust-code-intelligence-protocol-quality.mjs",
       "node scripts/native-code-intelligence-consumer-smoke.mjs",
-      "node scripts/code-intelligence-phase1-compatibility.mjs --check",
       "node scripts/code-intelligence-batch-a.mjs --check",
       "node scripts/code-intelligence-batch-b.mjs --check",
       "node scripts/code-intelligence-batch-c.mjs --check",

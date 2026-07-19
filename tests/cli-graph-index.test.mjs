@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const cli = path.resolve('apps/cli/oaf.mjs');
 const rustBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 
-test('graph read commands expose strict native and compatibility modes', () => {
+test('graph read commands expose strict native aliases and reject the removed compatibility engine', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-native-preview-'));
   mkdirSync(path.join(root, 'src'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'index.ts'), 'export function main(){ return helper(); }\nexport function helper(){ return 1; }\n');
@@ -37,15 +37,12 @@ test('graph read commands expose strict native and compatibility modes', () => {
   assert.equal(JSON.stringify(nativeReport).includes(root), false);
 
   const compatibility = run('compatibility', { ...env, MEMORY_RECALL_NATIVE_BINARY: path.join(root, 'missing-native') });
-  assert.equal(compatibility.status, 0, compatibility.stderr);
-  const compatibilityReport = JSON.parse(compatibility.stdout);
-  assert.equal(compatibilityReport.engine.selection, 'compatibility');
-  assert.equal(compatibilityReport.engine.implementation, 'javascript-typescript-compatibility');
-  assert(compatibilityReport.search.results.some((item) => item.label === 'main'));
+  assert.equal(compatibility.status, 2);
+  assert.match(compatibility.stderr, /graph --engine must be native, native-preview, or auto/u);
 
   const invalid = run('unknown');
   assert.equal(invalid.status, 2);
-  assert.match(invalid.stderr, /graph --engine must be native, native-preview, auto, or compatibility/u);
+  assert.match(invalid.stderr, /graph --engine must be native, native-preview, or auto/u);
 
   const missing = spawnSync(process.execPath, [
     cli, 'graph', 'stats', '--root', root, '--engine', 'native', '--format', 'json'
@@ -80,59 +77,6 @@ test('graph read commands default to the current native persistent index without
   const after = statSync(indexPath);
   assert.equal(after.size, before.size);
   assert.equal(after.mtimeMs, before.mtimeMs);
-});
-
-test('graph index CLI builds, reports, and incrementally refreshes a local persistent index', () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-index-'));
-  mkdirSync(path.join(root, 'src'), { recursive: true });
-  writeFileSync(path.join(root, 'src', 'one.ts'), 'export function one() { return 1; }\n');
-  writeFileSync(path.join(root, 'src', 'stable.ts'), 'export const stable = true;\n');
-  const run = (...args) => spawnSync(process.execPath, [cli, 'graph', 'index', ...args, '--engine', 'compatibility', '--root', root, '--format', 'json'], { encoding: 'utf8' });
-
-  const missing = run('--status');
-  assert.equal(missing.status, 0, missing.stderr);
-  assert.equal(JSON.parse(missing.stdout).status, 'not-built');
-  assert.equal(existsSync(path.join(root, '.local', 'source-graph', 'index.v1.json')), false);
-
-  const implicit = run();
-  assert.equal(implicit.status, 2);
-  assert.match(implicit.stderr, /requires --status, --write, --refresh, --doctor, --repair, or --query/u);
-
-  const built = run('--write');
-  assert.equal(built.status, 0, built.stderr);
-  const builtReport = JSON.parse(built.stdout);
-  assert.equal(builtReport.command, 'graph index');
-  assert.equal(builtReport.status, 'ready');
-  assert.equal(builtReport.measurements.parsedFileCount, 2);
-  assert.equal(builtReport.safeguards.rawSourceBodiesIncluded, false);
-
-  const custom = run('--write', '--out', '.local/custom-index.json');
-  assert.equal(custom.status, 0, custom.stderr);
-  assert.equal(JSON.parse(custom.stdout).indexLocator, 'workspace://.local/custom-index.json');
-  assert.equal(existsSync(path.join(root, '.local', 'custom-index.json')), true);
-
-  const status = run('--status');
-  assert.equal(status.status, 0, status.stderr);
-  assert.equal(JSON.parse(status.stdout).fileCount, 2);
-
-  const indexPath = path.join(root, '.local', 'source-graph', 'index.v1.json');
-  const beforeNoop = statSync(indexPath).mtimeMs;
-  const noop = run('--refresh');
-  assert.equal(noop.status, 0, noop.stderr);
-  assert.equal(JSON.parse(noop.stdout).safeguards.localFilesWritten, 0);
-  assert.equal(statSync(indexPath).mtimeMs, beforeNoop);
-
-  writeFileSync(path.join(root, 'src', 'one.ts'), 'export function one() { return 2; }\n');
-  const refreshed = run('--refresh');
-  assert.equal(refreshed.status, 0, refreshed.stderr);
-  const refreshReport = JSON.parse(refreshed.stdout);
-  assert.equal(refreshReport.measurements.parsedFileCount, 1);
-  assert.equal(refreshReport.measurements.reusedFileCount, 1);
-  assert.equal(refreshReport.measurements.changedFileCount, 1);
-
-  const unsafe = spawnSync(process.execPath, [cli, 'graph', 'index', '--status', '--engine', 'compatibility', '--root', root, '--out', '../outside.json', '--format', 'json'], { encoding: 'utf8' });
-  assert.equal(unsafe.status, 2);
-  assert.equal(unsafe.stderr.includes('../outside.json'), false);
 });
 
 test('graph index native preview exposes the full bounded SQLite lifecycle explicitly', () => {
@@ -202,7 +146,7 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
 
   const hiddenNativeWrite = spawnSync(process.execPath, [cli, 'graph', 'index', '--doctor', '--engine', 'compatibility', '--root', root, '--format', 'json'], { encoding: 'utf8', env });
   assert.equal(hiddenNativeWrite.status, 2);
-  assert.match(hiddenNativeWrite.stderr, /requires --engine native/u);
+  assert.match(hiddenNativeWrite.stderr, /--engine must be native, native-preview, or auto/u);
 
   const invalidBound = run('--write', '--max-nodes', 'nope');
   assert.equal(invalidBound.status, 2);
@@ -263,7 +207,8 @@ test('graph help documents the explicit persistent index lifecycle', () => {
   assert.match(result.stdout, /graph index --refresh/u);
   assert.match(result.stdout, /--watch/u);
   assert.match(result.stdout, /MCP reads the index but never builds or refreshes it/u);
-  assert.match(result.stdout, /--engine <native\|native-preview\|auto\|compatibility>/u);
+  assert.match(result.stdout, /--engine <native\|native-preview\|auto>/u);
+  assert.doesNotMatch(result.stdout, /compatibility/u);
   assert.match(result.stdout, /graph index --doctor --engine native/u);
   assert.match(result.stdout, /graph index --repair --confirm <repairPlanFingerprint>/u);
   assert.match(result.stdout, /\.local\/source-index/u);
@@ -272,7 +217,16 @@ test('graph help documents the explicit persistent index lifecycle', () => {
 test('graph index watch refreshes after a source file changes and exits cleanly', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-index-watch-'));
   writeFileSync(path.join(root, 'watch.ts'), 'export const watched = 1;\n');
-  const child = spawn(process.execPath, [cli, 'graph', 'index', '--refresh', '--watch', '--engine', 'compatibility', '--root', root, '--format', 'summary'], { encoding: 'utf8' });
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary };
+  const built = spawnSync(process.execPath, [cli, 'graph', 'index', '--write', '--engine', 'native', '--root', root, '--format', 'json'], {
+    encoding: 'utf8',
+    env
+  });
+  assert.equal(built.status, 0, built.stderr);
+  const child = spawn(process.execPath, [cli, 'graph', 'index', '--refresh', '--watch', '--engine', 'native', '--root', root, '--format', 'summary'], {
+    encoding: 'utf8',
+    env
+  });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });

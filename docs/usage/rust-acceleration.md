@@ -59,11 +59,9 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
   npm run recall -- graph stats --root . --engine native --format summary
 ```
 
-Use `--engine compatibility` to receive the native graph plus bounded
-file/symbol/import/call/route comparisons against the existing JS/TS graph.
-Both modes are read-only. A missing or invalid native binary fails clearly.
-Commands without `--engine` select native. `native-preview` and `auto` remain
-strict native compatibility aliases; neither alias enables JS fallback.
+A missing or invalid native binary fails clearly. Commands without `--engine`
+select native. `native-preview` and `auto` remain strict native aliases; neither
+alias enables a fallback engine.
 
 ## Build and query the native index
 
@@ -101,8 +99,7 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
 
 Native reads require a healthy, ready, current committed index. Every other
 status returns an actionable error. Reads do not build, refresh, or repair the
-index. Use `--engine compatibility` only when deliberately testing the temporary
-bounded JS/TS implementation.
+index.
 
 ## Verify from a source checkout
 
@@ -113,7 +110,6 @@ node scripts/rust-ingest-quality.mjs
 node scripts/rust-realworld-bench.mjs
 node scripts/rust-code-intelligence-protocol-quality.mjs
 node scripts/native-code-intelligence-consumer-smoke.mjs
-node scripts/code-intelligence-phase1-compatibility.mjs --check
 node scripts/code-intelligence-phase3-index.mjs --check
 ```
 

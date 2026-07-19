@@ -223,15 +223,15 @@ test('protocol bridge docs separate pending A2A bridge from receiver packets', (
   assert.match(guide, /versioned typed safe parts, required local reads, and zero write\ntools/);
 });
 
-test('native provider docs match shipped graph candidate source boundary', () => {
+test('native provider docs match the packaged Rust source-intelligence boundary', () => {
   const guide = read('docs/architecture/native-providers.md');
   const catalog = JSON.parse(read('providers/native/catalog.json'));
-  const graphProvider = catalog.providers.find((provider) => provider.id === 'provider:native:context-candidate:graph');
+  const codeIntelligenceProvider = catalog.providers.find((provider) => provider.id === 'provider:native:code-intelligence:rust');
 
-  assert.equal(graphProvider?.enabledByDefault, true);
-  assert.match(guide, /`native\.context-candidate\.graph` \| on \| Locator-only candidate source over the derived JS\/TS source graph/);
-  assert.match(guide, /native graph source\nis available now as a locator-only wrapper over the derived JS\/TS source graph/);
-  assert.doesNotMatch(guide, /Vector, graph, temporal, preference, and episode source kinds remain declared/);
+  assert.equal(codeIntelligenceProvider?.enabledByDefault, true);
+  assert.match(guide, /`native\.code-intelligence\.rust` \| on \| Verified packaged Rust code intelligence over the explicit local SQLite index/);
+  assert.match(guide, /packaged Rust code-intelligence provider owns source structure, search,\ntrace, impact, and graph projections/);
+  assert.match(guide, /Vector, temporal, preference, and episode source kinds remain declared/);
 });
 
 test('issue tracker docs use supported gh PR queue fields', () => {

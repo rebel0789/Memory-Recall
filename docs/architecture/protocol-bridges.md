@@ -89,9 +89,8 @@ Installer-generated servers use strict native selection. The install
 does not build or refresh a graph index: its report prints `indexBuildCommand`
 as a separate explicit write. Without a healthy, current native index, the
 read-only structural tools return the exact build, refresh, repair, schema, or
-package action. They never silently scan with JS. Direct `mcp server` commands
-without `--engine` use the same native selection; temporary JS/TS behavior
-requires explicit `--engine compatibility`.
+package action. They never silently switch engines. Direct `mcp server` commands
+without `--engine` use the same native selection.
 
 Applying the preview requires the matching plan fingerprint from that dry-run:
 

@@ -10,8 +10,7 @@ import { createControlApiServer, createLoginRateLimiter, resolveServeSourceGraph
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
-import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
-import { buildNativeIndexSourceGraphPreview, createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
+import { buildNativeIndexSourceGraphPreview } from '../packages/source-graph/src/index.mjs';
 import sourceGraphPreviewSchema from '../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
@@ -350,85 +349,6 @@ function rawRequest(base, path, { method = 'POST', headers = {}, chunks = [] } =
   });
 }
 
-test('Recall Map and source preview share one source snapshot', async (t) => {
-  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-shared-source-snapshot-'));
-  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
-  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
-  await mkdir(path.join(sourceGraphRoot, 'apps', 'api', 'users', '[userRef]'), { recursive: true });
-  await writeFile(path.join(sourceGraphRoot, 'src', 'app.js'), 'export const sharedSnapshotFixture = true;\n');
-  await writeFile(path.join(sourceGraphRoot, 'apps', 'api', 'users', '[userRef]', 'route.js'), 'export function GET(){ return true; }\n');
-
-  let buildCount = 0;
-  const sourceGraphSnapshotService = createSourceGraphSnapshotService({
-    buildGraph: async (options) => {
-      buildCount += 1;
-      return buildJsTsSourceGraph(options);
-    }
-  });
-  t.after(() => sourceGraphSnapshotService.close());
-  const api = await startServer(t, {
-    sourceGraphRoot,
-    sourceGraphSnapshotService,
-    codeIntelligenceProvider: null
-  });
-  const authHeaders = { cookie: api.auth.cookie, origin: api.base };
-
-  const recall = await request(api.base, '/api/recall/map?workspaceId=ws_local', {
-    headers: authHeaders
-  });
-  const map = await request(api.base, '/api/context/graph/preview', {
-    method: 'POST',
-    headers: {
-      ...authHeaders,
-      'content-type': 'application/json',
-      'x-csrf-token': api.auth.csrf
-    },
-    body: JSON.stringify({
-      workspaceId: 'ws_local',
-      changedLocators: ['apps/api/users/[userRef]/route.js'],
-      sampleLimit: 3
-    })
-  });
-
-  assert.equal(recall.status, 200, recall.text);
-  assert.equal(map.status, 200, map.text);
-  assert.equal(buildCount, 1);
-  assert.equal(recall.body.support.sourceGraph.snapshot.reuse, 'cold');
-  assert.equal(map.body.snapshot.reuse, 'cache');
-  assert.equal(map.body.graph.summary.fileCount > 0, true);
-  assert.deepEqual(map.body.impact.changedLocators, ['workspace://apps/api/users/[userRef]/route.js']);
-
-  const scopedRecall = await request(api.base, '/api/recall/map', {
-    method: 'POST',
-    headers: {
-      ...authHeaders,
-      'content-type': 'application/json',
-      'x-csrf-token': api.auth.csrf
-    },
-    body: JSON.stringify({
-      workspaceId: 'ws_local',
-      changedLocators: ['apps/api/users/[userRef]/route.js'],
-      query: 'GET'
-    })
-  });
-  assert.equal(scopedRecall.status, 200, scopedRecall.text);
-  assert.deepEqual(scopedRecall.body.architecture.impact.changedLocators, ['workspace://apps/api/users/[userRef]/route.js']);
-  assert.equal(buildCount, 1);
-
-  const refreshed = await request(api.base, '/api/context/graph/preview', {
-    method: 'POST',
-    headers: {
-      ...authHeaders,
-      'content-type': 'application/json',
-      'x-csrf-token': api.auth.csrf
-    },
-    body: JSON.stringify({ workspaceId: 'ws_local', sampleLimit: 3, refresh: true })
-  });
-  assert.equal(refreshed.status, 200, refreshed.text);
-  assert.equal(refreshed.body.snapshot.reuse, 'cold');
-  assert.equal(buildCount, 2);
-});
-
 test('Control API Recall Map presents a prebuilt TypeScript and Python native index without the legacy scanner', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-recall-map-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
@@ -635,7 +555,20 @@ test('context pack route is protected and does not mutate run state', async (t) 
   const largeMemoryTail = 'API_LARGE_MEMORY_TAIL_SHOULD_NOT_LEAK';
   await writeFile(path.join(sourceGraphRoot, 'notes', 'large-memory.md'), `project:oaf large_context browser_preflight\n${'ctx '.repeat(2_400_000)}${largeMemoryTail}`);
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
-  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const recallMap = await request(api.base, '/api/recall/map', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -947,6 +880,19 @@ test('context pack registry status route is protected read-only and sanitized', 
   await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API REGISTRY RAW AGENTS BODY should not leak.');
   await writeFile(path.join(sourceGraphRoot, 'CONTEXT.md'), 'API REGISTRY RAW SELECTED BODY should not leak.');
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export function registryStatusFixture(){ return true; }\n');
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
   const objective = 'private registry objective must not leak';
   const step = 'private registry step must not leak';
   const pinned = spawnSync(process.execPath, [
@@ -973,10 +919,17 @@ test('context pack registry status route is protected read-only and sanitized', 
     'context-packs/CONTEXT_PACK.md',
     '--format',
     'json'
-  ], { encoding: 'utf8', env: { ...process.env, OAF_FIXED_NOW: '2026-06-19T10:00:00.000Z' } });
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      MEMORY_RECALL_NATIVE_BINARY: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+      OAF_FIXED_NOW: '2026-06-19T10:00:00.000Z'
+    }
+  });
   assert.equal(pinned.status, 0, pinned.stderr);
 
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const denied = await request(api.base, '/api/context/pack/registry/status?workspaceId=ws_local');
   assert.equal(denied.status, 401);
   assert.equal(denied.body.error.code, 'authentication_required');
@@ -1189,7 +1142,20 @@ test('context graph preview route is protected bounded and does not mutate run s
     '  return service.approveTokenReset(request);',
     '}'
   ].join('\n'));
-  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const denied = await request(api.base, '/api/context/graph/preview', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base },
@@ -1211,7 +1177,7 @@ test('context graph preview route is protected bounded and does not mutate run s
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
     body: JSON.stringify({
       workspaceId: 'ws_local',
-      query: 'approve token reset workflow',
+      query: 'approveTokenReset',
       startName: 'runAuthWorkflow',
       changedLocators: ['src/auth.ts'],
       sampleLimit: 3
@@ -1227,7 +1193,10 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert(response.body.search.results.some((item) => item.label.includes('approveTokenReset')));
   assert(response.body.trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
   assert.deepEqual(response.body.impact.representedChangedLocators, ['workspace://src/auth.ts']);
-  assert(response.body.impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
+  assert(
+    response.body.impact.affectedSymbols.some((item) => item.name === 'runAuthWorkflow'),
+    JSON.stringify(response.body.impact.affectedSymbols)
+  );
   assert.equal(response.text.includes('API GRAPH RAW BODY'), false);
   assert.equal(response.text.includes(sourceGraphRoot), false);
   assert.equal(api.store.updates, 0);

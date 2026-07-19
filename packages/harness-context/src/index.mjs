@@ -29,9 +29,7 @@ import {
   normalizeMemoryPathsConfig
 } from '../../memory-core/src/index.mjs';
 import {
-  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-  buildSourceGraphPreview
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES
 } from '../../source-graph/src/index.mjs';
 import {
   buildOafReadOnlyResourceCatalog,
@@ -2194,32 +2192,27 @@ function compactSourceGraphImpact(impact, changedLocators) {
 }
 
 async function buildContextPackSourceGraph({
-  root,
-  workspaceId,
   objective,
   step,
   changedLocators,
-  maxFileBytes = DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES,
   createdAt,
   sourceGraphPreview = null
 }) {
   const query = sourceGraphPackQuery({ objective, step });
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const queryFingerprint = hashRef(stableStringify({ query, changedLocators: normalizedChangedLocators, limit: 12, offset: 0 }));
-  const graphMaxFileBytes = boundedSourceGraphMaxFileBytes(maxFileBytes);
   try {
-    const preview = sourceGraphPreview ?? await buildSourceGraphPreview({
-      root,
-      workspaceId,
-      query,
-      changedLocators: normalizedChangedLocators,
-      limit: 12,
-      sampleLimit: 1,
-      maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-      maxFileBytes: graphMaxFileBytes,
-      clock: () => createdAt
-    });
-    const results = compactSourceGraphResults(preview.search.results);
+    if (!sourceGraphPreview) throw new Error('source_graph_preview_required');
+    const preview = sourceGraphPreview;
+    const impactResults = (preview.impact?.affectedSymbols ?? []).map((item) => ({
+      resultType: 'node',
+      kind: 'symbol',
+      label: item.name,
+      locator: item.locator,
+      score: 1,
+      reasonCodes: item.reasonCodes?.length ? item.reasonCodes : ['changed_locator_impact']
+    }));
+    const results = compactSourceGraphResults([...preview.search.results, ...impactResults]);
     const warnings = [];
     if (preview.graph.diagnostics.length) warnings.push('source_graph_diagnostics_present');
     const representedChangedLocators = new Set(preview.impact?.representedChangedLocators ?? []);

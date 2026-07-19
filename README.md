@@ -59,7 +59,7 @@ for preserved legacy names and URIs.
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Packaged Rust is the default engine. Reads use the local SQLite index and return an explicit build, refresh, repair, or package action when native state is not ready. The bounded JS/TS engine remains available only through `--engine compatibility`. |
+| Fast local code intelligence | Packaged Rust is the only engine. Reads use the local SQLite index and return an explicit build, refresh, repair, or package action when native state is not ready. |
 | Larger repositories | Explicit local index with incremental refresh and watch mode; MCP and the web workbench read it without writing. |
 | Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
 | First look at a repository | The web Recall Map reads a healthy current Rust index, including source-backed communities and bounded entry-to-sink processes. Until first-run indexing is complete, it returns a bounded recovery state instead of silently switching engines. |
@@ -119,8 +119,7 @@ command only when the fingerprint matches. That path installs the twelve-tool
 read-only MCP server with `--engine native`; install never builds or refreshes an
 index, and its `indexBuildCommand` is the separate explicit native-index write.
 Until a healthy, current native index exists, structural tools return the exact
-native recovery command. The temporary JS/TS path requires the explicit
-`--engine compatibility` option. Reverse the install with `recall mcp uninstall --client
+native recovery command. Reverse the install with `recall mcp uninstall --client
 claude-code --dry-run --format json`, then the printed confirmed command. It
 removes only the exact package-owned entry and preserves neighboring servers.
 `recall connect` is separate: it installs a resource
@@ -197,11 +196,9 @@ cross-product benchmark leaderboard.
   processes, and their source relationships. Native use requires a verified
   matching binary from a local build, an explicit environment path, or an
   optional platform package. Graph commands, direct MCP startup, and
-  installer-generated MCP config select native by default and never silently
-  switch to JS. The current-host packed-install gate is green; other targets,
+  installer-generated MCP config select native by default and have no alternate
+  intelligence engine. The current-host packed-install gate is green; other targets,
   signing, registry publication, and full language parity remain unproven.
-- Explicit `--engine compatibility` JS/TS source index retained temporarily for
-  migration checks. Production graph and MCP reads do not select it implicitly.
 - Persisted MCP cursors and `since` deltas so repeated reads send only changed
   current truth, including after restart.
 - Preview-then-confirm install paths for Claude Code, Cursor, and Codex with

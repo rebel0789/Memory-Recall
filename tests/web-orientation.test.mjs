@@ -123,7 +123,7 @@ test('group layering collapses cycles and selection keeps the same bounded model
 const GROUP_PREFIXES = [
   'apps/web', 'apps/cli', 'packages/source-graph', 'packages/recall-map',
   'packages/protocol', 'services/control-api', 'providers/native/memory-sqlite',
-  'providers/native/context-candidate-ast-code', 'scripts', 'tests', 'docs',
+  'providers/native/code-intelligence-rust', 'scripts', 'tests', 'docs',
   'examples', 'evals', 'rfcs', 'deploy', 'planning'
 ];
 
@@ -139,7 +139,7 @@ function orientationFixture({ groupCount = 8, entryPointCount = 5 } = {}) {
     entryPoints: []
   }));
   const reasons = ['application_route', 'package_entry_point', 'changed_central_module', 'executable_command', 'inbound_dependency_hub'];
-  const labels = ['route', 'createServer', 'renderOverview', 'recall', 'buildSourceGraphPreview'];
+  const labels = ['route', 'createServer', 'renderOverview', 'recall', 'buildNativeIndexSourceGraphPreview'];
   const entryPoints = Array.from({ length: entryPointCount }, (_, index) => ({
     nodeId: `sgnode_${String(index).padStart(32, '0')}`,
     label: labels[index % labels.length],

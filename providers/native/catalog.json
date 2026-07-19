@@ -62,22 +62,10 @@
       "purpose": "Deterministic lexical context candidate lookup over safe record fields"
     },
     {
-      "id": "provider:native:context-candidate:ast-code",
-      "path": "providers/native/context-candidate-ast-code",
-      "enabledByDefault": true,
-      "purpose": "Dependency-free JS/TS static code chunk candidate source"
-    },
-    {
-      "id": "provider:native:context-candidate:graph",
-      "path": "providers/native/context-candidate-graph",
-      "enabledByDefault": true,
-      "purpose": "Dependency-free JS/TS source graph locator candidate source"
-    },
-    {
       "id": "provider:native:code-intelligence:rust",
       "path": "providers/native/code-intelligence-rust",
-      "enabledByDefault": false,
-      "purpose": "Preview-only bounded Rust code-intelligence graph provider"
+      "enabledByDefault": true,
+      "purpose": "Verified packaged Rust code-intelligence and persistent source-index provider"
     },
     {
       "id": "provider:native:context-manifest:local",

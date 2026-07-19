@@ -1,16 +1,172 @@
 import { createHash } from 'node:crypto';
 import { estimateTokens } from '../../context-compiler/src/index.mjs';
+import {
+  normalizeSourceGraphWorkspaceLocator,
+  SOURCE_GRAPH_WORKSPACE_ID_RE
+} from '../../protocol/src/source-graph-locator.mjs';
 
 export const NATIVE_INDEX_LANGUAGES = Object.freeze([
   'c', 'cpp', 'csharp', 'dart', 'go', 'java', 'javascript', 'kotlin',
   'php', 'python', 'ruby', 'rust', 'swift', 'typescript'
 ]);
 
+export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;
+export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES = 1000;
+
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 const INDEX_LOCATOR = 'workspace://.local/source-index/index.v1.sqlite';
 const NODE_KINDS = new Set(['file', 'module', 'package', 'namespace']);
 const SYMBOL_KINDS = new Set(['class', 'function', 'method', 'interface', 'type']);
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
+const PUBLIC_NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
+const TRACE_DIRECTIONS = new Set(['outbound', 'inbound', 'both']);
+const MAX_CHANGED_LOCATORS = 16;
+const SOURCE_GRAPH_EXTENSIONS = Object.freeze([
+  '.bash', '.c', '.cc', '.cpp', '.cs', '.cjs', '.cxx', '.dart', '.go', '.h',
+  '.hpp', '.java', '.jl', '.js', '.jsx', '.kt', '.kts', '.lua', '.m', '.mjs',
+  '.mm', '.php', '.py', '.r', '.rb', '.rs', '.scala', '.sh', '.sql', '.swift',
+  '.ts', '.tsx', '.zig'
+]);
+
+export function buildUnavailableSourceGraphPreview({
+  workspaceId = 'ws_local',
+  query = '',
+  changedLocators = [],
+  nodeKinds = null,
+  edgeKinds = null,
+  labelPattern = null,
+  locatorPrefix = null,
+  direction = 'outbound',
+  limit = 20,
+  offset = 0,
+  depth = 2,
+  sampleLimit = 12,
+  errorCode = 'native_engine_unavailable',
+  clock = () => new Date().toISOString()
+} = {}) {
+  const safeWorkspaceId = normalizeWorkspaceId(workspaceId);
+  const boundedLimit = boundedInteger(limit, 1, 100, 'source_graph_preview_limit_invalid');
+  const boundedOffset = boundedInteger(offset, 0, 10_000, 'source_graph_preview_offset_invalid');
+  const boundedDepth = boundedInteger(depth, 1, 5, 'source_graph_preview_depth_invalid');
+  const boundedSampleLimit = boundedInteger(sampleLimit, 1, 50, 'source_graph_preview_sample_limit_invalid');
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const normalizedNodeKinds = normalizeKinds(nodeKinds, PUBLIC_NODE_KINDS, 'source_graph_preview_node_kind_invalid');
+  const normalizedEdgeKinds = normalizeKinds(edgeKinds, EDGE_KINDS, 'source_graph_preview_edge_kind_invalid');
+  const normalizedLocatorPrefix = locatorPrefix ? normalizeWorkspaceLocator(locatorPrefix) : null;
+  if (!TRACE_DIRECTIONS.has(direction)) throw new Error(`source_graph_preview_direction_invalid:${direction}`);
+  const generatedAt = clock();
+  const code = safeDiagnosticCode(`source_graph_unavailable:${safeErrorCode(errorCode)}`);
+  const graphFingerprint = fingerprint({ kind: 'source-graph-unavailable', workspaceId: safeWorkspaceId, code });
+  const sourceIndexFingerprint = fingerprint({ kind: 'source-index-unavailable', workspaceId: safeWorkspaceId, code });
+  const diagnostic = Object.freeze({ locator: 'workspace://__source_graph_preview__', code });
+  const search = Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: safeWorkspaceId,
+    graphFingerprint,
+    retrievalMethod: 'source_graph_lexical',
+    queryFingerprint: fingerprint({
+      query: String(query ?? ''),
+      nodeKinds: normalizedNodeKinds ?? [],
+      edgeKinds: normalizedEdgeKinds ?? [],
+      labelPattern,
+      locatorPrefix: normalizedLocatorPrefix,
+      limit: boundedLimit,
+      offset: boundedOffset,
+      unavailable: true
+    }),
+    total: 0,
+    limit: boundedLimit,
+    offset: boundedOffset,
+    reachedOffset: boundedOffset,
+    offsetIncomplete: false,
+    continuationCursor: null,
+    truncated: false,
+    hasMore: false,
+    omittedCount: 0,
+    results: []
+  });
+  const impact = normalizedChangedLocators.length ? Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: safeWorkspaceId,
+    graphFingerprint,
+    changedLocators: normalizedChangedLocators,
+    representedChangedLocators: [],
+    depth: boundedDepth,
+    impactedNodeIds: [],
+    impactedEdgeIds: [],
+    impactedEdgeKindCounts: {},
+    affectedSymbols: []
+  }) : null;
+  const graph = Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: safeWorkspaceId,
+    graphVersion: 'memory-recall-native-source-graph-unavailable-1.0.0',
+    parserVersion: 'memory-recall-native-unavailable',
+    builtAt: generatedAt,
+    sourceIndexFingerprint,
+    graphFingerprint,
+    summary: Object.freeze({
+      fileCount: 0,
+      symbolCount: 0,
+      moduleCount: 0,
+      nodeCount: 0,
+      edgeCount: 0,
+      nodeKindCounts: Object.freeze({}),
+      edgeKindCounts: Object.freeze({}),
+      hotspots: [],
+      entryPoints: []
+    }),
+    diagnostics: [diagnostic],
+    sampleLimit: boundedSampleLimit,
+    sampleNodes: [],
+    sampleEdges: [],
+    omittedNodes: 0,
+    omittedEdges: 0
+  });
+  const snapshot = Object.freeze({
+    status: 'unavailable',
+    reuse: 'none',
+    reason: code,
+    generation: 0,
+    validationMode: 'none',
+    buildDurationMs: null,
+    builtAt: null
+  });
+  const orientation = Object.freeze({ groups: Object.freeze([]), relations: Object.freeze([]) });
+  const focus = Object.freeze({
+    nodeLimit: 200,
+    edgeLimit: 400,
+    nodes: Object.freeze([]),
+    edges: Object.freeze([]),
+    omittedNodes: 0,
+    omittedEdges: 0
+  });
+  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph, search, trace: null, impact, orientation, focus, snapshot }));
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    previewVersion: PREVIEW_VERSION,
+    workspaceId: safeWorkspaceId,
+    generatedAt,
+    graph,
+    search,
+    trace: null,
+    impact,
+    orientation,
+    focus,
+    snapshot,
+    measurements: Object.freeze({
+      schemaVersion: '1.0.0',
+      measurementScope: 'full graph nodes/edges/diagnostics versus delivered preview payload',
+      fullGraphTokenEstimate: 0,
+      deliveredTokenEstimate,
+      omittedTokenEstimate: 0,
+      reductionPercent: 0,
+      sourceContentIncluded: false,
+      providerBillingClaimed: false
+    }),
+    safeguards: sourceGraphSafeguards()
+  });
+}
 
 export function nativeIndexReadyForAutomaticRead(result) {
   return result?.operation === 'index.status'
@@ -163,6 +319,8 @@ export async function buildNativeIndexSourceGraphPreview({
   query = '',
   startName = null,
   changedLocators = [],
+  nodeKinds = null,
+  edgeKinds = null,
   locatorPrefix = null,
   direction = 'outbound',
   limit = 20,
@@ -177,6 +335,8 @@ export async function buildNativeIndexSourceGraphPreview({
   const boundedSampleLimit = boundedInteger(sampleLimit, 1, 50, 'source_graph_preview_sample_limit_invalid');
   const normalizedQuery = String(query ?? '').trim();
   const normalizedChanged = [...new Set(changedLocators)].slice(0, 16);
+  const normalizedNodeKinds = normalizeKinds(nodeKinds, PUBLIC_NODE_KINDS, 'source_graph_preview_node_kind_invalid');
+  const normalizedEdgeKinds = normalizeKinds(edgeKinds, EDGE_KINDS, 'source_graph_preview_edge_kind_invalid');
   const generatedAt = clock();
   const [communityResult, processResult] = await Promise.all([
     provider.queryIndex({ root, workspaceId, kind: 'communities', limit: Math.min(50, Math.max(12, boundedLimit)) }),
@@ -202,8 +362,28 @@ export async function buildNativeIndexSourceGraphPreview({
   const neighborhood = selected
     ? await provider.queryIndex({ root, workspaceId, kind: 'neighborhood', locator: selected.locator, depth: boundedDepth, limit: boundedLimit })
     : null;
-  const impactResult = normalizedChanged[0]
-    ? await provider.queryIndex({ root, workspaceId, kind: 'impact', locator: normalizeLocator(normalizedChanged[0]), depth: boundedDepth, limit: boundedLimit })
+  const impactLimit = normalizedChanged.length ? Math.max(1, Math.floor(boundedLimit / normalizedChanged.length)) : boundedLimit;
+  const impactResults = await Promise.all(normalizedChanged.filter(isSourceGraphLocator).map(async (locator) => ({
+    locator: normalizeLocator(locator),
+    result: await optionalNativeIndexQuery(() => provider.queryIndex({
+      root,
+      workspaceId,
+      kind: 'impact',
+      locator: normalizeLocator(locator),
+      depth: boundedDepth,
+      limit: impactLimit
+    }))
+  })));
+  const traceResult = startName
+    ? await optionalNativeIndexQuery(() => provider.queryIndex({
+      root,
+      workspaceId,
+      kind: 'dependencies',
+      query: String(startName).slice(0, 160),
+      direction,
+      depth: boundedDepth,
+      limit: boundedLimit
+    }))
     : null;
   return nativePreviewPayload({
     status: status ?? communityResult,
@@ -211,10 +391,14 @@ export async function buildNativeIndexSourceGraphPreview({
     architecture,
     searchResult,
     neighborhood,
-    impactResult,
+    impactResults,
+    traceResult,
+    startName,
     workspaceId,
     query: normalizedQuery,
     changedLocators: normalizedChanged.map(normalizeLocator),
+    nodeKinds: normalizedNodeKinds,
+    edgeKinds: normalizedEdgeKinds,
     locatorPrefix,
     direction,
     limit: boundedLimit,
@@ -225,18 +409,29 @@ export async function buildNativeIndexSourceGraphPreview({
   });
 }
 
+async function optionalNativeIndexQuery(query) {
+  try {
+    return await query();
+  } catch (error) {
+    if (error?.code === 'source_index_query_seed_not_found') return null;
+    throw error;
+  }
+}
+
 function nativePreviewPayload(input) {
   const { architecture, communityResult, status, workspaceId, sampleLimit, generatedAt } = input;
   const nativeNodes = uniqueById([
     ...architecture.nodes,
     ...(input.searchResult?.results ?? []).map(nativeStructuralNode),
     ...(input.neighborhood?.results ?? []).map(nativeStructuralNode),
-    ...(input.impactResult?.results ?? []).map(nativeStructuralNode)
+    ...(input.impactResults ?? []).flatMap(({ result }) => (result?.results ?? []).map(nativeStructuralNode)),
+    ...(input.traceResult?.results ?? []).map(nativeStructuralNode)
   ], 200);
   const nativeRelationships = uniqueById([
     ...architecture.relationships,
     ...(input.neighborhood?.relationships ?? []).map(nativeStructuralRelationship),
-    ...(input.impactResult?.relationships ?? []).map(nativeStructuralRelationship)
+    ...(input.impactResults ?? []).flatMap(({ result }) => (result?.relationships ?? []).map(nativeStructuralRelationship)),
+    ...(input.traceResult?.relationships ?? []).map(nativeStructuralRelationship)
   ], 400);
   const ids = createIdMaps(nativeNodes, nativeRelationships);
   const nodes = nativeNodes.map((node) => sourceGraphNode(node, ids, workspaceId));
@@ -257,7 +452,8 @@ function nativePreviewPayload(input) {
   const diagnostics = diagnosticsProjection(status);
   const focusNativeIds = new Set([
     ...(input.neighborhood?.results ?? []),
-    ...(input.impactResult?.results ?? [])
+    ...(input.impactResults ?? []).flatMap(({ result }) => result?.results ?? []),
+    ...(input.traceResult?.results ?? [])
   ].map((node) => node.id));
   const focus = {
     nodeLimit: 200,
@@ -442,7 +638,7 @@ function processCommunities(architecture, ids, changedLocators) {
 }
 
 function searchProjection(input, ids, graphFingerprint) {
-  const results = (input.searchResult?.results ?? [])
+  const matchedNodes = (input.searchResult?.results ?? [])
     .map((item) => {
       const node = sourceGraphNode(nativeStructuralNode(item), ids, input.workspaceId);
       return {
@@ -455,7 +651,18 @@ function searchProjection(input, ids, graphFingerprint) {
         score: item.confidence,
         reasonCodes: ['native_index_match']
       };
-    });
+    })
+    .filter((item) => !input.nodeKinds || input.nodeKinds.includes(item.kind));
+  const nativeNodes = new Map([
+    ...(input.searchResult?.results ?? []),
+    ...(input.neighborhood?.results ?? [])
+  ].map((item) => [item.id, item]));
+  const relationshipResults = (input.neighborhood?.relationships ?? [])
+    .filter((relationship) => input.edgeKinds?.includes(sourceGraphEdgeKind(relationship.kind)))
+    .map((relationship) => relationshipSearchResult(relationship, nativeNodes, ids, input.workspaceId))
+    .filter(Boolean)
+    .slice(0, input.limit);
+  const results = input.edgeKinds ? relationshipResults : matchedNodes;
   const hasMore = input.searchResult?.hasMore === true;
   const reachedOffset = input.searchResult?.reachedOffset ?? input.offset;
   return {
@@ -463,7 +670,14 @@ function searchProjection(input, ids, graphFingerprint) {
     workspaceId: input.workspaceId,
     graphFingerprint,
     retrievalMethod: 'source_graph_lexical',
-    queryFingerprint: fingerprint({ query: input.query, locatorPrefix: input.locatorPrefix, limit: input.limit, offset: input.offset }),
+    queryFingerprint: fingerprint({
+      query: input.query,
+      nodeKinds: input.nodeKinds ?? [],
+      edgeKinds: input.edgeKinds ?? [],
+      locatorPrefix: input.locatorPrefix,
+      limit: input.limit,
+      offset: input.offset
+    }),
     total: reachedOffset + results.length + (hasMore ? 1 : 0),
     limit: input.limit,
     offset: input.offset,
@@ -474,6 +688,29 @@ function searchProjection(input, ids, graphFingerprint) {
     hasMore,
     omittedCount: hasMore ? 1 : 0,
     results
+  };
+}
+
+function relationshipSearchResult(relationship, nativeNodes, ids, workspaceId) {
+  const source = nativeNodes.get(relationship.fromNodeId);
+  const target = nativeNodes.get(relationship.toNodeId);
+  if (!source || !target) return null;
+  const edge = sourceGraphEdge(nativeStructuralRelationship(relationship), ids, workspaceId);
+  const sourceNode = sourceGraphNode(nativeStructuralNode(source), ids, workspaceId);
+  const targetNode = sourceGraphNode(nativeStructuralNode(target), ids, workspaceId);
+  return {
+    resultType: 'edge',
+    id: edge.id,
+    kind: edge.kind,
+    locator: edge.locator,
+    fromNodeId: edge.fromNodeId,
+    toNodeId: edge.toNodeId,
+    fromLabel: sourceNode.label,
+    toLabel: targetNode.label,
+    toLocator: targetNode.locator,
+    toSymbolKind: targetNode.symbolKind,
+    score: relationship.confidence,
+    reasonCodes: ['native_index_relationship_match']
   };
 }
 
@@ -537,14 +774,17 @@ async function queryNativeSearchPage({ provider, root, workspaceId, query, locat
 
 function impactProjection(input, ids, graphFingerprint) {
   if (!input.changedLocators.length) return null;
-  const results = input.impactResult?.results ?? [];
-  const relationships = input.impactResult?.relationships ?? [];
+  const entries = input.impactResults ?? [];
+  const results = uniqueById(entries.flatMap(({ result }) => result?.results ?? []), input.limit);
+  const relationships = uniqueById(entries.flatMap(({ result }) => result?.relationships ?? []), input.limit);
   return {
     schemaVersion: '1.0.0',
     workspaceId: input.workspaceId,
     graphFingerprint,
     changedLocators: input.changedLocators,
-    representedChangedLocators: results.length ? [input.changedLocators[0]] : [],
+    representedChangedLocators: entries
+      .filter(({ result }) => (result?.results ?? []).length > 0)
+      .map(({ locator }) => locator),
     depth: input.depth,
     impactedNodeIds: results.map((item) => ids.node.get(item.id)).filter(Boolean),
     impactedEdgeIds: relationships.map((item) => ids.edge.get(item.id)).filter(Boolean),
@@ -558,7 +798,10 @@ function impactProjection(input, ids, graphFingerprint) {
 
 function traceProjection(input, ids, graphFingerprint) {
   if (!input.startName) return null;
-  const startNodeIds = (input.searchResult?.results ?? []).slice(0, 1).map((item) => ids.node.get(item.id)).filter(Boolean);
+  const nativeNodes = input.traceResult?.results ?? [];
+  const nativeRelationships = input.traceResult?.relationships ?? [];
+  const start = nativeNodes.find((node) => node.label === input.startName) ?? nativeNodes[0] ?? null;
+  const startNodeIds = start ? [ids.node.get(start.id)].filter(Boolean) : [];
   return {
     schemaVersion: '1.0.0',
     workspaceId: input.workspaceId,
@@ -569,8 +812,69 @@ function traceProjection(input, ids, graphFingerprint) {
     edgeKinds: ['calls'],
     depth: input.depth,
     limit: input.limit,
-    paths: []
+    paths: start ? tracePaths({
+      start,
+      nodes: nativeNodes,
+      relationships: nativeRelationships,
+      ids,
+      direction: input.direction,
+      depth: input.depth,
+      limit: input.limit,
+      locatorPrefix: input.locatorPrefix
+    }) : []
   };
+}
+
+function tracePaths({ start, nodes, relationships, ids, direction, depth, limit, locatorPrefix = null }) {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const adjacency = new Map();
+  for (const relationship of relationships) {
+    if (!['calls', 'references'].includes(sourceGraphEdgeKind(relationship.kind))) continue;
+    if (direction === 'outbound' || direction === 'both') {
+      const items = adjacency.get(relationship.fromNodeId) ?? [];
+      items.push({ relationship, nextId: relationship.toNodeId });
+      adjacency.set(relationship.fromNodeId, items);
+    }
+    if (direction === 'inbound' || direction === 'both') {
+      const items = adjacency.get(relationship.toNodeId) ?? [];
+      items.push({ relationship, nextId: relationship.fromNodeId });
+      adjacency.set(relationship.toNodeId, items);
+    }
+  }
+  const queue = [{ nodeIds: [start.id], relationships: [] }];
+  const paths = [];
+  const seen = new Set([`${start.id}:0`]);
+  while (queue.length && paths.length < limit) {
+    const current = queue.shift();
+    if (current.relationships.length >= depth) continue;
+    const currentId = current.nodeIds.at(-1);
+    for (const step of adjacency.get(currentId) ?? []) {
+      if (current.nodeIds.includes(step.nextId)) continue;
+      const terminal = nodeById.get(step.nextId);
+      if (!terminal) continue;
+      if (locatorPrefix && !terminal.locator?.startsWith(normalizeLocator(locatorPrefix))) continue;
+      const nodeIds = [...current.nodeIds, step.nextId];
+      const pathRelationships = [...current.relationships, step.relationship];
+      const key = `${step.nextId}:${pathRelationships.length}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      paths.push({
+        depth: pathRelationships.length,
+        nodeIds: nodeIds.map((id) => ids.node.get(id)).filter(Boolean),
+        edgeIds: pathRelationships.map((relationship) => ids.edge.get(relationship.id)).filter(Boolean),
+        edgeKinds: pathRelationships.map((relationship) => sourceGraphEdgeKind(relationship.kind)),
+        edgeLocators: pathRelationships.map((relationship) => relationship.locator).filter(Boolean),
+        terminalNodeId: ids.node.get(terminal.id),
+        terminalLabel: safeLabel(terminal.label),
+        ...(terminal.locator ? { terminalLocator: terminal.locator } : {}),
+        terminalKind: sourceGraphNodeKind(terminal.kind),
+        ...(sourceGraphNodeKind(terminal.kind) === 'symbol' ? { terminalSymbolKind: sourceGraphSymbolKind(terminal.kind) } : {})
+      });
+      queue.push({ nodeIds, relationships: pathRelationships });
+      if (paths.length >= limit) break;
+    }
+  }
+  return paths;
 }
 
 function coverageProjection(status, result) {
@@ -738,6 +1042,79 @@ function mappedId(prefix, value, length) {
 
 function fingerprint(value) {
   return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
+
+function normalizeWorkspaceId(value) {
+  const normalized = String(value ?? '').trim();
+  if (!SOURCE_GRAPH_WORKSPACE_ID_RE.test(normalized)) throw new Error('source_graph_preview_workspace_invalid');
+  return normalized;
+}
+
+function normalizeChangedLocators(values) {
+  const list = values === null || values === undefined || values === ''
+    ? []
+    : Array.isArray(values) ? values : String(values).split(',');
+  const locators = [...new Set(list.map((value) => normalizeWorkspaceLocator(value, { stripFragment: true })))].sort();
+  if (locators.length > MAX_CHANGED_LOCATORS) throw new Error('changed_context_too_many_locators');
+  return locators;
+}
+
+function normalizeKinds(values, allowed, code) {
+  if (values === null || values === undefined || values === '') return null;
+  const list = Array.isArray(values) ? values : String(values).split(',');
+  const normalized = list.map((item) => String(item).trim()).filter(Boolean);
+  for (const item of normalized) if (!allowed.has(item)) throw new Error(`${code}:${item}`);
+  return normalized.length ? normalized : null;
+}
+
+function normalizeWorkspaceLocator(value, options = undefined) {
+  try {
+    return normalizeSourceGraphWorkspaceLocator(value, options);
+  } catch {
+    throw new Error('source_graph_preview_locator_invalid');
+  }
+}
+
+function isSourceGraphLocator(locator) {
+  const source = String(locator).replace(/^workspace:\/\//u, '').split('#', 1)[0].toLowerCase();
+  const name = source.split('/').at(-1);
+  return name === 'pyproject.toml' || name === 'cmakelists.txt' || SOURCE_GRAPH_EXTENSIONS.some((extension) => source.endsWith(extension));
+}
+
+function safeErrorCode(value) {
+  const code = String(typeof value === 'string' ? value : value?.message ?? 'source_graph_unavailable')
+    .split(':')[0]
+    .replace(/[^A-Za-z0-9_]/gu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .toLowerCase();
+  return /^[a-z][a-z0-9_]{0,35}$/u.test(code) ? code : 'source_graph_unavailable';
+}
+
+function safeDiagnosticCode(value) {
+  const normalized = String(value ?? 'source_graph_unavailable')
+    .replace(/[^A-Za-z0-9_:-]/gu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .toLowerCase()
+    .slice(0, 64);
+  return /^[a-z][a-z0-9_:-]*$/u.test(normalized) ? normalized : 'source_graph_unavailable';
+}
+
+function sourceGraphSafeguards() {
+  return {
+    dryRun: true,
+    persisted: false,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    modelCalls: 0,
+    networkCalls: 0,
+    externalAdaptersEnabled: 0,
+    externalWritesEnabled: false,
+    graphDatabaseUsed: false,
+    rawBodyIncluded: false,
+    sourceSlicesRead: false
+  };
 }
 
 function boundedInteger(value, minimum, maximum, code) {
