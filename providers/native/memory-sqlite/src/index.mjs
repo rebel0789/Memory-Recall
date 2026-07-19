@@ -1072,6 +1072,12 @@ export class SQLiteMemoryProvider {
         LIMIT ?
       `).all(expression, ...parameters, boundedLimit);
     } else {
+      const lexicalTokens = tokenizeQuery(query);
+      if (lexicalTokens.length) {
+        const tokenMatch = '(LOWER(m.subject) LIKE ? OR LOWER(m.predicate) LIKE ? OR LOWER(m.object) LIKE ? OR LOWER(m.text) LIKE ?)';
+        conditions.push(`(${lexicalTokens.map(() => tokenMatch).join(' OR ')})`);
+        for (const token of lexicalTokens) parameters.push(`%${token}%`, `%${token}%`, `%${token}%`, `%${token}%`);
+      }
       rows = this.database.prepare(`
         SELECT m.*, 0 AS rank
         FROM memory_facts m
