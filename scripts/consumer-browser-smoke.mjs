@@ -130,6 +130,10 @@ try {
   await waitForText(page, 'Focused map');
   await page.locator('#source-map-canvas').waitFor();
   const successfulMapUrl = page.url();
+  const reloadMapResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
+  await page.getByRole('button', { name: 'Reload map' }).click();
+  await reloadMapResponse;
+  await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
 
   const recoverableGraphFailure = async (route) => {
     let payload = {};
@@ -176,9 +180,13 @@ try {
   await page.mouse.wheel(0, -180);
   await page.getByRole('button', { name: 'Reset view' }).click();
   const outlineButtons = page.locator('.source-map-outline [data-node-id]');
-  if (focusNodeCount > 1) await outlineButtons.nth(1).click();
+  if (focusNodeCount > 1) {
+    await outlineButtons.nth(1).focus();
+    await page.keyboard.press('Enter');
+  }
   const outlineNodeId = await page.locator('#source-map-selection').getAttribute('data-selected-node-id');
-  must(Boolean(outlineNodeId), 'outline selection did not update the canonical node');
+  const expectedOutlineNodeId = await outlineButtons.nth(Math.min(1, focusNodeCount - 1)).getAttribute('data-node-id');
+  must(outlineNodeId === expectedOutlineNodeId, 'keyboard outline selection did not update the canonical node');
   await page.getByRole('button', { name: 'Fit selection' }).click();
   const canvasBox = await page.locator('#source-map-canvas').boundingBox();
   must(Boolean(canvasBox), 'focused graph canvas has no bounds');
