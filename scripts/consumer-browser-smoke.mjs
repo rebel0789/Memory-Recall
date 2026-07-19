@@ -268,6 +268,17 @@ try {
     must(routeAudit.unnamed.length === 0, `published route has unnamed visible controls: ${route}; ${routeAudit.unnamed.join(', ')}`);
   }
 
+  const desktopNavigation = [
+    ['Start', '/'], ['Explore code', '/map'], ['Review memory', '/memory'],
+    ['Prepare handoff', '/handoffs'], ['Settings', '/settings']
+  ];
+  for (const [label, pathname] of desktopNavigation) {
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.locator('#primary-nav').getByRole('link', { name: label, exact: true }).click();
+    await page.waitForURL((url) => url.pathname === pathname);
+    await page.waitForFunction(() => document.querySelector('#view-root')?.textContent?.trim().length > 20);
+  }
+
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   for (const width of [320, 375, 414, 768, 1440]) {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
@@ -277,6 +288,15 @@ try {
     const navSelector = width <= 700 ? '#mobile-nav a' : '#primary-nav a';
     const navHeights = await page.locator(navSelector).evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
     must(navHeights.length > 0 && navHeights.every((height) => height >= 44), `navigation target below 44px at ${width}px: ${JSON.stringify(navHeights)}`);
+  }
+  const mobileNavigation = [
+    ['Start', '/'], ['Explore code', '/map'], ['Review memory', '/memory'], ['Prepare handoff', '/handoffs']
+  ];
+  for (const [label, pathname] of mobileNavigation) {
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.locator('#mobile-nav').getByRole('link', { name: label, exact: true }).click();
+    await page.waitForURL((url) => url.pathname === pathname);
+    await page.waitForFunction(() => document.querySelector('#view-root')?.textContent?.trim().length > 20);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
