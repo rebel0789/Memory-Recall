@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `35f3011`
+Current evidence commit: `4bdb92b`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -148,10 +148,10 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
 | U-1 | First screen explains shape, coverage, subsystems, entry points, hotspots, changes, memory, and next action. | Incomplete | Orientation models and browser tests cover the local workbench; not every item is proven on a large polyglot repository through the packaged native path. | Run task-based browser proof on representative large repositories and correct comprehension gaps. |
-| U-2 | Map uses progressive disclosure for groups, communities, processes, neighborhoods, and evidence. | Incomplete | The real browser smoke now renders a 100-node focused graph: the canvas keeps a bounded nearby-label set, selection/zoom/fit work, and the complete bounded result remains in the outline. Large-repository communities/groups and progressive interaction remain unproven. | Prove density controls, selection, zoom/fit, outline parity, keyboard operation, and evidence drill-down on representative large graphs. |
+| U-2 | Map uses progressive disclosure for groups, communities, processes, neighborhoods, and evidence. | Incomplete | The real browser smoke now renders a 100-node focused graph: the canvas keeps a bounded nearby-label set, selection/keyboard selection/zoom/fit/reset work, and the complete bounded result remains in the outline. Large-repository communities/groups and progressive interaction remain unproven. | Prove density controls and evidence drill-down on representative large graphs. |
 | U-3 | Navigation is understandable and Map works directly. | Incomplete | First-run browser proof reaches Map from Overview and directly runs a submitted Map query. Prior user observation still requires a task-based comprehension check on a representative large repository. | Browser-test first-run navigation and direct Map execution with users' likely first actions on a large repository. |
 | U-4 | No overlap or unreadable source-map outline. | Incomplete | Focused layout and outline regressions now include desktop/mobile captures of a 100-node result. The canvas stays label-bounded, outline labels/locators truncate safely, and the mobile final outline item remains above navigation. No full visual audit across representative large repos and viewports is recorded. | Capture desktop/mobile screenshots and test long labels, narrow inspectors, zoom, overflow, and selection on representative large repositories. |
-| U-5 | Desktop, mobile, accessibility, overflow, and every control pass in a real browser. | Incomplete | Consumer browser smoke covers selected routes, direct Map, graph controls, console/page errors, reduced motion, mobile overflow, and mobile outline reachability. It is not the complete native large-repository control inventory or an accessibility audit. | Click every interactive control at desktop/mobile widths; run accessibility and console-error checks. |
+| U-5 | Desktop, mobile, accessibility, overflow, and every control pass in a real browser. | Incomplete | Consumer browser smoke covers selected routes, direct Map, reload, graph controls, keyboard outline selection, console/page errors, reduced motion, mobile overflow, and mobile outline reachability. It is not the complete native large-repository control inventory or an accessibility audit. | Click every interactive control at desktop/mobile widths; run accessibility and console-error checks. |
 | U-6 | Complete the anti-slop review before UI completion. | Missing | Design rules and anti-template tests exist, but no point-by-point final review artifact covers the current full UI. | Perform the complete review after functionality freezes and record every applicable pass/fix. |
 
 ## Head-to-head proof
