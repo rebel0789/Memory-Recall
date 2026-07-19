@@ -93,6 +93,7 @@ test('native hybrid memory retrieval fuses FTS5 graph and temporal signals while
     limit: 5
   });
   assert.deepEqual(report.results.map((item) => item.fact.id), ['memfact_release', 'memfact_capability']);
+  assert.equal(report.signals.fts5.status, provider.fts5Available ? 'used' : 'unavailable');
   assert.equal(report.signals.semantic.status, 'skipped');
   assert.equal(report.signals.semantic.reason, 'local_embedder_unavailable');
   assert(report.results[0].ranking.signals.fts5 > 0);
