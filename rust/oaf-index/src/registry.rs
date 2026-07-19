@@ -4,6 +4,7 @@ use super::{
     SourceIndexOptions,
 };
 use anyhow::{bail, Context, Result};
+use oaf_ingest::{discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -21,6 +22,10 @@ pub const REPOSITORY_SEARCH_MAX_PER_REPOSITORY: usize = 25;
 pub const REPOSITORY_SEARCH_MAX_RESULTS: usize = 50;
 pub const REPOSITORY_SEARCH_MAX_DEADLINE_MS: u64 = 2_000;
 pub const REPOSITORY_SEARCH_MAX_OUTPUT_BYTES: usize = 1_048_576;
+
+const REPOSITORY_FRESHNESS_MAX_CANDIDATE_FILES: usize = 1_000_000;
+const REPOSITORY_FRESHNESS_MAX_HASHED_BYTES: u64 = 350 * 1024 * 1024;
+const LEGACY_REPOSITORY_FRESHNESS_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
 
 const REGISTRY_SQL: &str = r#"
 CREATE TABLE registry_metadata (
@@ -743,6 +748,9 @@ impl RepositoryRegistry {
         }
         let index =
             SourceIndex::open_read_only(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options)?;
+        if !repository_index_is_current(&index, &root, timeout_ms)? {
+            bail!("repository_index_stale");
+        }
         let generation = index
             .active_generation()
             .context("repository_index_active_generation_missing")?;
@@ -759,6 +767,101 @@ impl RepositoryRegistry {
         let truncated = page.next_cursor.is_some();
         Ok((generation, page.items, truncated))
     }
+}
+
+fn repository_index_is_current(index: &SourceIndex, root: &Path, timeout_ms: u64) -> Result<bool> {
+    let active = index
+        .load_active_generation_metadata()?
+        .context("repository_index_active_generation_missing")?;
+    let scope_all_languages = active
+        .coverage
+        .iter()
+        .find(|record| {
+            record.language == "source-index" && record.capability == "scan-scope-all-languages"
+        })
+        .and_then(|record| match record.represented_count {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        });
+    let Some(scope_all_languages) = scope_all_languages else {
+        return Ok(false);
+    };
+    let languages = active
+        .files
+        .iter()
+        .map(|file| file.language.clone())
+        .collect::<BTreeSet<_>>();
+    let mut options = IngestOptions::new(root);
+    options.max_file_bytes = active
+        .coverage
+        .iter()
+        .find(|record| record.language == "source-index" && record.capability == "scan-max-file-bytes")
+        .and_then(|record| u64::try_from(record.represented_count).ok())
+        .unwrap_or(LEGACY_REPOSITORY_FRESHNESS_MAX_FILE_BYTES);
+    options.prefer_cpp_headers = languages.contains("cpp") && !languages.contains("c");
+    let selected_file_limit = active
+        .coverage
+        .iter()
+        .find(|record| record.language == "source-index" && record.capability == "omitted-files")
+        .is_some_and(|record| record.omitted_count > 0)
+        .then_some(active.files.len());
+    let report = discover_file_hashes_bounded(
+        &options,
+        &FileHashDiscoveryBounds {
+            max_candidate_files: REPOSITORY_FRESHNESS_MAX_CANDIDATE_FILES,
+            max_hashed_bytes: REPOSITORY_FRESHNESS_MAX_HASHED_BYTES,
+            selected_file_limit,
+            deadline: Instant::now() + Duration::from_millis(timeout_ms),
+        },
+        |source| repository_source_language(source, &languages, scope_all_languages).is_some(),
+    )?;
+    if !report.complete {
+        return Ok(false);
+    }
+    let current = report
+        .hashes
+        .into_iter()
+        .map(|file| {
+            Ok(super::DiscoveredFile {
+                locator: file.source,
+                content_hash: format!("sha256:{}", file.sha256),
+                byte_size: i64::try_from(file.bytes).context("repository_index_file_size_invalid")?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(index
+        .plan_refresh(&current, None, &super::RefreshBounds::default())?
+        .no_change)
+}
+
+fn repository_source_language(
+    source: &str,
+    languages: &BTreeSet<String>,
+    scope_all_languages: bool,
+) -> Option<&'static str> {
+    let lower = source.to_ascii_lowercase();
+    let language = if lower.ends_with("/cmakelists.txt") {
+        if languages.contains("c") || scope_all_languages { "c" } else if languages.contains("cpp") { "cpp" } else { return None; }
+    } else if lower.ends_with("/pyproject.toml") {
+        "python"
+    } else if lower.ends_with(".d.ts") || lower.ends_with(".ts") || lower.ends_with(".tsx") { "typescript" }
+    else if lower.ends_with(".js") || lower.ends_with(".jsx") || lower.ends_with(".mjs") || lower.ends_with(".cjs") { "javascript" }
+    else if lower.ends_with(".py") { "python" }
+    else if lower.ends_with(".java") { "java" }
+    else if lower.ends_with(".kt") || lower.ends_with(".kts") { "kotlin" }
+    else if lower.ends_with(".cs") { "csharp" }
+    else if lower.ends_with(".go") { "go" }
+    else if lower.ends_with(".rs") { "rust" }
+    else if lower.ends_with(".php") { "php" }
+    else if lower.ends_with(".rb") { "ruby" }
+    else if lower.ends_with(".swift") { "swift" }
+    else if lower.ends_with(".c") { "c" }
+    else if lower.ends_with(".cc") || lower.ends_with(".cp") || lower.ends_with(".cxx") || lower.ends_with(".cpp") || lower.ends_with(".hpp") || (lower.ends_with(".h") && languages.contains("cpp") && !languages.contains("c")) { "cpp" }
+    else if lower.ends_with(".h") { "c" }
+    else if lower.ends_with(".dart") { "dart" }
+    else { return None; };
+    (scope_all_languages || languages.contains(language)).then_some(language)
 }
 
 #[derive(Clone, Copy)]

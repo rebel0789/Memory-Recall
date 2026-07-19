@@ -1,11 +1,12 @@
 use oaf_index::{
-    normalized_generation_fingerprint, repository_identity_hash, EdgeRecord, FileRecord,
+    normalized_generation_fingerprint, repository_identity_hash, CoverageRecord, EdgeRecord, FileRecord,
     GenerationInput, GoRepositoryQuery, NodeRecord, RepositoryRegistry, SourceIndex,
     SourceIndexOptions, REPOSITORY_INDEX_RELATIVE_PATH, REPOSITORY_REGISTRY_RELATIVE_PATH,
 };
 use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
+use sha2::{Digest, Sha256};
 use tempfile::tempdir;
 
 const WORKSPACE_ID: &str = "fleet-test";
@@ -46,7 +47,24 @@ fn generation() -> GenerationInput {
         }],
         edges: Vec::new(),
         unresolved: Vec::new(),
-        coverage: Vec::new(),
+        coverage: vec![
+            CoverageRecord {
+                language: "source-index".into(),
+                capability: "scan-scope-all-languages".into(),
+                represented_count: 0,
+                omitted_count: 0,
+                failed_count: 0,
+                reason_code: None,
+            },
+            CoverageRecord {
+                language: "source-index".into(),
+                capability: "scan-max-file-bytes".into(),
+                represented_count: 10 * 1024 * 1024,
+                omitted_count: 0,
+                failed_count: 0,
+                reason_code: None,
+            },
+        ],
         diagnostics: Vec::new(),
     };
     input.structural_fingerprint = normalized_generation_fingerprint(&input).unwrap();
@@ -55,12 +73,18 @@ fn generation() -> GenerationInput {
 
 fn create_repository(fleet_root: &Path, name: &str) {
     let root = fleet_root.join(name);
-    fs::create_dir_all(&root).unwrap();
+    fs::create_dir_all(root.join("src")).unwrap();
+    let source = b"export function sharedEntry() { return true; }\n";
+    fs::write(root.join("src/shared.ts"), source).unwrap();
     let identity = repository_identity_hash(&root.canonicalize().unwrap(), WORKSPACE_ID);
     let options = SourceIndexOptions::new(identity, ENGINE_VERSION);
     let mut index =
         SourceIndex::open(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options).unwrap();
-    index.commit_generation(&generation()).unwrap();
+    let mut input = generation();
+    input.files[0].content_hash = format!("sha256:{}", hex::encode(Sha256::digest(source)));
+    input.files[0].byte_size = i64::try_from(source.len()).unwrap();
+    input.structural_fingerprint = normalized_generation_fingerprint(&input).unwrap();
+    index.commit_generation(&input).unwrap();
 }
 
 fn go_generation(role: &str) -> GenerationInput {

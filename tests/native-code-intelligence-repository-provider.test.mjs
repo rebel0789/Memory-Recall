@@ -243,12 +243,12 @@ test('release binary registers, lists, and searches independent repository index
   const beta = path.join(root, 'repositories', 'beta');
   await mkdir(path.join(alpha, 'src'), { recursive: true });
   await mkdir(path.join(beta, 'src'), { recursive: true });
-  await writeFile(path.join(alpha, 'src', 'index.ts'), 'export function alphaMain(){ return true; }\n');
-  await writeFile(path.join(beta, 'src', 'index.ts'), 'export function betaMain(){ return true; }\n');
+  await writeFile(path.join(alpha, 'src', 'index.ts'), 'export function sharedEntry(){ return true; }\n');
+  await writeFile(path.join(beta, 'src', 'index.py'), 'def sharedEntry():\n    return True\n');
 
   const instance = provider(RUST_BINARY, { timeoutMs: 60_000, maxStdoutBytes: 8_000_000 });
   await instance.buildIndex({ root: alpha, workspaceId: 'ws_fleet', languages: ['typescript'] });
-  await instance.buildIndex({ root: beta, workspaceId: 'ws_fleet', languages: ['typescript'] });
+  await instance.buildIndex({ root: beta, workspaceId: 'ws_fleet', languages: ['python'] });
   const alphaRegistration = await instance.registerRepository({
     root,
     workspaceId: 'ws_fleet',
@@ -271,7 +271,7 @@ test('release binary registers, lists, and searches independent repository index
   const searched = await instance.searchRepositories({
     root,
     workspaceId: 'ws_fleet',
-    query: 'Main',
+    query: 'sharedEntry',
     repositoryIds,
     perRepositoryLimit: 10,
     limit: 20
@@ -281,6 +281,7 @@ test('release binary registers, lists, and searches independent repository index
   assert.equal(listed.safeguards.readOnly, true);
   assert.equal(searched.results.length, 2);
   assert.deepEqual(new Set(searched.results.map(({ repositoryId }) => repositoryId)), new Set(repositoryIds));
+  assert.equal(new Set(searched.results.map(({ id }) => id)).size, 2);
   assert.equal(searched.safeguards.readOnly, true);
   assert.deepEqual(await fileSnapshot(registryPath), beforeReaders);
   const serialized = JSON.stringify({ alphaRegistration, betaRegistration, listed, searched });
@@ -289,6 +290,34 @@ test('release binary registers, lists, and searches independent repository index
   assert.equal(serialized.includes('/home/'), false);
   assert.equal(serialized.includes('/private/'), false);
   assert.equal(serialized.includes('C:\\'), false);
+  await writeFile(path.join(alpha, 'src', 'index.ts'), 'export function sharedEntry(){ return false; }\n');
+  const stale = await instance.searchRepositories({
+    root,
+    workspaceId: 'ws_fleet',
+    query: 'sharedEntry',
+    repositoryIds,
+    perRepositoryLimit: 10,
+    limit: 20
+  });
+  assert.equal(stale.partial, true);
+  assert.equal(stale.results.length, 1);
+  assert(stale.perRepository.some(({ repositoryId, state, reasonCodes }) => repositoryId === repositoryIds[0]
+    && state === 'unavailable' && reasonCodes.includes('repository_index_stale')));
+
+  await instance.buildIndex({ root: alpha, workspaceId: 'ws_fleet', languages: ['typescript'] });
+  await rm(path.join(beta, '.local', 'source-index', 'index.v1.sqlite'));
+  const missing = await instance.searchRepositories({
+    root,
+    workspaceId: 'ws_fleet',
+    query: 'sharedEntry',
+    repositoryIds,
+    perRepositoryLimit: 10,
+    limit: 20
+  });
+  assert.equal(missing.partial, true);
+  assert.equal(missing.results.length, 1);
+  assert(missing.perRepository.some(({ repositoryId, state, reasonCodes }) => repositoryId === repositoryIds[1]
+    && state === 'unavailable' && reasonCodes.includes('repository_index_unavailable')));
 });
 
 function repositoryRecord() {
