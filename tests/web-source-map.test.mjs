@@ -105,6 +105,17 @@ test('Map partial state keeps useful results and names omitted coverage', () => 
   assert.doesNotMatch(html, /preview ready/iu);
 });
 
+test('Map names an unavailable native index instead of presenting an empty complete graph', () => {
+  const report = mapPreviewFixture();
+  report.snapshot = { status: 'unavailable', reason: 'source_graph_unavailable:source_index_build_required' };
+  const html = renderSourceMap({ state: parseMapUrl('/map'), report });
+  assert.match(html, /Source index unavailable/u);
+  assert.match(html, /Build the local source index, then run the map again/u);
+  assert.match(html, /recall graph index --write --engine native --root \. --format summary/u);
+  assert.doesNotMatch(html, /0 represented files/u);
+  assert.doesNotMatch(html, /No supported groups/u);
+});
+
 test('Map renders architecture graph before focus and keeps an accessible outline', () => {
   const html = renderSourceMap({ state: parseMapUrl('/map'), report: mapPreviewFixture() });
   assert.match(html, /Repository architecture/);
@@ -116,7 +127,7 @@ test('Map renders architecture graph before focus and keeps an accessible outlin
 test('Map heading and actions avoid template-like chrome', () => {
   const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report: mapPreviewFixture() });
   assert.doesNotMatch(html, /class="eyebrow"/);
-  assert.match(html, /class="button primary" type="submit">Search code/);
+  assert.match(html, /class="button primary" type="submit">Run map/);
   assert.match(html, /class="button quiet" type="button" data-action="refresh-source-map">Reload map/);
   assert.match(html, /data-graph-action="fit">Fit selection/);
   assert.match(html, /class="button quiet" type="button" data-graph-action="reset">Reset view/);

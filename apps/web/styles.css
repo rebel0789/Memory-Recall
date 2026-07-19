@@ -387,6 +387,9 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 .map-relations li span,.map-relations li small{color:var(--color-muted)}
 .map-focus-summary{display:flex;flex-wrap:wrap;gap:var(--space-xs);padding-bottom:var(--space-xs);color:var(--color-muted)}
 .map-focus-summary strong{color:var(--color-ink)}
+.map-focus-summary small{flex-basis:100%;color:var(--color-muted);font-size:12px;line-height:1.4}
+.map-index-command{margin:var(--space-xs) 0 0}
+.map-index-command code{display:block;overflow:auto;padding:var(--space-2xs);background:var(--color-panel-muted);border-radius:var(--radius-control);white-space:pre-wrap}
 .map-processes{margin-top:var(--space-md)}
 .map-processes .section-heading{margin-bottom:0}
 .map-processes ol{margin:0;padding:0;list-style:none}

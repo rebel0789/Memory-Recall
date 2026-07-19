@@ -145,11 +145,12 @@ function renderMapForm(state) {
         <label class="field field-compact"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="${state.limit}"></label>
       </div>
     </details>
-    <div class="map-query-actions"><button class="button primary" type="submit">Search code</button><button class="button quiet" type="button" data-action="refresh-source-map">Reload map</button><span>No model, network, or external writes</span></div>
+    <div class="map-query-actions"><button class="button primary" type="submit">Run map</button><button class="button quiet" type="button" data-action="refresh-source-map">Reload map</button><span>No model, network, or external writes</span></div>
   </form></section>`;
 }
 
 function renderMapResult(report, state) {
+  if (report?.snapshot?.status === 'unavailable') return renderUnavailableMap(report);
   const coverage = coverageModel(report);
   const hasFocus = Boolean(state.query || state.group || state.startName || state.changedLocator);
   const focusNodes = arrayValue(report.focus?.nodes);
@@ -211,7 +212,27 @@ function renderArchitecture(groups, relations) {
 
 function renderFocus(nodes, edges, focus = {}) {
   if (!nodes.length) return statePanel('empty', 'No focused records', 'The submitted scope produced no bounded nodes. Broaden the query or remove a group filter.');
-  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
+  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}<small>Labels stay with the selection and nearby nodes. Use the outline for the complete bounded result.</small></div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
+}
+
+function renderUnavailableMap(report) {
+  const recovery = sourceIndexRecovery(report?.snapshot?.reason);
+  const command = recovery.command ? `<p class="map-index-command"><code>${escapeHtml(recovery.command)}</code></p>` : '';
+  return statePanel('partial', 'Source index unavailable', recovery.copy, false, `${command}<p class="muted">Map did not scan files or use another graph engine.</p>`);
+}
+
+function sourceIndexRecovery(reason) {
+  const code = String(reason ?? '').split(':').at(-1);
+  if (code === 'source_index_build_required') {
+    return { copy: 'Build the local source index, then run the map again.', command: 'recall graph index --write --engine native --root . --format summary' };
+  }
+  if (code === 'source_index_refresh_required') {
+    return { copy: 'Refresh the stale source index, then run the map again.', command: 'recall graph index --refresh --engine native --root . --format summary' };
+  }
+  if (['native_platform_package_missing', 'native_engine_unavailable'].includes(code)) {
+    return { copy: 'Install a matching Memory Recall native package, then reload this page.', command: 'npm install -g memory-recall' };
+  }
+  return { copy: 'Inspect the local source index, apply the reported repair, then run the map again.', command: 'recall graph index --doctor --engine native --root . --format summary' };
 }
 
 function renderProcesses(processes) {

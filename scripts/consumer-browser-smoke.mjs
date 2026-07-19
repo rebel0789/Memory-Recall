@@ -21,15 +21,21 @@ const home = path.join(temp, 'home');
 const data = path.join(workspace, '.local');
 const screenshots = path.join(root, '.scratch', 'ui-redesign');
 const password = 'correct horse battery staple';
+const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 let server = null;
 let browser = null;
 
 try {
   await createRepositoryFixture();
+  const nativeIndex = runJson(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native-preview',
+    '--root', workspace, '--format', 'json'
+  ], { env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: nativeBinary } });
+  must(nativeIndex.status === 'ready' && nativeIndex.safeguards?.localFilesWritten === 1, 'browser fixture did not build its explicit native index');
   const port = await freePort();
   server = spawn(process.execPath, ['services/control-api/src/server.mjs'], {
     cwd: root,
-    env: { ...process.env, OAF_PORT: String(port), OAF_DATA_DIR: data, OAF_WORKSPACE_ROOT: workspace, HOME: home },
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: nativeBinary, OAF_PORT: String(port), OAF_DATA_DIR: data, OAF_WORKSPACE_ROOT: workspace, HOME: home },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   await waitForHealth(port);
@@ -81,7 +87,7 @@ try {
   must(overviewTruth.repository === 'workspace', `unexpected repository name: ${overviewTruth.repository}`);
   must(Boolean(overviewTruth.branch) && overviewTruth.branch !== 'Branch unavailable', `missing branch truth: ${overviewTruth.branch}`);
   must(Boolean(overviewTruth.coverage) && !/unavailable/iu.test(overviewTruth.coverage), `missing coverage truth: ${overviewTruth.coverage}`);
-  must(overviewTruth.groupCount >= 6 && overviewTruth.groupCount <= 12, `unexpected orientation group count: ${overviewTruth.groupCount}`);
+  must(overviewTruth.groupCount >= 2 && overviewTruth.groupCount <= 12, `unexpected bounded native orientation group count: ${overviewTruth.groupCount}`);
   must(overviewTruth.startCount === 3, `Overview must show exactly three ranked starts: ${overviewTruth.startCount}`);
   must(/affected|outside the represented graph/iu.test(overviewTruth.impact), `changed-file impact is not useful: ${overviewTruth.impact}`);
   must(/pending/iu.test(overviewTruth.trust), `pending governed memory is not visible: ${overviewTruth.trust}`);
@@ -114,9 +120,11 @@ try {
   must(new URL(page.url()).searchParams.get('group') === selectedPrefix, 'Overview deep link did not preserve the selected group');
   must(await page.inputValue('input[name="group"]') === selectedPrefix, 'Map form did not hydrate the group from the URL');
 
+  await page.locator('.map-advanced summary').click();
+  await page.fill('input[name="group"]', '');
   await page.fill('#source-graph-form input[name="query"]', 'startApp');
   const startAppResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
-  await Promise.all([startAppResponse, page.getByRole('button', { name: 'Search code' }).click()]);
+  await Promise.all([startAppResponse, page.getByRole('button', { name: 'Run map' }).click()]);
   await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
   await waitForText(page, 'Focused map');
   await page.locator('#source-map-canvas').waitFor();
@@ -136,21 +144,21 @@ try {
   await page.route('**/api/context/graph/preview', recoverableGraphFailure);
   await page.fill('#source-graph-form input[name="query"]', 'recoverableFailure');
   const failureResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'recoverableFailure');
-  await Promise.all([failureResponse, page.getByRole('button', { name: 'Search code' }).click()]);
+  await Promise.all([failureResponse, page.getByRole('button', { name: 'Run map' }).click()]);
   await waitForText(page, 'Recoverable graph failure.');
   const failedMapUrl = page.url();
-  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
+  await assertMapState(page, { query: 'recoverableFailure', group: '' });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Recoverable graph failure.');
-  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
+  await assertMapState(page, { query: 'recoverableFailure', group: '' });
   await page.goBack();
   await page.waitForURL(successfulMapUrl);
   await waitForText(page, 'Focused map');
-  await assertMapState(page, { query: 'startApp', group: selectedPrefix });
+  await assertMapState(page, { query: 'startApp', group: '' });
   await page.goForward();
   await page.waitForURL(failedMapUrl);
   await waitForText(page, 'Recoverable graph failure.');
-  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
+  await assertMapState(page, { query: 'recoverableFailure', group: '' });
   await page.goBack();
   await page.waitForURL(successfulMapUrl);
   await page.locator('#source-map-canvas').waitFor();
@@ -289,7 +297,7 @@ async function createRepositoryFixture() {
 async function assertMapState(page, expected) {
   const url = new URL(page.url());
   must(url.searchParams.get('query') === expected.query, `Map URL query drifted: ${url}`);
-  must(url.searchParams.get('group') === expected.group, `Map URL group drifted: ${url}`);
+  must((url.searchParams.get('group') ?? '') === expected.group, `Map URL group drifted: ${url}`);
   must(await page.inputValue('#source-graph-form input[name="query"]') === expected.query, 'Map query field drifted from the URL');
   must(await page.inputValue('input[name="group"]') === expected.group, 'Map group field drifted from the URL');
 }
@@ -323,8 +331,8 @@ function graphPreviewQuery(request) {
   try { return request.postDataJSON()?.query ?? ''; } catch { return ''; }
 }
 
-function runJson(command, args) {
-  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8' });
+function runJson(command, args, options = {}) {
+  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', ...options });
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
   return JSON.parse(result.stdout);
 }
@@ -565,7 +573,7 @@ async function runInstalledNativeWorkbenchSmoke() {
     );
     await page.fill('#source-graph-form input[name="query"]', 'pythonControlProof');
     const graphResponsePromise = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'pythonControlProof');
-    await page.getByRole('button', { name: 'Search code' }).click();
+    await page.getByRole('button', { name: 'Run map' }).click();
     const graphResponse = await graphResponsePromise;
     const graphText = await graphResponse.text();
     must(graphResponse.ok(), `installed native graph request failed: ${graphResponse.status()} ${graphText}; server stderr=${serverStderr}`);

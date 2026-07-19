@@ -1801,7 +1801,7 @@ async function serveStatic(response, rawPathname) {
     if (!info.isFile()) throw new Error('not file');
     const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8' };
     const content = await readFile(target);
-    response.writeHead(200, { ...securityHeaders(), 'content-type': types[path.extname(target)] ?? 'application/octet-stream', 'cache-control': path.extname(target) === '.html' ? 'no-cache' : 'public, max-age=300' });
+    response.writeHead(200, { ...securityHeaders(), 'content-type': types[path.extname(target)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
     response.end(content);
   } catch {
     const fallback = await readFile(path.join(webRoot, 'index.html'));
