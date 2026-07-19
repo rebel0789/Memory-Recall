@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `c1e819c`
+Current evidence commit: `a403faa`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -147,7 +147,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| U-1 | First screen explains shape, coverage, subsystems, entry points, hotspots, changes, memory, and next action. | Incomplete | Orientation models and browser tests cover the local workbench; not every item is proven on a large polyglot repository through the packaged native path. | Run task-based browser proof on representative large repositories and correct comprehension gaps. |
+| U-1 | First screen explains shape, coverage, subsystems, entry points, hotspots, changes, memory, and next action. | Incomplete | Orientation models and browser tests cover the local workbench. Native communities sharing a path prefix now merge into one architecture group, so the first screen does not present competing duplicates. Not every item is proven on a large polyglot repository through the packaged native path. | Run task-based browser proof on representative large repositories and correct comprehension gaps. |
 | U-2 | Map uses progressive disclosure for groups, communities, processes, neighborhoods, and evidence. | Incomplete | The real browser smoke now renders a 100-node focused graph: the canvas keeps a bounded nearby-label set, selection/keyboard selection/zoom/fit/reset work, and the complete bounded result remains in the outline. Large-repository communities/groups and progressive interaction remain unproven. | Prove density controls and evidence drill-down on representative large graphs. |
 | U-3 | Navigation is understandable and Map works directly. | Incomplete | First-run browser proof reaches Map from Overview and directly runs a submitted Map query. The browser now clicks every visible desktop and mobile primary-navigation destination and asserts its destination route and rendered content. Task-based comprehension on a representative large repository remains unproven. | Browser-test users' likely first actions on a large repository. |
 | U-4 | No overlap or unreadable source-map outline. | Incomplete | Focused layout and outline regressions now include desktop/mobile captures of a 100-node result. The canvas stays label-bounded, outline labels/locators truncate safely, and the mobile final outline item remains above navigation. No full visual audit across representative large repos and viewports is recorded. | Capture desktop/mobile screenshots and test long labels, narrow inspectors, zoom, overflow, and selection on representative large repositories. |
@@ -188,7 +188,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 | R-3 | All five platform package jobs. | Missing | Workflow matrix exists; only darwin-arm64 is locally proven. | Run the GitHub `Rust` workflow `native-artifacts` matrix at the exact frozen commit and retain all receipts. |
 | R-4 | Security and CodeQL. | Incomplete | CodeQL workflow exists; no final frozen-commit result is recorded here. | Run CodeQL and security audit at the frozen commit and bind run URLs/SHAs to release evidence. |
 | R-5 | Packed clean installs. | Incomplete | Darwin-arm64 root-plus-native smoke passes. | Pass all five platforms from clean HOME without Cargo/rustc. |
-| R-6 | Complete browser suite. | Incomplete | Current local Chromium proof covers a 100-node Map, responsive overflow, graph interactions, console/page errors, and packed-native normal/stale behavior. Final packaged-native large-repository, accessibility, and complete-control inventory remain unproven. | Run the final control inventory, accessibility, responsive, overlap, and overflow suite. |
+| R-6 | Complete browser suite. | Incomplete | Current local Chromium proof covers a 100-node Map, responsive overflow, graph interactions, console/page errors, packed-native normal/stale behavior, and a regression against duplicate first-screen architecture groups. Final packaged-native large-repository, accessibility, and complete-control inventory remain unproven. | Run the final control inventory, accessibility, responsive, overlap, and overflow suite. |
 | R-7 | Release readiness and handoff verification. | Incomplete | Current generated documents validate locally but are not the frozen major-release artifacts and omit remote native artifact provenance. | Regenerate and verify only after the stable implementation and distribution artifacts are frozen. |
 | R-8 | Do not push, merge, publish, or deploy without separate authorization. | Proven | All current work is local on `codex/memory-recall-orientation-workbench`; no remote mutation was performed in this goal continuation. | Report exact branch, commit, GitHub action, and publication order when local work is ready. |
 
