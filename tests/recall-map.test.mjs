@@ -195,6 +195,46 @@ function fixtureNativeResult(overrides = {}) {
   };
 }
 
+function nativeNode(id, kind, label, locator) {
+  return {
+    id: `cinode_${id.padEnd(32, '0')}`,
+    kind,
+    label,
+    locator,
+    confidence: 1,
+    generation: 1
+  };
+}
+
+function nativeRelationship(kind, fromNodeId, toNodeId, locator) {
+  return {
+    id: `ciedge_${kind.padEnd(32, '0')}`,
+    kind,
+    fromNodeId,
+    toNodeId,
+    locator,
+    confidence: 1,
+    resolution: 'exact',
+    resolver: 'fixture',
+    resolverVersion: '1.0.0',
+    generation: 1,
+    stale: false
+  };
+}
+
+function nativeCommunity(id, pathPrefix, nodeIds) {
+  return {
+    id: `cicommunity_${id.padEnd(32, '0')}`,
+    label: pathPrefix,
+    pathPrefix,
+    representedNodeCount: nodeIds.length,
+    representedRelationshipCount: 0,
+    nodeIds,
+    algorithmVersion: 'label-propagation-v1',
+    truncated: false
+  };
+}
+
 test('Recall Map composes bounded architecture and governed-memory truth without writes', async (t) => {
   const root = await fixtureWorkspace(t);
   const sqlitePath = path.join(root, '.local', 'memory.sqlite');
@@ -230,6 +270,42 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   assert.equal(existsSync(path.join(root, '.local')), false);
   assert.equal(existsSync(sqlitePath), false);
   assert.equal(JSON.stringify(report).includes(SOURCE_BODY_SENTINEL), false);
+});
+
+test('native orientation merges communities that share one path prefix', async () => {
+  const file = nativeNode('file', 'file', 'packages/core/index.js', 'workspace://packages/core/index.js');
+  const left = nativeNode('left', 'function', 'leftHelper', 'workspace://packages/core/index.js#L1-L1');
+  const right = nativeNode('right', 'function', 'rightHelper', 'workspace://packages/core/helpers.js#L1-L1');
+  const relationship = nativeRelationship('calls', left.id, right.id, left.locator);
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities') {
+        return fixtureNativeResult({
+          results: [file, left, right],
+          relationships: [relationship],
+          communities: [
+            nativeCommunity('left', 'packages/core', [file.id, left.id]),
+            nativeCommunity('right', 'packages/core', [right.id])
+          ]
+        });
+      }
+      if (kind === 'processes') return fixtureNativeResult({ results: [], relationships: [], processes: [] });
+      throw new Error(`unexpected native query: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status: fixtureNativeResult({ operation: 'index.status', results: [] }),
+    root: '.',
+    workspaceId: WORKSPACE_ID,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.deepEqual(preview.orientation.groups.map(({ prefix }) => prefix), ['packages/core']);
+  assert.equal(preview.orientation.groups[0].fileCount, 1);
+  assert.equal(preview.orientation.groups[0].symbolCount, 2);
+  assert.deepEqual(preview.orientation.relations, []);
 });
 
 test('Recall Map forwards bounded depth and limit to safe source-graph summaries', async (t) => {

@@ -548,8 +548,10 @@ function nativePreviewPayload(input) {
 function orientationProjection({ architecture, ids, changedLocators }) {
   const communityByNode = new Map();
   const groupByCommunity = new Map();
+  const groupsById = new Map();
   for (const community of processCommunities(architecture, ids, changedLocators)) {
     groupByCommunity.set(community.nativeId, community.group);
+    groupsById.set(community.group.id, community.group);
     for (const nodeId of community.nodeIds) communityByNode.set(nodeId, community.nativeId);
   }
   const relations = new Map();
@@ -566,11 +568,12 @@ function orientationProjection({ architecture, ids, changedLocators }) {
     relations.set(key, current);
   }
   return {
-    groups: [...groupByCommunity.values()].slice(0, 12),
+    groups: [...groupsById.values()].slice(0, 12),
     processes: processProjection(architecture, ids),
-    relations: [...relations.values()].sort((a, b) => b.count - a.count || `${a.from}:${a.to}`.localeCompare(`${b.from}:${b.to}`)).slice(0, 20).map((relation) => {
+    relations: [...relations.values()].sort((a, b) => b.count - a.count || `${a.from}:${a.to}`.localeCompare(`${b.from}:${b.to}`)).map((relation) => {
       const source = groupByCommunity.get(relation.from);
       const target = groupByCommunity.get(relation.to);
+      if (!source || !target || source.id === target.id) return null;
       return {
         id: mappedId('sgrelation', `${relation.from}:${relation.to}`, 24),
         sourceGroupId: source.id,
@@ -580,7 +583,7 @@ function orientationProjection({ architecture, ids, changedLocators }) {
         count: relation.count,
         edgeKindCounts: relation.edgeKindCounts
       };
-    })
+    }).filter(Boolean).slice(0, 20)
   };
 }
 
@@ -613,8 +616,11 @@ function processProjection(architecture, ids) {
 }
 
 function processCommunities(architecture, ids, changedLocators) {
-  return architecture.groups.slice(0, 12).map((community) => {
+  const groupsByPrefix = new Map();
+  const communities = [];
+  for (const community of architecture.groups) {
     const prefix = safeGroupPrefix(community.pathPrefix);
+    if (!groupsByPrefix.has(prefix) && groupsByPrefix.size >= 12) continue;
     const original = architecture.groups.find((item) => item.id === community.id);
     const nodeIds = original?.sampleNodeIds ?? [];
     const members = architecture.nodes.filter((node) => nodeIds.includes(node.id) || node.locator?.startsWith(`${normalizeLocator(prefix)}/`));
@@ -622,19 +628,22 @@ function processCommunities(architecture, ids, changedLocators) {
       .filter((node) => members.some((member) => member.id === node.id))
       .slice(0, 2)
       .map((node) => nodeReference(node, ids, ['entry_point']));
-    return {
+    const group = groupsByPrefix.get(prefix) ?? {
+      id: mappedId('sggroup', prefix, 24),
+      prefix,
+      fileCount: members.filter((node) => node.kind === 'file').length,
+      symbolCount: members.filter((node) => !NODE_KINDS.has(node.kind)).length,
+      changedFileCount: changedLocators.filter((locator) => locator.startsWith(`workspace://${prefix}`)).length,
+      entryPoints
+    };
+    groupsByPrefix.set(prefix, group);
+    communities.push({
       nativeId: community.id,
       nodeIds: members.map((node) => node.id),
-      group: {
-        id: mappedId('sggroup', community.id, 24),
-        prefix,
-        fileCount: members.filter((node) => node.kind === 'file').length,
-        symbolCount: members.filter((node) => !NODE_KINDS.has(node.kind)).length,
-        changedFileCount: changedLocators.filter((locator) => locator.startsWith(`workspace://${prefix}`)).length,
-        entryPoints
-      }
-    };
-  });
+      group
+    });
+  }
+  return communities;
 }
 
 function searchProjection(input, ids, graphFingerprint) {
