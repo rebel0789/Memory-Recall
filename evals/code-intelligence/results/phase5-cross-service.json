@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-18T15:23:53.358Z",
+  "generatedAt": "2026-07-19T12:06:49.421Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:cda85b5697e65a792f0f2fba6a3cd3cfa8066a2d613d4a83812260667583aaf4",
+    "implementationFingerprint": "sha256:6cd06dca738f0b5d5801d8d943dab2ad470196ea785b0f005c1adcf6d869d4a0",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:a6c6063170fa2784ff57e87b3b837b44d84e48ef683ce1adfd00bc844f0c1d2e",
+    "repositoryIdentityHash": "sha256:1536f2b32ad6d213375bf692a1df9fac31335ccb412609d29945bad17dcc293c",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:da58053bccef31f73b976da13df930ea6c475a8d3cd75d031fd970f20bd53216",
+    "deterministicFingerprint": "sha256:7ed21423cf7ea6f0a47ae02106f87b3bfd4f8ecb22ca60a00d3ccf77577b0594",
     "queryWallMs": {
-      "minimum": 7.831,
-      "p50": 9.612,
-      "p95": 15.446,
-      "maximum": 15.446
+      "minimum": 6.65,
+      "p50": 8.416,
+      "p95": 8.939,
+      "maximum": 8.939
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:d721f3d7ea6464a1bbf7eaa2d77b4cf1a546b880c25eed6df11cc5a8f0305827"
+  "reportFingerprint": "sha256:7ec880ea0793d992ea8e276b04d7c6b5ca8b9066483159c5bd3e37b75648ceba"
 }
