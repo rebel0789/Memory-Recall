@@ -122,6 +122,7 @@ try {
 
   await page.locator('.map-advanced summary').click();
   await page.fill('input[name="group"]', '');
+  await page.fill('input[name="limit"]', '100');
   await page.fill('#source-graph-form input[name="query"]', 'startApp');
   const startAppResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
   await Promise.all([startAppResponse, page.getByRole('button', { name: 'Run map' }).click()]);
@@ -167,7 +168,7 @@ try {
 
   await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
   const focusNodeCount = await page.locator('.source-map-outline [data-node-id]').count();
-  must(focusNodeCount > 0 && focusNodeCount <= 200, `focused graph is outside node bounds: ${focusNodeCount}`);
+  must(focusNodeCount > 20 && focusNodeCount <= 200, `large focused graph is outside node bounds: ${focusNodeCount}`);
   const initialNodeId = await page.locator('#source-map-selection').getAttribute('data-selected-node-id');
   must(Boolean(initialNodeId), 'focused graph has no canonical selection');
   await page.getByRole('button', { name: 'Fit selection' }).click();
@@ -201,6 +202,12 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
   must(!(await hasHorizontalOverflow(page)), 'focused Map has horizontal overflow at 390px');
+  await page.locator('.source-map-outline [data-node-id]').last().scrollIntoViewIfNeeded();
+  const [lastOutlineBox, mobileNavBox] = await Promise.all([
+    page.locator('.source-map-outline [data-node-id]').last().boundingBox(),
+    page.locator('.bottom-nav').boundingBox()
+  ]);
+  must(lastOutlineBox && mobileNavBox && lastOutlineBox.y + lastOutlineBox.height <= mobileNavBox.y + 1, 'mobile Map outline is obscured by navigation');
   await page.screenshot({ path: path.join(screenshots, 'map-focused-mobile-390.png'), fullPage: true });
 
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -272,13 +279,18 @@ async function createRepositoryFixture() {
   await mkdir(screenshots, { recursive: true });
   await writeFile(path.join(workspace, 'package.json'), JSON.stringify({ name: 'memory-recall-browser-target', type: 'module' }, null, 2));
   await writeFile(path.join(workspace, 'AGENTS.md'), 'Use local context handoffs and proposal-gated memory.');
+  const helperNames = Array.from({ length: 120 }, (_, index) => `helper${index}`);
+  const helperModule = helperNames.map((name, index) => `export function ${name}(){ return "local proof ${index}"; }`).join('\n');
+  const appImports = `import { ${helperNames.join(', ')} } from "../../packages/core/helpers.js";`;
+  const helperCalls = helperNames.map((name) => `${name}();`).join('');
+  const baseApp = `import { serveControl } from "../../services/control-api/server.js";\n${appImports}\nexport function startApp(){ ${helperCalls} return serveControl(); }\n`;
   await writeFile(path.join(workspace, 'packages', 'core', 'index.js'), 'export function buildContext(value){ return { value, source: "local" }; }\n');
+  await writeFile(path.join(workspace, 'packages', 'core', 'helpers.js'), `${helperModule}\n`);
   await writeFile(path.join(workspace, 'providers', 'native', 'memory', 'index.js'), 'export function readMemory(){ return "approved facts"; }\n');
   await writeFile(path.join(workspace, 'services', 'control-api', 'server.js'), 'import { buildContext } from "../../packages/core/index.js";\nimport { readMemory } from "../../providers/native/memory/index.js";\nexport function serveControl(){ return buildContext(readMemory()); }\n');
-  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), 'import { serveControl } from "../../services/control-api/server.js";\nexport function startApp(){ return serveControl(); }\n');
+  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), baseApp);
   await writeFile(path.join(workspace, 'scripts', 'check.mjs'), 'import { startApp } from "../apps/web/main.js";\nexport function runCheck(){ return startApp(); }\n');
   await writeFile(path.join(workspace, 'tests', 'main.test.js'), 'import { startApp } from "../apps/web/main.js";\nexport function verifyMain(){ return startApp().source === "local"; }\n');
-  await writeFile(path.join(workspace, 'packages', 'core', 'large-fixture.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
   await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:memory-recall release_status ready supersedes draft.');
   await writeFile(path.join(workspace, '.gitignore'), '.local/\n');
   runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
@@ -288,7 +300,7 @@ async function createRepositoryFixture() {
   run('git', ['config', 'user.name', 'Browser Smoke'], workspace);
   run('git', ['add', '.'], workspace);
   run('git', ['commit', '-m', 'fixture baseline'], workspace);
-  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), 'import { serveControl } from "../../services/control-api/server.js";\nexport function startApp(){ return normalizeResult(serveControl()); }\nexport function normalizeResult(value){ return value; }\n');
+  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), `${baseApp}export function normalizeResult(value){ return value; }\n`);
   await writeFile(path.join(workspace, 'docs', 'operator-note.md'), 'One changed non-JavaScript file remains outside source-graph coverage.\n');
   runJson(process.execPath, ['apps/cli/oaf.mjs', 'context', 'pack', '--from', 'codex', '--root', workspace, '--objective', 'Continue the verified local repository change', '--step', 'inspect bounded repository context', '--target', 'codex', '--include-file', 'AGENTS.md', '--changed', 'apps/web/main.js', '--write', '--pin', '--out', 'context-packs/CONTEXT_PACK.md', '--format', 'json']);
   runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'ingest', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--format', 'json']);
