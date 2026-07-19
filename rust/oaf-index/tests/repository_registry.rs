@@ -390,6 +390,24 @@ fn repository_list_reports_when_the_requested_limit_omits_repositories() {
 }
 
 #[test]
+fn nested_repository_locators_use_forward_slashes_on_every_platform() {
+    let fleet = tempdir().unwrap();
+    create_repository(fleet.path(), "repositories/client");
+    let mut registry =
+        RepositoryRegistry::open(fleet.path(), WORKSPACE_ID, ENGINE_VERSION).unwrap();
+
+    let repository = registry
+        .register("Client", "workspace://repositories/client")
+        .unwrap();
+
+    assert_eq!(repository.root_locator, "workspace://repositories/client");
+    assert_eq!(
+        repository.index_locator,
+        "workspace://repositories/client/.local/source-index/index.v1.sqlite"
+    );
+}
+
+#[test]
 fn rejects_invalid_bounds_and_roots_outside_the_fleet() {
     let fleet = tempdir().unwrap();
     let outside = tempdir().unwrap();

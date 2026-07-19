@@ -83,15 +83,23 @@ export async function resolveNativeBinary({
   }
 
   const descriptor = nativePackageForTarget(target);
+  const applicationRoot = await realpath(packageRoot).catch(() => packageRoot);
   return resolvePlatformPackage({
     descriptor,
     expectedVersion,
     target,
+    applicationRoot,
     resolvePackageJson: resolvePackageJson ?? defaultPackageResolver(packageRoot)
   });
 }
 
-async function resolvePlatformPackage({ descriptor, expectedVersion, target, resolvePackageJson }) {
+async function resolvePlatformPackage({
+  descriptor,
+  expectedVersion,
+  target,
+  applicationRoot,
+  resolvePackageJson
+}) {
   let packageJsonPath;
   try {
     packageJsonPath = await resolvePackageJson(descriptor.packageName);
@@ -102,7 +110,7 @@ async function resolvePlatformPackage({ descriptor, expectedVersion, target, res
     throw new NativeBinaryResolutionError('native_engine_manifest_invalid');
   });
   const packageMetadata = await readJson(packageJsonPath, 'native_engine_manifest_invalid');
-  const manifest = await readJson(path.join(packageRoot, 'native-manifest.json'), 'native_engine_manifest_invalid');
+  const manifest = await readPlatformManifest({ applicationRoot, packageRoot });
   validateManifest({ descriptor, expectedVersion, manifest, packageMetadata, target });
   const binaryPath = await resolveRegularExecutable(path.join(packageRoot, descriptor.binary));
   if (!inside(packageRoot, binaryPath)) throw new NativeBinaryResolutionError('native_engine_path_invalid');
@@ -117,6 +125,17 @@ async function resolvePlatformPackage({ descriptor, expectedVersion, target, res
     version: expectedVersion,
     sha256: manifest.sha256
   });
+}
+
+async function readPlatformManifest({ applicationRoot, packageRoot }) {
+  try {
+    return JSON.parse(await readFile(path.join(packageRoot, 'native-manifest.json'), 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT' && inside(path.join(applicationRoot, 'native-packages'), packageRoot)) {
+      throw new NativeBinaryResolutionError('native_platform_package_missing');
+    }
+    throw new NativeBinaryResolutionError('native_engine_manifest_invalid');
+  }
 }
 
 function validateManifest({ descriptor, expectedVersion, manifest, packageMetadata, target }) {

@@ -278,7 +278,7 @@ function languageFixtures() {
         { subject: 'module:src_Worker', predicate: 'DEFINES', object: 'package:demo' },
         { subject: 'package:demo', predicate: 'DEFINES', object: 'class:demo.Worker' },
         { subject: 'package:demo', predicate: 'DEFINES', object: 'class:demo.Utility' },
-        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:java' }
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:java.util.List' }
       ],
       expectedCalls: []
     }),
@@ -297,7 +297,7 @@ function languageFixtures() {
       expectedFacts: [
         { subject: 'function:c_entry', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:c_helper', predicate: 'IS_A', object: 'Function' },
-        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dep' }
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dep.h' }
       ],
       expectedCalls: [
         { source: 'function:c_entry', target: 'function:c_helper' }
@@ -385,7 +385,7 @@ function languageFixtures() {
         { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:helper_global', predicate: 'IS_A', object: 'Function' },
-        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:dep' }
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:dep.php' }
       ],
       expectedCalls: [
         { source: 'function:boot', target: 'function:helper_global' },
@@ -462,7 +462,7 @@ function languageFixtures() {
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
-        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:kotlin' }
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:kotlin.collections.List' }
       ],
       expectedCalls: [
         { source: 'function:boot', target: 'function:setup' }
@@ -599,7 +599,7 @@ function languageFixtures() {
         { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
         { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
         { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
-        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dart' }
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dart:math' }
       ],
       expectedCalls: [
         { source: 'function:boot', target: 'function:setup' }

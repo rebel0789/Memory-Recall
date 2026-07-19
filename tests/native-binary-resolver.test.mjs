@@ -83,6 +83,25 @@ test('source checkout binary is used only through an explicit development path',
   assert.equal(selected.verified, false);
 });
 
+test('unbuilt workspace native templates report a missing platform package', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-template-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const nativeRoot = path.join(root, 'native-packages', 'darwin-arm64');
+  const packageJson = path.join(nativeRoot, 'package.json');
+  await mkdir(nativeRoot, { recursive: true });
+  await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"2.0.0"}\n');
+  await writeFile(packageJson, '{"name":"@memory-recall/native-darwin-arm64","version":"2.0.0"}\n');
+
+  await assert.rejects(
+    resolveNativeBinary({
+      target: 'darwin-arm64',
+      packageRoot: root,
+      resolvePackageJson: async () => packageJson
+    }),
+    (error) => error.code === 'native_platform_package_missing'
+  );
+});
+
 test('explicit binaries must report the exact package version', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-version-'));
   t.after(() => rm(root, { recursive: true, force: true }));

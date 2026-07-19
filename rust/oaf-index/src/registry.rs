@@ -1131,7 +1131,10 @@ fn resolve_repository_root(fleet_root: &Path, locator: &str) -> Result<(String, 
     let normalized = if relative.as_os_str().is_empty() {
         "workspace://.".to_string()
     } else {
-        format!("workspace://{}", relative.to_string_lossy())
+        format!(
+            "workspace://{}",
+            relative.to_string_lossy().replace('\\', "/")
+        )
     };
     let candidate = fleet_root.join(&relative);
     let canonical = candidate
