@@ -1,6 +1,7 @@
 use super::{
-    locator_file, open_read_only_connection, repository_identity_hash, secure_permissions,
-    EdgeDirection, NodeRecord, QueryBounds, SourceIndex, SourceIndexOptions,
+    inspect_index, locator_file, open_read_only_connection, repository_identity_hash,
+    secure_permissions, EdgeDirection, HealthStatus, NodeRecord, QueryBounds, SourceIndex,
+    SourceIndexOptions,
 };
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -366,7 +367,7 @@ impl RepositoryRegistry {
                 }
                 Err(error) => {
                     partial = true;
-                    repositories.push(repository_from_row(&row, None));
+                    repositories.push(self.inspect_row(row));
                     per_repository.push(PerRepositorySearch {
                         repository_id: repository_id.clone(),
                         state: "unavailable".to_string(),
@@ -694,15 +695,20 @@ impl RepositoryRegistry {
 
     fn inspect_row(&self, row: RegistryRow) -> RegisteredRepository {
         let resolved = resolve_repository_root(&self.fleet_root, &row.root_locator);
-        let active_generation = resolved
-            .ok()
-            .and_then(|(_, root)| {
-                let options =
-                    SourceIndexOptions::new(&row.repository_identity_hash, &self.engine_version);
-                SourceIndex::open_read_only(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options)
-                    .ok()
-            })
-            .and_then(|index| index.active_generation());
+        let health = resolved.ok().map(|(_, root)| {
+            let options =
+                SourceIndexOptions::new(&row.repository_identity_hash, &self.engine_version);
+            inspect_index(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options)
+        });
+        let active_generation = health.as_ref().and_then(|value| value.active_generation);
+        let ready = health.as_ref().is_some_and(|value| {
+            value.status == HealthStatus::Ready && active_generation.is_some()
+        });
+        let freshness = if health.is_some_and(|value| value.status == HealthStatus::Stale) {
+            "stale"
+        } else {
+            "unverified"
+        };
         RegisteredRepository {
             repository_id: row.repository_id,
             display_name: row.display_name,
@@ -710,12 +716,12 @@ impl RepositoryRegistry {
             index_locator: index_locator(&row.root_locator),
             repository_identity_hash: row.repository_identity_hash,
             active_generation,
-            state: if active_generation.is_some() {
+            state: if ready {
                 "ready".to_string()
             } else {
                 "unavailable".to_string()
             },
-            freshness: "unverified".to_string(),
+            freshness: freshness.to_string(),
             last_seen_at: row.last_seen_at,
         }
     }
@@ -729,6 +735,12 @@ impl RepositoryRegistry {
     ) -> Result<(i64, Vec<super::NodeRecord>, bool)> {
         let (_, root) = resolve_repository_root(&self.fleet_root, &row.root_locator)?;
         let options = SourceIndexOptions::new(&row.repository_identity_hash, &self.engine_version);
+        match inspect_index(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options).status {
+            HealthStatus::Ready => {}
+            HealthStatus::Stale => bail!("repository_index_stale"),
+            HealthStatus::WrongRepository => bail!("repository_index_identity_mismatch"),
+            _ => bail!("repository_index_unavailable"),
+        }
         let index =
             SourceIndex::open_read_only(&root.join(REPOSITORY_INDEX_RELATIVE_PATH), &options)?;
         let generation = index
@@ -1206,6 +1218,8 @@ fn safe_repository_reason(error: &anyhow::Error) -> &'static str {
     let text = format!("{error:#}");
     if text.contains("deadline") {
         "repository_search_deadline_exceeded"
+    } else if text.contains("repository_index_stale") || text.contains("engine_changed") {
+        "repository_index_stale"
     } else if text.contains("wrong_repository") {
         "repository_index_identity_mismatch"
     } else {

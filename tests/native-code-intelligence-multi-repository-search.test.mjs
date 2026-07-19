@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -123,6 +124,52 @@ test('native repository search isolates a missing index and rejects another work
     (error) => error instanceof NativeCodeIntelligenceError && error.code === 'repository_registry_wrong_workspace'
   );
   assert.deepEqual(await snapshots([registryPath, ...healthyIndexPaths]), before);
+});
+
+test('native repository search exposes a stale index without contaminating healthy repositories', async (t) => {
+  const { provider, fleet, registrations } = await preparedFleet(t);
+  const repositoryIds = registrations.map(({ repositoryId }) => repositoryId);
+  const staleRegistration = registrations.find(({ displayName }) => displayName === 'Python');
+  const staleIndexPath = indexPath(fleet, 'python');
+  const database = new DatabaseSync(staleIndexPath);
+  database.exec("UPDATE index_metadata SET engine_version = 'stale-fixture-engine'");
+  database.close();
+  const registryPath = path.join(fleet, '.local', 'source-index', 'registry.v1.sqlite');
+  const before = await snapshots([registryPath, ...REPOSITORIES.map(({ directory }) => indexPath(fleet, directory))]);
+
+  const listed = await provider.listRepositories({ root: fleet, workspaceId: WORKSPACE_ID });
+  const listedStale = listed.repositories.find(({ repositoryId }) => repositoryId === staleRegistration.repositoryId);
+  assert.deepEqual(
+    { state: listedStale.state, freshness: listedStale.freshness, activeGeneration: listedStale.activeGeneration },
+    { state: 'unavailable', freshness: 'stale', activeGeneration: 1 }
+  );
+
+  const result = await provider.searchRepositories({
+    root: fleet,
+    workspaceId: WORKSPACE_ID,
+    query: 'sharedTarget',
+    repositoryIds,
+    perRepositoryLimit: 1,
+    limit: 3
+  });
+
+  assert.equal(result.state, 'partial');
+  assert.equal(result.partial, true);
+  assert.equal(result.results.length, 2);
+  assert.equal(result.results.some(({ repositoryId }) => repositoryId === staleRegistration.repositoryId), false);
+  assert.deepEqual(
+    result.perRepository.find(({ repositoryId }) => repositoryId === staleRegistration.repositoryId),
+    {
+      repositoryId: staleRegistration.repositoryId,
+      state: 'unavailable',
+      resultCount: 0,
+      truncated: false,
+      reasonCodes: ['repository_index_stale']
+    }
+  );
+  assert.equal(result.repositories.find(({ repositoryId }) => repositoryId === staleRegistration.repositoryId).freshness, 'stale');
+  assertReadOnlyEvidence(result, fleet);
+  assert.deepEqual(await snapshots([registryPath, ...REPOSITORIES.map(({ directory }) => indexPath(fleet, directory))]), before);
 });
 
 async function preparedFleet(t) {
