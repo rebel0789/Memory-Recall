@@ -598,6 +598,18 @@ async function runInstalledNativeWorkbenchSmoke() {
       `browser Map finds the Python-only native symbol and locator: ${JSON.stringify(graph.search?.results ?? [])}`
     );
     must(graph.safeguards?.localFilesWritten === 0, 'browser graph request reports no local index write');
+    await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchBrowserSmoke(){ return "changed after indexing"; }\n');
+    const staleResponsePromise = page.waitForResponse((response) => (
+      response.request().url().endsWith('/api/context/graph/preview')
+      && graphPreviewQuery(response.request()) === 'pythonControlProof'
+    ));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const staleResponse = await staleResponsePromise;
+    const staleGraph = JSON.parse(await staleResponse.text());
+    must(staleGraph.snapshot?.status === 'unavailable' && staleGraph.snapshot?.reason?.endsWith('source_index_refresh_required'), 'packed Control API did not fail closed for a stale native index');
+    await waitForText(page, 'Source index unavailable');
+    await waitForText(page, 'Refresh the stale source index');
+    await waitForText(page, 'recall graph index --refresh --engine native --root . --format summary');
     must(sameFileBundleSnapshot(indexBeforeBrowser, await fileBundleSnapshot(indexPath)), 'MCP, browser, and Control API preserve SQLite bytes and mtime and create no WAL or SHM');
     must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
     console.log(`PASS installed verified native workbench ${target}`);
