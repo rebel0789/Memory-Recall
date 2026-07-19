@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `72c7e30`
+Current evidence commit: `eebff8c`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -187,7 +187,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 | R-2 | Full Rust workspace on frozen implementation. | Incomplete | The current evidence slice passed the full Rust workspace: 121 unit and integration tests plus all doc tests; implementation is not frozen. | Run at final freeze. |
 | R-3 | All five platform package jobs. | Missing | Workflow matrix exists; only darwin-arm64 is locally proven. | Run the GitHub `Rust` workflow `native-artifacts` matrix at the exact frozen commit and retain all receipts. |
 | R-4 | Security and CodeQL. | Incomplete | CodeQL workflow exists; no final frozen-commit result is recorded here. | Run CodeQL and security audit at the frozen commit and bind run URLs/SHAs to release evidence. |
-| R-5 | Packed clean installs. | Incomplete | Darwin-arm64 root-plus-native smoke passes. | Pass all five platforms from clean HOME without Cargo/rustc. |
+| R-5 | Packed clean installs. | Incomplete | Darwin-arm64 root-plus-native smoke passes. The stable publication workflow now fetches the published root and matching native package from npm, then runs the compiler-free global-install, twelve-tool MCP, uninstall, and reinstall smoke on every supported native runner. This remains unproven until the exact release workflow completes. | Pass the five remote registry-consumer jobs from clean HOME without Cargo/rustc. |
 | R-6 | Complete browser suite. | Incomplete | Current local Chromium proof covers a 100-node Map, responsive overflow, graph interactions, console/page errors, packed-native normal/stale behavior, and a regression against duplicate first-screen architecture groups. Final packaged-native large-repository, accessibility, and complete-control inventory remain unproven. | Run the final control inventory, accessibility, responsive, overlap, and overflow suite. |
 | R-7 | Release readiness and handoff verification. | Incomplete | Current generated documents validate locally but are not the frozen major-release artifacts and omit remote native artifact provenance. | Regenerate and verify only after the stable implementation and distribution artifacts are frozen. |
 | R-8 | Do not push, merge, publish, or deploy without separate authorization. | Proven | All current work is local on `codex/memory-recall-orientation-workbench`; no remote mutation was performed in this goal continuation. | Report exact branch, commit, GitHub action, and publication order when local work is ready. |
