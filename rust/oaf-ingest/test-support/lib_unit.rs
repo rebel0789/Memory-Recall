@@ -1595,6 +1595,7 @@ mod tests {
                 "impl<K, V> Map<K, V> {",
                 "    fn new() -> Self { Self { entries: Vec::new() } }",
                 "    fn clear(&mut self) { self.entries.clear(); }",
+                "    fn reset(&mut self) { self.clear(); }",
                 "}",
                 "impl<K, V> Default for Map<K, V> {",
                 "    fn default() -> Self { Self::new() }",
@@ -1631,6 +1632,12 @@ mod tests {
             Some("oaf.ingest:define-callable")
         )));
         assert!(facts.contains(&(
+            "method:Map_reset",
+            "CALLS",
+            "method:Map_clear",
+            Some("oaf.ingest:typed-call-rust")
+        )));
+        assert!(facts.contains(&(
             "struct:Map",
             "DEFINES",
             "method:Map_default",
@@ -1644,6 +1651,15 @@ mod tests {
         )));
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn worker_planning_reserves_memory_for_the_ingest_process() {
+        assert_eq!(
+            effective_worker_count(4, 160 * 1024 * 1024, None),
+            1,
+            "a 160MB cap must reserve one process budget before adding workers"
+        );
     }
 
     #[test]

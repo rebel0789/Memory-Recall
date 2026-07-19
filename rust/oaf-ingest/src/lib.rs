@@ -16,6 +16,7 @@ use tree_sitter::{Language, Node, Parser};
 pub const DEFAULT_MAX_MEMORY_BYTES: u64 = 350 * 1024 * 1024;
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 const PER_WORKER_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
+const INGEST_BASE_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct IngestOptions {
@@ -1531,28 +1532,35 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
     parsed.dart_package_name = dart_package_name(&root);
     let package_entries = scan_package_entries(&root, options, &mut parsed)?;
     let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
-    let results = parse_jobs(jobs, effective_worker_count)?;
     parsed.package_entries = package_entries;
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
     let mut language_counts = BTreeMap::new();
     let mut recovered_files = Vec::new();
-
-    for result in results {
-        parsed_bytes += result.bytes_read;
-        if let Some(recovered) = result.recovered {
-            recovered_files.push(recovered);
+    if effective_worker_count == 1 {
+        let mut parser = Parser::new();
+        for job in jobs {
+            merge_file_parse(
+                parse_file_job(&mut parser, job)?,
+                &mut parsed,
+                &mut parsed_file_count,
+                &mut parsed_bytes,
+                &mut language_counts,
+                &mut skipped_files,
+                &mut recovered_files,
+            );
         }
-        if let Some(skipped) = result.skipped {
-            skipped_files.push(skipped);
-            continue;
-        }
-        if let Some(file_parsed) = result.parsed {
-            parsed.merge(file_parsed);
-            parsed_file_count += 1;
-            *language_counts
-                .entry(result.lang.group().to_string())
-                .or_insert(0) += 1;
+    } else {
+        for result in parse_jobs(jobs, effective_worker_count)? {
+            merge_file_parse(
+                result,
+                &mut parsed,
+                &mut parsed_file_count,
+                &mut parsed_bytes,
+                &mut language_counts,
+                &mut skipped_files,
+                &mut recovered_files,
+            );
         }
     }
 
@@ -3316,7 +3324,11 @@ fn insert_package_entry(entries: &mut BTreeMap<String, String>, name: &str, stem
 
 fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>> {
     if worker_count <= 1 {
-        return jobs.into_iter().map(parse_file_job).collect();
+        let mut parser = Parser::new();
+        return jobs
+            .into_iter()
+            .map(|job| parse_file_job(&mut parser, job))
+            .collect();
     }
 
     let total_jobs = jobs.len();
@@ -3335,14 +3347,17 @@ fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>>
         let queue = Arc::clone(&queue);
         let next_job = Arc::clone(&next_job);
         let tx = tx.clone();
-        handles.push(thread::spawn(move || loop {
-            let index = next_job.fetch_add(1, Ordering::Relaxed);
-            if index >= queue.len() {
-                break;
-            }
-            let job = queue[index].clone();
-            if tx.send(parse_file_job(job)).is_err() {
-                break;
+        handles.push(thread::spawn(move || {
+            let mut parser = Parser::new();
+            loop {
+                let index = next_job.fetch_add(1, Ordering::Relaxed);
+                if index >= queue.len() {
+                    break;
+                }
+                let job = queue[index].clone();
+                if tx.send(parse_file_job(&mut parser, job)).is_err() {
+                    break;
+                }
             }
         }));
     }
@@ -3372,10 +3387,33 @@ fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>>
     Ok(parsed)
 }
 
-fn parse_file_job(job: FileJob) -> Result<FileParse> {
+fn merge_file_parse(
+    result: FileParse,
+    parsed: &mut ParsedRepo,
+    parsed_file_count: &mut usize,
+    parsed_bytes: &mut u64,
+    language_counts: &mut BTreeMap<String, usize>,
+    skipped_files: &mut Vec<SkippedFile>,
+    recovered_files: &mut Vec<RecoveredFile>,
+) {
+    *parsed_bytes += result.bytes_read;
+    if let Some(recovered) = result.recovered {
+        recovered_files.push(recovered);
+    }
+    if let Some(skipped) = result.skipped {
+        skipped_files.push(skipped);
+        return;
+    }
+    if let Some(file_parsed) = result.parsed {
+        parsed.merge(file_parsed);
+        *parsed_file_count += 1;
+        *language_counts.entry(result.lang.group().to_string()).or_insert(0) += 1;
+    }
+}
+
+fn parse_file_job(parser: &mut Parser, job: FileJob) -> Result<FileParse> {
     let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
     let bytes_read = bytes.len() as u64;
-    let mut parser = Parser::new();
     parser
         .set_language(&job.lang.language())
         .with_context(|| format!("load parser for {}", job.source))?;
@@ -3600,7 +3638,10 @@ fn effective_worker_count(
     let memory_limit = cgroup_memory_limit_bytes
         .map(|limit| limit.min(max_memory_bytes))
         .unwrap_or(max_memory_bytes);
-    let memory_workers = (memory_limit / PER_WORKER_MEMORY_BYTES).max(1) as usize;
+    let memory_workers = (memory_limit
+        .saturating_sub(INGEST_BASE_MEMORY_BYTES)
+        / PER_WORKER_MEMORY_BYTES)
+        .max(1) as usize;
     requested.max(1).min(available).min(memory_workers).max(1)
 }
 
@@ -5442,7 +5483,11 @@ fn typed_call_target(
     let (receiver_type, method) = if let Some((receiver, method)) = receiver_and_method {
         let receiver_key = receiver.trim_start_matches('$');
         let receiver_type = if matches!(receiver_key, "this" | "self") {
-            context.class_name.clone()?
+            context.class_name.clone().or_else(|| {
+                (context.lang == LangKind::Rust)
+                    .then(|| context.impl_name.clone())
+                    .flatten()
+            })?
         } else if let Some(bound) = context
             .type_bindings
             .get(&receiver)

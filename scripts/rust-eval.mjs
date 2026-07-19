@@ -304,12 +304,12 @@ try {
     evaluateRepo('open-agent-fabric', ROOT, [
       {
         id: 'store-approval-claim-callers',
-        cypher: "MATCH (n)-[:CALLS]->(m) WHERE m.name = 'function:claim_result_uncommitted' RETURN n.name AS caller, m.name AS callee ORDER BY caller LIMIT 20",
-        expected: ['method:Store_approve_proposal_uncommitted', 'function:claim_result_uncommitted'],
+        cypher: "MATCH (n)-[:CALLS]->(m) WHERE m.name = 'method:Store_claim_result_uncommitted' RETURN n.name AS caller, m.name AS callee ORDER BY caller LIMIT 20",
+        expected: ['method:Store_approve_proposal_uncommitted', 'method:Store_claim_result_uncommitted'],
         searchTerm: 'claim_result_uncommitted',
         fileNeedles: {
           'method:Store_approve_proposal_uncommitted': 'fn approve_proposal_uncommitted',
-          'function:claim_result_uncommitted': 'fn claim_result_uncommitted'
+          'method:Store_claim_result_uncommitted': 'fn claim_result_uncommitted'
         }
       },
       {
