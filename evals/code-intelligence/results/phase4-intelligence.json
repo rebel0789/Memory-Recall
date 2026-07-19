@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-6",
   "phase": 4,
-  "generatedAt": "2026-07-18T20:43:05.095Z",
+  "generatedAt": "2026-07-19T06:19:53.246Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -15,7 +15,7 @@
       "corpus://cirepo_typescript_nestjs_nest_cats_sample@7cdb8f498e7723f5e2e89b6befc693bf07f171b0#sample/01-cats-app/src",
       "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#."
     ],
-    "implementationFingerprint": "sha256:51b340017412b63ed8e9fe2bb75b7031345f2e6f3de3e93d894f7c27b4824290",
+    "implementationFingerprint": "sha256:e6e38c87a7b5dda75fd123f96fe0de057048a5e14b2c2ba7189f8de8722f204d",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000,
@@ -47,40 +47,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 9.8,
-      "p50": 10.063,
-      "p95": 10.549,
-      "maximum": 10.549
+      "minimum": 7.758,
+      "p50": 8.393,
+      "p95": 8.508,
+      "maximum": 8.508
     },
     "processQueryWallMs": {
-      "minimum": 7.854,
-      "p50": 8.084,
-      "p95": 8.416,
-      "maximum": 8.416
+      "minimum": 6.879,
+      "p50": 7.147,
+      "p95": 7.382,
+      "maximum": 7.382
     },
     "routeQueryWallMs": {
-      "minimum": 7.442,
-      "p50": 7.873,
-      "p95": 8.479,
-      "maximum": 8.479
+      "minimum": 6.337,
+      "p50": 6.659,
+      "p95": 7.03,
+      "maximum": 7.03
     },
     "impactQueryWallMs": {
-      "minimum": 7.133,
-      "p50": 7.934,
-      "p95": 8.531,
-      "maximum": 8.531
+      "minimum": 6.623,
+      "p50": 6.797,
+      "p95": 6.912,
+      "maximum": 6.912
     },
     "searchQueryWallMs": {
-      "minimum": 6.959,
-      "p50": 7.377,
-      "p95": 8.328,
-      "maximum": 8.328
+      "minimum": 6.564,
+      "p50": 6.639,
+      "p95": 7.277,
+      "maximum": 7.277
     },
     "constrainedQueryWallMs": {
-      "minimum": 7.41,
-      "p50": 7.823,
-      "p95": 8.275,
-      "maximum": 8.275
+      "minimum": 6.397,
+      "p50": 6.52,
+      "p95": 6.747,
+      "maximum": 6.747
     },
     "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
@@ -228,7 +228,7 @@
         "repositoryId": "cirepo_javascript_expressjs_express",
         "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
         "language": "javascript",
-        "acquisitionKind": "codeload-exact-commit",
+        "acquisitionKind": "git-exact-commit",
         "query": "router",
         "index": {
           "fileCount": 141,
@@ -236,17 +236,17 @@
           "edgeCount": 1327,
           "unresolvedCount": 0,
           "omittedCount": 0,
-          "databaseBytes": 3133440
+          "databaseBytes": 1064960
         },
         "stageMs": {
-          "clone": 0.3,
-          "index": 213
+          "clone": 2252,
+          "index": 172.6
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_01000000000000120000000000000001",
-            "secondCursor": "idxcur_01000000000000120000000000000002",
+            "firstCursor": "idxcur_01000000000000010000000000000001",
+            "secondCursor": "idxcur_01000000000000010000000000000002",
             "firstIds": [
               "cicommunity_04bfdc527917032c6d3002a7e2a9ebb4"
             ],
@@ -256,7 +256,7 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_02000000000000120000000000000001",
+            "firstCursor": "idxcur_02000000000000010000000000000001",
             "secondCursor": null,
             "firstIds": [
               "ciprocess_43fbb9f14b86a3dc1c406270e7e45c6d"
@@ -451,10 +451,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 32.259,
-              "p50": 33.141,
-              "p95": 33.498,
-              "maximum": 33.498
+              "minimum": 26.24,
+              "p50": 27.047,
+              "p95": 27.585,
+              "maximum": 27.585
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -468,17 +468,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 63510,
-            "deliveredTokensEstimate": 15878,
-            "nextCursor": "idxcur_01000000000000120000000000000001",
+            "deliveredBytes": 63308,
+            "deliveredTokensEstimate": 15827,
+            "nextCursor": "idxcur_01000000000000010000000000000001",
             "representative": "cinode_0378da1f6bfadd20b01b1e7b9a971686"
           },
           "processes": {
             "wallMs": {
-              "minimum": 19.102,
-              "p50": 19.483,
-              "p95": 20.167,
-              "maximum": 20.167
+              "minimum": 16.105,
+              "p50": 16.278,
+              "p95": 16.597,
+              "maximum": 16.597
             },
             "resultCount": 4,
             "locatedResultCount": 4,
@@ -492,17 +492,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3472,
-            "deliveredTokensEstimate": 868,
-            "nextCursor": "idxcur_02000000000000120000000000000001",
+            "deliveredBytes": 3463,
+            "deliveredTokensEstimate": 866,
+            "nextCursor": "idxcur_02000000000000010000000000000001",
             "representative": "cinode_0cb8000898fa010d505e94630c8ec314"
           },
           "routes": {
             "wallMs": {
-              "minimum": 23.021,
-              "p50": 24.712,
-              "p95": 25.546,
-              "maximum": 25.546
+              "minimum": 20.25,
+              "p50": 20.822,
+              "p95": 21.34,
+              "maximum": 21.34
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -516,17 +516,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 10106,
-            "deliveredTokensEstimate": 2527,
+            "deliveredBytes": 10054,
+            "deliveredTokensEstimate": 2514,
             "nextCursor": "idxcur_79e4a07c4aebe54a3d09b581b7a4793f",
             "representative": "cinode_01635e561cf1ec5ad44dec8ee56677de"
           },
           "impact": {
             "wallMs": {
-              "minimum": 20.36,
-              "p50": 20.828,
-              "p95": 24.115,
-              "maximum": 24.115
+              "minimum": 16.955,
+              "p50": 17.049,
+              "p95": 17.741,
+              "maximum": 17.741
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -540,17 +540,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 8061,
-            "deliveredTokensEstimate": 2016,
+            "deliveredBytes": 8034,
+            "deliveredTokensEstimate": 2009,
             "nextCursor": null,
             "representative": "cinode_17d0ff9a791f9e19c5ca0503b3cf94bc"
           },
           "search": {
             "wallMs": {
-              "minimum": 19.32,
-              "p50": 19.833,
-              "p95": 21.139,
-              "maximum": 21.139
+              "minimum": 16.307,
+              "p50": 16.546,
+              "p95": 16.616,
+              "maximum": 16.616
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -564,17 +564,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9869,
-            "deliveredTokensEstimate": 2468,
+            "deliveredBytes": 9818,
+            "deliveredTokensEstimate": 2455,
             "nextCursor": "idxcur_c843fa28d18c7bf0ff0db95bd6d49b48",
             "representative": "cinode_7b4f936297a554beba91dcf0ed7c08e1"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 21.127,
-              "p50": 27.033,
-              "p95": 36.898,
-              "maximum": 36.898
+              "minimum": 16.369,
+              "p50": 16.454,
+              "p95": 16.628,
+              "maximum": 16.628
             },
             "resultCount": 16,
             "locatedResultCount": 16,
@@ -588,17 +588,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 13241,
-            "deliveredTokensEstimate": 3311,
+            "deliveredBytes": 13197,
+            "deliveredTokensEstimate": 3300,
             "nextCursor": null,
             "representative": "cinode_0beb76c273c6d8d8d4a04772ecfdb13b"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 19.58,
-              "p50": 20.388,
-              "p95": 21.708,
-              "maximum": 21.708
+              "minimum": 15.654,
+              "p50": 15.851,
+              "p95": 16.059,
+              "maximum": 16.059
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -612,17 +612,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1731,
-            "deliveredTokensEstimate": 433,
+            "deliveredBytes": 1727,
+            "deliveredTokensEstimate": 432,
             "nextCursor": null,
             "representative": "cinode_3ff58ddf6b422e0222c23b05ff61118a"
           },
           "trace": {
             "wallMs": {
-              "minimum": 20.032,
-              "p50": 20.907,
-              "p95": 22.653,
-              "maximum": 22.653
+              "minimum": 17.946,
+              "p50": 18.329,
+              "p95": 18.848,
+              "maximum": 18.848
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -636,8 +636,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1731,
-            "deliveredTokensEstimate": 433,
+            "deliveredBytes": 1727,
+            "deliveredTokensEstimate": 432,
             "nextCursor": null,
             "representative": "cinode_3ff58ddf6b422e0222c23b05ff61118a"
           }
@@ -647,7 +647,7 @@
         "repositoryId": "cirepo_typescript_nestjs_nest_cats_sample",
         "sourceRef": "corpus://cirepo_typescript_nestjs_nest_cats_sample@7cdb8f498e7723f5e2e89b6befc693bf07f171b0#sample/01-cats-app/src",
         "language": "typescript",
-        "acquisitionKind": "github-contents-exact-scope",
+        "acquisitionKind": "git-exact-commit",
         "query": "cats",
         "index": {
           "fileCount": 20,
@@ -655,17 +655,17 @@
           "edgeCount": 193,
           "unresolvedCount": 0,
           "omittedCount": 0,
-          "databaseBytes": 581632
+          "databaseBytes": 233472
         },
         "stageMs": {
-          "clone": 0.3,
-          "index": 32.5
+          "clone": 2632.2,
+          "index": 28.1
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_01000000000000120000000000000001",
-            "secondCursor": "idxcur_01000000000000120000000000000002",
+            "firstCursor": "idxcur_01000000000000010000000000000001",
+            "secondCursor": "idxcur_01000000000000010000000000000002",
             "firstIds": [
               "cicommunity_78b6ee37571b9136fe9164a654be2ebb"
             ],
@@ -675,7 +675,7 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_02000000000000120000000000000001",
+            "firstCursor": "idxcur_02000000000000010000000000000001",
             "secondCursor": null,
             "firstIds": [
               "ciprocess_57696fa402005ab6d7c1a9e74f0f29d3"
@@ -689,10 +689,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 10.956,
-              "p50": 11.76,
-              "p95": 12.118,
-              "maximum": 12.118
+              "minimum": 10.868,
+              "p50": 11.198,
+              "p95": 11.335,
+              "maximum": 11.335
             },
             "resultCount": 64,
             "locatedResultCount": 64,
@@ -706,17 +706,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 57161,
-            "deliveredTokensEstimate": 14291,
-            "nextCursor": "idxcur_01000000000000120000000000000001",
+            "deliveredBytes": 56995,
+            "deliveredTokensEstimate": 14249,
+            "nextCursor": "idxcur_01000000000000010000000000000001",
             "representative": "cinode_01911b19660d26959a8efd3d1cfce814"
           },
           "processes": {
             "wallMs": {
-              "minimum": 8.488,
-              "p50": 8.553,
-              "p95": 9.638,
-              "maximum": 9.638
+              "minimum": 7.762,
+              "p50": 7.878,
+              "p95": 9.491,
+              "maximum": 9.491
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -730,17 +730,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2302,
-            "deliveredTokensEstimate": 576,
-            "nextCursor": "idxcur_02000000000000120000000000000001",
+            "deliveredBytes": 2297,
+            "deliveredTokensEstimate": 575,
+            "nextCursor": "idxcur_02000000000000010000000000000001",
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "routes": {
             "wallMs": {
-              "minimum": 8.692,
-              "p50": 8.919,
-              "p95": 9.353,
-              "maximum": 9.353
+              "minimum": 7.661,
+              "p50": 7.771,
+              "p95": 8.679,
+              "maximum": 8.679
             },
             "resultCount": 1,
             "locatedResultCount": 1,
@@ -754,17 +754,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1926,
-            "deliveredTokensEstimate": 482,
+            "deliveredBytes": 1922,
+            "deliveredTokensEstimate": 481,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "impact": {
             "wallMs": {
-              "minimum": 8.858,
-              "p50": 9.336,
-              "p95": 10.101,
-              "maximum": 10.101
+              "minimum": 8.371,
+              "p50": 8.581,
+              "p95": 8.821,
+              "maximum": 8.821
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -778,17 +778,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9849,
-            "deliveredTokensEstimate": 2463,
+            "deliveredBytes": 9817,
+            "deliveredTokensEstimate": 2455,
             "nextCursor": null,
             "representative": "cinode_0e7c6bbf03532714596098940f855246"
           },
           "search": {
             "wallMs": {
-              "minimum": 10.15,
-              "p50": 11.092,
-              "p95": 12.158,
-              "maximum": 12.158
+              "minimum": 9.087,
+              "p50": 9.192,
+              "p95": 9.271,
+              "maximum": 9.271
             },
             "resultCount": 43,
             "locatedResultCount": 43,
@@ -802,17 +802,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 11274,
-            "deliveredTokensEstimate": 2819,
+            "deliveredBytes": 11223,
+            "deliveredTokensEstimate": 2806,
             "nextCursor": null,
             "representative": "cinode_0e7c6bbf03532714596098940f855246"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 9.073,
-              "p50": 9.273,
-              "p95": 9.455,
-              "maximum": 9.455
+              "minimum": 7.929,
+              "p50": 8.068,
+              "p95": 8.187,
+              "maximum": 8.187
             },
             "resultCount": 3,
             "locatedResultCount": 3,
@@ -826,17 +826,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2264,
-            "deliveredTokensEstimate": 566,
+            "deliveredBytes": 2258,
+            "deliveredTokensEstimate": 565,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 8.307,
-              "p50": 8.623,
-              "p95": 9.304,
-              "maximum": 9.304
+              "minimum": 7.631,
+              "p50": 8.039,
+              "p95": 8.297,
+              "maximum": 8.297
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -850,17 +850,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1732,
-            "deliveredTokensEstimate": 433,
+            "deliveredBytes": 1728,
+            "deliveredTokensEstimate": 432,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           },
           "trace": {
             "wallMs": {
-              "minimum": 8.424,
-              "p50": 9.098,
-              "p95": 9.725,
-              "maximum": 9.725
+              "minimum": 7.895,
+              "p50": 8.19,
+              "p95": 8.518,
+              "maximum": 8.518
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -874,8 +874,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 1732,
-            "deliveredTokensEstimate": 433,
+            "deliveredBytes": 1728,
+            "deliveredTokensEstimate": 432,
             "nextCursor": null,
             "representative": "cinode_452fbb842e33ecd4762d9cc29e1f3dcc"
           }
@@ -885,7 +885,7 @@
         "repositoryId": "cirepo_go_gin_gonic_gin",
         "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
         "language": "go",
-        "acquisitionKind": "codeload-exact-commit",
+        "acquisitionKind": "git-exact-commit",
         "query": "GET",
         "index": {
           "fileCount": 99,
@@ -893,17 +893,17 @@
           "edgeCount": 13406,
           "unresolvedCount": 0,
           "omittedCount": 0,
-          "databaseBytes": 23494656
+          "databaseBytes": 7778304
         },
         "stageMs": {
-          "clone": 0.3,
-          "index": 1231.7
+          "clone": 2336.7,
+          "index": 914.8
         },
         "deterministic": true,
         "pagination": {
           "communities": {
-            "firstCursor": "idxcur_01000000000000120000000000000001",
-            "secondCursor": "idxcur_01000000000000120000000000000002",
+            "firstCursor": "idxcur_01000000000000010000000000000001",
+            "secondCursor": "idxcur_01000000000000010000000000000002",
             "firstIds": [
               "cicommunity_5e29536b693bb51d359b3ccc893d38aa"
             ],
@@ -913,8 +913,8 @@
             "continuous": true
           },
           "processes": {
-            "firstCursor": "idxcur_02000000000000120000000000000001",
-            "secondCursor": "idxcur_02000000000000120000000000000002",
+            "firstCursor": "idxcur_02000000000000010000000000000001",
+            "secondCursor": "idxcur_02000000000000010000000000000002",
             "firstIds": [
               "ciprocess_c91901b93b627cc717d33cad02653203"
             ],
@@ -1145,10 +1145,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 113.343,
-              "p50": 115.483,
-              "p95": 143.787,
-              "maximum": 143.787
+              "minimum": 93.426,
+              "p50": 94.026,
+              "p95": 94.472,
+              "maximum": 94.472
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -1162,17 +1162,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 63443,
-            "deliveredTokensEstimate": 15861,
-            "nextCursor": "idxcur_01000000000000120000000000000001",
+            "deliveredBytes": 63239,
+            "deliveredTokensEstimate": 15810,
+            "nextCursor": "idxcur_01000000000000010000000000000001",
             "representative": "cinode_001290994686b1db518808b167fae09d"
           },
           "processes": {
             "wallMs": {
-              "minimum": 35.432,
-              "p50": 37.024,
-              "p95": 37.874,
-              "maximum": 37.874
+              "minimum": 22.945,
+              "p50": 22.998,
+              "p95": 24.207,
+              "maximum": 24.207
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -1186,17 +1186,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2690,
-            "deliveredTokensEstimate": 673,
-            "nextCursor": "idxcur_02000000000000120000000000000001",
+            "deliveredBytes": 2683,
+            "deliveredTokensEstimate": 671,
+            "nextCursor": "idxcur_02000000000000010000000000000001",
             "representative": "cinode_21887e5ac1043c0b9dccfe71b6d9c504"
           },
           "routes": {
             "wallMs": {
-              "minimum": 106.265,
-              "p50": 114.176,
-              "p95": 117.576,
-              "maximum": 117.576
+              "minimum": 83.633,
+              "p50": 85.567,
+              "p95": 86.636,
+              "maximum": 86.636
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -1210,17 +1210,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 12844,
-            "deliveredTokensEstimate": 3211,
+            "deliveredBytes": 12783,
+            "deliveredTokensEstimate": 3196,
             "nextCursor": "idxcur_6bd95ba9e00f8b374677f2eda6ac07c0",
             "representative": "cinode_0489d38ddca298b56649894d3415a024"
           },
           "impact": {
             "wallMs": {
-              "minimum": 46.319,
-              "p50": 48.589,
-              "p95": 50.477,
-              "maximum": 50.477
+              "minimum": 32.405,
+              "p50": 32.476,
+              "p95": 32.797,
+              "maximum": 32.797
             },
             "resultCount": 9,
             "locatedResultCount": 9,
@@ -1234,17 +1234,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 8939,
-            "deliveredTokensEstimate": 2235,
+            "deliveredBytes": 8910,
+            "deliveredTokensEstimate": 2228,
             "nextCursor": null,
             "representative": "cinode_13e4297cd1d3e24814e41b523fa59644"
           },
           "search": {
             "wallMs": {
-              "minimum": 37.004,
-              "p50": 38.363,
-              "p95": 38.579,
-              "maximum": 38.579
+              "minimum": 22.397,
+              "p50": 23.044,
+              "p95": 23.606,
+              "maximum": 23.606
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -1258,17 +1258,17 @@
             "truncated": true,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 9650,
-            "deliveredTokensEstimate": 2413,
+            "deliveredBytes": 9598,
+            "deliveredTokensEstimate": 2400,
             "nextCursor": "idxcur_2f5e5a66a6ff671c26c874fc2b2374d3",
             "representative": "cinode_13e4297cd1d3e24814e41b523fa59644"
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 42.993,
-              "p50": 43.768,
-              "p95": 45.256,
-              "maximum": 45.256
+              "minimum": 27.506,
+              "p50": 27.661,
+              "p95": 27.922,
+              "maximum": 27.922
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -1282,17 +1282,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3619,
-            "deliveredTokensEstimate": 905,
+            "deliveredBytes": 3607,
+            "deliveredTokensEstimate": 902,
             "nextCursor": null,
             "representative": "cinode_177744669b5a79cb4b3f1e8285f0b571"
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 36.959,
-              "p50": 38.33,
-              "p95": 41.175,
-              "maximum": 41.175
+              "minimum": 22.466,
+              "p50": 22.858,
+              "p95": 23.428,
+              "maximum": 23.428
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -1306,17 +1306,17 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 3619,
-            "deliveredTokensEstimate": 905,
+            "deliveredBytes": 3607,
+            "deliveredTokensEstimate": 902,
             "nextCursor": null,
             "representative": "cinode_177744669b5a79cb4b3f1e8285f0b571"
           },
           "trace": {
             "wallMs": {
-              "minimum": 43.179,
-              "p50": 44.905,
-              "p95": 50.126,
-              "maximum": 50.126
+              "minimum": 29.063,
+              "p50": 29.316,
+              "p95": 29.649,
+              "maximum": 29.649
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -1330,8 +1330,8 @@
             "truncated": false,
             "deadlineMs": 2000,
             "deadlineMet": true,
-            "deliveredBytes": 2072,
-            "deliveredTokensEstimate": 518,
+            "deliveredBytes": 2066,
+            "deliveredTokensEstimate": 517,
             "nextCursor": null,
             "representative": "cinode_21887e5ac1043c0b9dccfe71b6d9c504"
           }
@@ -1356,5 +1356,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:b516dfc953fdfa1d8b30485de7dbbb0e36953418be8eb6153e87230333a2862b"
+  "reportFingerprint": "sha256:446d268f4b3cb145194b61e9071fd65898a5feafbfd3fa84a6f0947a4af53c75"
 }

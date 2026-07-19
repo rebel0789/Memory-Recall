@@ -369,12 +369,9 @@ test('release binary resolves one exact Go module across repositories and exclud
     maxBuffer: 2 * 1024 * 1024,
     timeout: 30_000
   });
-  assert.equal(jsMcp.status, 0, jsMcp.stderr);
-  const jsResponses = jsMcp.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
-  const jsCrossRepository = jsResponses.find(({ id }) => id === 2).error;
-  assert.equal(jsCrossRepository.code, -32008);
-  assert.equal(jsCrossRepository.data.code, 'mcp_tool_failed');
-  assert.match(jsCrossRepository.message, /requires --engine native/u);
+  assert.equal(jsMcp.status, 2);
+  assert.equal(jsMcp.stdout, '');
+  assert.match(jsMcp.stderr, /mcp server --engine must be native, native-preview, or auto/u);
   assert.equal(jsMcp.stdout.includes(fleet), false);
 
   const serialized = JSON.stringify({ resolved, traced, impacted });
