@@ -393,6 +393,13 @@ test('stable npm release requires a signed exact native set before the root pack
   assert.match(workflow, /node scripts\/native-release-set\.mjs publish-root/u);
   assert.match(workflow, /publish-root --artifacts output\/root-release --native-artifacts output\/native-release/u);
   assert.match(workflow, /node scripts\/native-release-set\.mjs verify-root-registry/u);
+  assert.match(workflow, /registry-consumer:\n    name: Published package consumer/u);
+  assert.match(workflow, /needs: publish/u);
+  assert.match(workflow, /npm pack "memory-recall@\$\{RELEASE_VERSION\}"/u);
+  assert.match(workflow, /npm pack "@memory-recall\/native-\$\{NATIVE_TARGET\}@\$\{RELEASE_VERSION\}"/u);
+  assert.match(workflow, /MEMORY_RECALL_ROOT_PACKAGE_TARBALL/u);
+  assert.match(workflow, /MEMORY_RECALL_NATIVE_PACKAGE_TARBALL/u);
+  assert.match(workflow, /Prove clean global install, MCP, uninstall, and reinstall/u);
   assert.match(workflow, /git status --porcelain --untracked-files=all/u);
   assert.match(workflow, /root-release\.validation\.json/u);
   assert.match(workflow, /native-release\.validation\.json/u);

@@ -249,3 +249,49 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: node scripts/native-release-set.mjs verify-root-registry --artifacts output/root-release --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT"
+
+  registry-consumer:
+    name: Published package consumer (${{ matrix.target }})
+    needs: publish
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-15
+          - target: darwin-x64
+            runner: macos-15-intel
+          - target: linux-arm64-gnu
+            runner: ubuntu-22.04-arm
+          - target: linux-x64-gnu
+            runner: ubuntu-22.04
+          - target: win32-x64
+            runner: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install -g npm@11.18.0
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch the published root and matching native package
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          NATIVE_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          mkdir -p output/registry-consumer
+          npm pack "memory-recall@${RELEASE_VERSION}" --pack-destination output/registry-consumer --json > output/registry-consumer/root.json
+          npm pack "@memory-recall/native-${NATIVE_TARGET}@${RELEASE_VERSION}" --pack-destination output/registry-consumer --json > output/registry-consumer/native.json
+          ROOT_TARBALL="$(node -e "const [pack]=JSON.parse(require('fs').readFileSync('output/registry-consumer/root.json', 'utf8')); process.stdout.write(require('path').resolve('output/registry-consumer', pack.filename));")"
+          NATIVE_TARBALL="$(node -e "const [pack]=JSON.parse(require('fs').readFileSync('output/registry-consumer/native.json', 'utf8')); process.stdout.write(require('path').resolve('output/registry-consumer', pack.filename));")"
+          test -f "$ROOT_TARBALL"
+          test -f "$NATIVE_TARBALL"
+          printf 'MEMORY_RECALL_ROOT_PACKAGE_TARBALL=%s\n' "$ROOT_TARBALL" >> "$GITHUB_ENV"
+          printf 'MEMORY_RECALL_NATIVE_PACKAGE_TARBALL=%s\n' "$NATIVE_TARBALL" >> "$GITHUB_ENV"
+      - name: Prove clean global install, MCP, uninstall, and reinstall
+        run: node scripts/native-code-intelligence-consumer-smoke.mjs
