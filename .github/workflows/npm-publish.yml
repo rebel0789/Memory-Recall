@@ -39,6 +39,7 @@ jobs:
           node-version: 22.14.0
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
       - run: npm install -g npm@11.18.0
       - name: Validate manual confirmation
         env:
@@ -61,6 +62,8 @@ jobs:
             exit 1
           fi
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: cargo build --locked --release --manifest-path rust/Cargo.toml --package oaf
+      - run: npm run bootstrap
       - run: npm run ci
       - run: npm run native:smoke
       - run: npm run consumer:smoke
