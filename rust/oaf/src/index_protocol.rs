@@ -2200,7 +2200,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap_err();
         assert_eq!(safe_error_code(&error), "source_index_build_required");
@@ -2208,7 +2208,7 @@ mod tests {
         let status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(status["result"]["state"], "absent");
@@ -2235,7 +2235,7 @@ mod tests {
         execute_request(
             parse_request(request("index.build", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let search = execute_request(
@@ -2245,7 +2245,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
 
@@ -2274,7 +2274,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(phrase_search["result"]["results"]
@@ -2290,7 +2290,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(
@@ -2310,7 +2310,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let first_ids = first_page["result"]["results"]
@@ -2328,7 +2328,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(second_page["result"]["results"]
@@ -2361,7 +2361,7 @@ mod tests {
         execute_request(
             parse_request(request("index.build", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
 
@@ -2372,7 +2372,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
 
@@ -2407,7 +2407,7 @@ mod tests {
         execute_request(
             parse_request(request("index.build", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
 
@@ -2424,7 +2424,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(unfiltered["result"]["results"]
@@ -2447,7 +2447,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let results = filtered["result"]["results"].as_array().unwrap();
@@ -2483,7 +2483,7 @@ mod tests {
         let build = execute_request(
             parse_request(request("index.build", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(build["result"]["operation"], "index.build");
@@ -2503,7 +2503,7 @@ mod tests {
         let status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(status["result"]["operation"], "index.status");
@@ -2527,7 +2527,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(communities["result"]["communities"].is_array());
@@ -2565,7 +2565,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(query["result"]["results"]
@@ -2582,7 +2582,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(depth_one["result"]["results"]
@@ -2613,7 +2613,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert!(depth_two["result"]["results"]
@@ -2629,7 +2629,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let impact_labels = changed_file_impact["result"]["results"]
@@ -2652,7 +2652,7 @@ mod tests {
         let healthy_doctor = execute_request(
             parse_request(request("index.doctor", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(healthy_doctor["result"]["health"]["status"], "ready");
@@ -2661,7 +2661,7 @@ mod tests {
         let no_change = execute_request(
             parse_request(request("index.refresh", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(no_change["result"]["measurements"]["localFilesWritten"], 0);
@@ -2675,7 +2675,7 @@ mod tests {
         let refreshed = execute_request(
             parse_request(request("index.refresh", writer_arguments())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(refreshed["result"]["operation"], "index.refresh");
@@ -2685,7 +2685,7 @@ mod tests {
         let doctor = execute_request(
             parse_request(request("index.doctor", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(doctor["result"]["health"]["status"], "corrupt");
@@ -2697,7 +2697,7 @@ mod tests {
         let repaired = execute_request(
             parse_request(request("index.repair", repair_arguments)).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(repaired["result"]["operation"], "index.repair");
@@ -2728,7 +2728,7 @@ mod tests {
         let build = execute_request(
             parse_request(request("index.build", arguments.clone())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let generation = build["result"]["activeGeneration"].clone();
@@ -2738,7 +2738,7 @@ mod tests {
         let current = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(current["result"]["state"], "ready");
@@ -2765,7 +2765,7 @@ mod tests {
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap_err();
         assert_eq!(
@@ -2777,7 +2777,7 @@ mod tests {
         let stale = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(stale["result"]["state"], "stale");
@@ -2806,14 +2806,14 @@ mod tests {
         let refreshed = execute_request(
             parse_request(request("index.refresh", arguments)).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_ne!(refreshed["result"]["activeGeneration"], generation);
         let refreshed_status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(refreshed_status["result"]["freshness"], "current");
@@ -2832,7 +2832,7 @@ mod tests {
         let build = execute_request(
             parse_request(request("index.build", arguments.clone())).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(build["result"]["summary"]["omittedCount"], 0);
@@ -2840,7 +2840,7 @@ mod tests {
         let canonical_root = workspace.path().canonicalize().unwrap();
         let index_path = canonical_root.join(INDEX_RELATIVE_PATH);
         let repository_identity = repository_identity_hash(&canonical_root, "ws_local");
-        let options = SourceIndexOptions::new(repository_identity, "1.1.1");
+        let options = SourceIndexOptions::new(repository_identity, "2.0.0");
         let index = SourceIndex::open_read_only(&index_path, &options).unwrap();
         let active = index.load_active_generation_metadata().unwrap().unwrap();
         assert_eq!(persisted_max_file_bytes(&active.coverage), Some(64));
@@ -2855,7 +2855,7 @@ mod tests {
         let refresh = execute_request(
             parse_request(request("index.refresh", arguments)).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(refresh["result"]["measurements"]["changedFileCount"], 1);
@@ -2874,7 +2874,7 @@ mod tests {
         let status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(status["result"]["state"], "ready");
@@ -2910,7 +2910,7 @@ mod tests {
         let build = execute_request(
             parse_request(request("index.build", arguments)).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(build["result"]["state"], "partial");
@@ -2923,7 +2923,7 @@ mod tests {
         let status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(status["result"]["state"], "partial");

@@ -127,7 +127,7 @@ mod tests {
         let mut request_value = valid_request();
         request_value["arguments"]["languages"] = json!(["go"]);
         let request = parse_request(&request_value).unwrap();
-        let graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+        let graph = build_graph_at_root(&request, "2.0.0", &root, Instant::now())
             .unwrap()
             .graph;
         let input = index_generation_from_graph(&graph, &root).unwrap();
@@ -149,7 +149,7 @@ mod tests {
         let path = root.join("index.sqlite");
         let options = SourceIndexOptions::new(
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "1.1.1",
+            "2.0.0",
         );
         let mut writer = SourceIndex::open(&path, &options).unwrap();
         writer.commit_generation(&input).unwrap();
@@ -1325,13 +1325,13 @@ mod tests {
         ];
         let options = SourceIndexOptions::new(
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "1.1.1",
+            "2.0.0",
         );
         for (language, root) in fixtures {
             let mut request_value = valid_request();
             request_value["arguments"]["languages"] = json!([language]);
             let request = parse_request(&request_value).unwrap();
-            let graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+            let graph = build_graph_at_root(&request, "2.0.0", &root, Instant::now())
                 .unwrap()
                 .graph;
             let input = index_generation_from_graph(&graph, &root).unwrap();
@@ -1421,13 +1421,13 @@ mod tests {
         let mut request_value = valid_request();
         request_value["arguments"]["languages"] = json!(["typescript", "python"]);
         let request = parse_request(&request_value).unwrap();
-        let base_graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+        let base_graph = build_graph_at_root(&request, "2.0.0", &root, Instant::now())
             .unwrap()
             .graph;
         let base = index_generation_from_graph(&base_graph, &root).unwrap();
         let options = SourceIndexOptions::new(
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "1.1.1",
+            "2.0.0",
         );
         let path = root.join("index/index.sqlite");
         let mut index = SourceIndex::open(&path, &options).unwrap();
@@ -1438,7 +1438,7 @@ mod tests {
             "export function target(): string { return 'two'; }\n",
         )
         .unwrap();
-        let clean_graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+        let clean_graph = build_graph_at_root(&request, "2.0.0", &root, Instant::now())
             .unwrap()
             .graph;
         let clean = index_generation_from_graph(&clean_graph, &root).unwrap();
@@ -1522,14 +1522,14 @@ mod tests {
             request_value["arguments"]["languages"] = json!([language]);
             request_value["arguments"]["maxFiles"] = json!(500);
             let request = parse_request(&request_value).unwrap();
-            let base_graph = build_graph_at_root(&request, "1.1.1", &scratch, Instant::now())
+            let base_graph = build_graph_at_root(&request, "2.0.0", &scratch, Instant::now())
                 .unwrap()
                 .graph;
             let base = index_generation_from_graph(&base_graph, &scratch).unwrap();
             assert!(!base.nodes.is_empty(), "{language}: no nodes");
             let options = SourceIndexOptions::new(
                 "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "1.1.1",
+                "2.0.0",
             );
             let path = scratch.join(".local/index.sqlite");
             let mut index = SourceIndex::open(&path, &options).unwrap();
@@ -1553,7 +1553,7 @@ mod tests {
             )
             .unwrap();
 
-            let clean_graph = build_graph_at_root(&request, "1.1.1", &scratch, Instant::now())
+            let clean_graph = build_graph_at_root(&request, "2.0.0", &scratch, Instant::now())
                 .unwrap()
                 .graph;
             let clean = index_generation_from_graph(&clean_graph, &scratch).unwrap();

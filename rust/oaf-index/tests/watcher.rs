@@ -228,7 +228,7 @@ fn concurrent_refresh_requests_admit_one_writer_and_dropped_worker_releases_it()
 fn overflow_storm_converges_to_clean_rebuild_without_hiding_the_previous_generation() {
     let root = tempdir().unwrap();
     let index_path = root.path().join("index.sqlite");
-    let options = SourceIndexOptions::new(REPOSITORY_ID, "1.1.1");
+    let options = SourceIndexOptions::new(REPOSITORY_ID, "2.0.0");
     let mut writer = SourceIndex::open(&index_path, &options).unwrap();
     let before = generation(HASH_BEFORE, "2026-07-16T00:00:00.000Z");
     let clean_after = generation(HASH_AFTER, "2026-07-16T00:01:00.000Z");

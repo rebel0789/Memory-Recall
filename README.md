@@ -22,7 +22,7 @@ Memory Recall turns a repository into a governed context source. New agent
 sessions get reviewed repo facts, changed-file impact, required local reads,
 and proof of what was sent instead of a giant pasted transcript.
 
-The source checkout is the 1.1.1 patch candidate. The registry remains the
+The source checkout is the 2.0.0 major-release candidate. The registry remains the
 installation authority:
 
 ```bash
@@ -303,11 +303,11 @@ boundaries.
 
 ## Status
 
-Source patch candidate: **1.1.1**. Registry version: verify with `npm view memory-recall version`.
+Source major-release candidate: **2.0.0**. Registry version: verify with `npm view memory-recall version`.
 
 | Surface | Status |
 | --- | --- |
-| Source checkout | 1.1.1 local-ready patch candidate |
+| Source checkout | 2.0.0 local-ready major-release candidate |
 | npm package | Install the current registry release with `memory-recall@latest` |
 | CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |

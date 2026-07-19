@@ -53,8 +53,8 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
   const packageReport = {
     target: 'linux-x64-gnu',
     packageName: '@memory-recall/native-linux-x64-gnu',
-    version: '1.1.1',
-    tarball: '/private/runner/output/memory-recall-native-linux-x64-gnu-1.1.1.tgz',
+    version: '2.0.0',
+    tarball: '/private/runner/output/memory-recall-native-linux-x64-gnu-2.0.0.tgz',
     binarySha256: `sha256:${'a'.repeat(64)}`,
     entryCount: 5,
     size: 1024,
@@ -77,7 +77,7 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
     tarballSha256: `sha256:${'c'.repeat(64)}`
   });
   assert.equal(sbom.spdxVersion, 'SPDX-2.3');
-  assert.equal(sbom.documentNamespace, `https://github.com/rebel0789/Memory-Recall/sbom/${'b'.repeat(40)}/linux-x64-gnu/1.1.1/${'c'.repeat(64)}`);
+  assert.equal(sbom.documentNamespace, `https://github.com/rebel0789/Memory-Recall/sbom/${'b'.repeat(40)}/linux-x64-gnu/2.0.0/${'c'.repeat(64)}`);
   assert.equal(sbom.packages[0].checksums[0].checksumValue, 'c'.repeat(64));
   assert.equal(sbom.files.length, 5);
   assert.equal(sbom.packages[0].filesAnalyzed, true);
@@ -98,8 +98,8 @@ test('native CI retains a sanitized per-target receipt only after the consumer g
     abi: { platform: 'linux', arch: 'x64', libc: 'glibc' },
     package: {
       name: '@memory-recall/native-linux-x64-gnu',
-      version: '1.1.1',
-      tarball: 'memory-recall-native-linux-x64-gnu-1.1.1.tgz',
+      version: '2.0.0',
+      tarball: 'memory-recall-native-linux-x64-gnu-2.0.0.tgz',
       binarySha256: `sha256:${'a'.repeat(64)}`,
       tarballSha256: `sha256:${'c'.repeat(64)}`,
       sbom: sbomReport.name,

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — 1.1.1 patch candidate
+## [Unreleased] — 2.0.0 major candidate
 
 ### Added
 

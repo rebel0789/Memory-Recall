@@ -3,7 +3,7 @@
   "predicateType": "https://github.com/rebel0789/Memory-Recall/provenance/release-readiness/v1",
   "subject": {
     "name": "memory-recall",
-    "version": "1.1.1",
+    "version": "2.0.0",
     "releaseCandidate": "1.0-readiness"
   },
   "buildType": "local-deterministic-source-readiness",
@@ -21,9 +21,9 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:7b0e81fda1242f4ca01d3320c77b3fedf488b695f8dbb5e98306b7765c9211fe",
-    "package-lock.json": "sha256:529f23a27a32c7f579d904feed2304b005511e1eb98a51727109a7c25d9c2761",
-    "PROJECT_STATUS.json": "sha256:32eff047d8ae9ea7348894b73de1cb1012cfe8f7ec1fa0161cb3acf2dc90c0c8",
+    "package.json": "sha256:cd3d6d48257e57d6758a4a7bcf696c555ba3d944927d818a4ef44bd423b56ac1",
+    "package-lock.json": "sha256:5a80cd7fc840b4df82d873ca398a68fef89d05c4f2194c2156b41c44aa6d579e",
+    "PROJECT_STATUS.json": "sha256:350288a215970929a81d192438008e200c833613ca518a856d46061aa1bd7899",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "docs/usage/support-matrix.md": "sha256:73844778b418c382828bc0877c554ac1592024e078fc2b65ef6a02670d7ac80e",

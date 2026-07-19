@@ -9,7 +9,7 @@ use std::time::SystemTime;
 use tempfile::tempdir;
 
 const WORKSPACE_ID: &str = "fleet-test";
-const ENGINE_VERSION: &str = "1.1.1";
+const ENGINE_VERSION: &str = "2.0.0";
 const SHARED_NODE_ID: &str = "cinode_11111111111111111111111111111111";
 const CLIENT_ENTRY_ID: &str = "cinode_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const SERVICE_TARGET_ID: &str = "cinode_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";

@@ -34,7 +34,7 @@ async function mockBinary(t, capturePath, responseBody = null, delayMs = 0) {
   await writeFile(binary, [
     '#!/usr/bin/env node',
     "import { appendFileSync } from 'node:fs';",
-    "if (process.argv[2] === '--version') { console.log('oaf 1.1.1'); process.exit(0); }",
+    "if (process.argv[2] === '--version') { console.log('oaf 2.0.0'); process.exit(0); }",
     "if (process.argv.slice(2).join(' ') !== 'code-intelligence repositories --stdio') process.exit(19);",
     "let input = '';",
     "process.stdin.setEncoding('utf8');",

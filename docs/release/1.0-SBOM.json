@@ -3,13 +3,13 @@
   "format": "memory-recall-release-readiness-sbom",
   "releaseCandidate": "1.0-readiness",
   "project": "memory-recall",
-  "packageVersion": "1.1.1",
+  "packageVersion": "2.0.0",
   "dependencyPolicy": "bootstrap dependency-free; optional integrations remain disabled adapters",
   "packages": [
     {
       "path": "native-packages/darwin-arm64/package.json",
       "name": "@memory-recall/native-darwin-arm64",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -18,7 +18,7 @@
     {
       "path": "native-packages/darwin-x64/package.json",
       "name": "@memory-recall/native-darwin-x64",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -27,7 +27,7 @@
     {
       "path": "native-packages/linux-arm64-gnu/package.json",
       "name": "@memory-recall/native-linux-arm64-gnu",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -36,7 +36,7 @@
     {
       "path": "native-packages/linux-x64-gnu/package.json",
       "name": "@memory-recall/native-linux-x64-gnu",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -45,7 +45,7 @@
     {
       "path": "native-packages/win32-x64/package.json",
       "name": "@memory-recall/native-win32-x64",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -54,7 +54,7 @@
     {
       "path": "package.json",
       "name": "memory-recall",
-      "version": "1.1.1",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,

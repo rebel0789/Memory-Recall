@@ -19,7 +19,7 @@ test('polyglot leadership contract is approved and owns the native engine bounda
   assert.match(adr, /no local Rust toolchain/i);
 });
 
-test('README and status keep the patch candidate honest across the registry handoff', () => {
+test('README and status keep the major-release candidate honest across the registry handoff', () => {
   const readme = read('README.md');
   const status = JSON.parse(read('PROJECT_STATUS.json'));
   const release = status.capabilities.find((capability) => capability.id === 'release.readiness');
@@ -29,7 +29,7 @@ test('README and status keep the patch candidate honest across the registry hand
   assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(readme, /Use the source checkout when testing changes that are not yet on the registry/);
   assert.doesNotMatch(readme, /npm still serves\s+1\.0\.5/);
-  assert.match(release.limitations.join('\n'), /1\.1\.1 is the source patch candidate; use `npm view memory-recall version` to verify the current registry release/);
+  assert.match(release.limitations.join('\n'), /2\.0\.0 is the source major-release candidate; use `npm view memory-recall version` to verify the current registry release/);
   assert.match(web.limitations.join('\n'), /confirm-gated proposal approval through the authenticated loopback API/);
 });
 
@@ -125,7 +125,7 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync,\s+general cross-repository analysis beyond the measured exact Go path, and\s+unmeasured Tier 1 capability rows\./);
   assert.equal(contract.includes('million-node indexes.'), false);
   assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
-  assert.match(readme, /Source patch candidate: \*\*1\.1\.1\*\*\. Registry version: verify with `npm view memory-recall version`\./);
+  assert.match(readme, /Source major-release candidate: \*\*2\.0\.0\*\*\. Registry version: verify with `npm view memory-recall version`\./);
   assert.match(readme, /`recall setup` creates only local state\. `recall map` is the explicit first\s+read-only repository scan; it does not run silently during setup\./);
   assert.match(normalHandoff, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(normalHandoff, /`recall setup` creates only local Recall state in the current repository; it\s+does not scan source files\. `recall map` is the explicit first read-only scan\./);

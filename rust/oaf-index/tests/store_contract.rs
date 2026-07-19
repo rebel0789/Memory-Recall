@@ -9,7 +9,7 @@ use tempfile::tempdir;
 fn options() -> SourceIndexOptions {
     SourceIndexOptions::new(
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "1.1.1",
+        "2.0.0",
     )
 }
 
@@ -107,7 +107,7 @@ fn health_is_explicit_for_identity_schema_interruption_and_corruption() {
 
     let wrong = SourceIndexOptions::new(
         "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "1.1.1",
+        "2.0.0",
     );
     assert_eq!(
         inspect_index(&path, &wrong).status,

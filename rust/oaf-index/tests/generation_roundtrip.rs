@@ -7,7 +7,7 @@ use tempfile::tempdir;
 fn options() -> SourceIndexOptions {
     SourceIndexOptions::new(
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "1.1.1",
+        "2.0.0",
     )
 }
 

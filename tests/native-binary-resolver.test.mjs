@@ -41,11 +41,11 @@ test('packaged native binary requires contained manifest checksum and exact vers
   assert.equal(selected.source, 'platform-package');
   assert.equal(selected.target, 'darwin-arm64');
   assert.equal(selected.packageName, '@memory-recall/native-darwin-arm64');
-  assert.equal(selected.version, '1.1.1');
+  assert.equal(selected.version, '2.0.0');
   assert.equal(selected.verified, true);
   assert.equal(selected.sha256, await sha256(fixture.binary));
 
-  await writeFile(fixture.binary, '#!/bin/sh\nprintf "oaf 1.1.1\\n"\n# tampered\n');
+  await writeFile(fixture.binary, '#!/bin/sh\nprintf "oaf 2.0.0\\n"\n# tampered\n');
   await chmod(fixture.binary, 0o755);
   await assert.rejects(fixture.resolve(), (error) => error.code === 'native_engine_checksum_mismatch');
 });
@@ -56,7 +56,7 @@ test('packaged native binary rejects version mismatch and path escape', async (t
 
   const escapeFixture = await nativePackageFixture(t);
   const outside = path.join(escapeFixture.root, 'outside-oaf');
-  await writeExecutable(outside, 'oaf 1.1.1');
+  await writeExecutable(outside, 'oaf 2.0.0');
   await rm(escapeFixture.binary);
   await symlink(outside, escapeFixture.binary);
   await escapeFixture.writeManifest(await sha256(outside));
@@ -69,8 +69,8 @@ test('source checkout binary is used only through an explicit development path',
   const binary = path.join(root, 'rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
   await mkdir(path.join(root, 'native-packages'), { recursive: true });
   await mkdir(path.dirname(binary), { recursive: true });
-  await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"1.1.1"}\n');
-  await writeExecutable(binary, 'oaf 1.1.1');
+  await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"2.0.0"}\n');
+  await writeExecutable(binary, 'oaf 2.0.0');
   const options = {
     target: 'darwin-arm64',
     packageRoot: root,
@@ -89,7 +89,7 @@ test('explicit binaries must report the exact package version', async (t) => {
   const binary = path.join(root, 'rust', 'target', 'release', 'oaf');
   await mkdir(path.join(root, 'native-packages'), { recursive: true });
   await mkdir(path.dirname(binary), { recursive: true });
-  await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"1.1.1"}\n');
+  await writeFile(path.join(root, 'package.json'), '{"name":"memory-recall","version":"2.0.0"}\n');
   await writeExecutable(binary, 'oaf 9.9.9');
 
   await assert.rejects(
@@ -98,7 +98,7 @@ test('explicit binaries must report the exact package version', async (t) => {
   );
 });
 
-async function nativePackageFixture(t, { versionOutput = 'oaf 1.1.1' } = {}) {
+async function nativePackageFixture(t, { versionOutput = 'oaf 2.0.0' } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-resolver-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const packageRoot = path.join(root, 'memory-recall');
@@ -107,15 +107,15 @@ async function nativePackageFixture(t, { versionOutput = 'oaf 1.1.1' } = {}) {
   const packageJson = path.join(nativeRoot, 'package.json');
   await mkdir(path.dirname(binary), { recursive: true });
   await mkdir(packageRoot, { recursive: true });
-  await writeFile(path.join(packageRoot, 'package.json'), '{"name":"memory-recall","version":"1.1.1"}\n');
-  await writeFile(packageJson, '{"name":"@memory-recall/native-darwin-arm64","version":"1.1.1"}\n');
+  await writeFile(path.join(packageRoot, 'package.json'), '{"name":"memory-recall","version":"2.0.0"}\n');
+  await writeFile(packageJson, '{"name":"@memory-recall/native-darwin-arm64","version":"2.0.0"}\n');
   await writeExecutable(binary, versionOutput);
   const writeManifest = async (checksum) => writeFile(
     path.join(nativeRoot, 'native-manifest.json'),
     `${JSON.stringify({
       schemaVersion: '1.0.0',
       packageName: '@memory-recall/native-darwin-arm64',
-      packageVersion: '1.1.1',
+      packageVersion: '2.0.0',
       target: 'darwin-arm64',
       binary: 'bin/oaf',
       sha256: checksum

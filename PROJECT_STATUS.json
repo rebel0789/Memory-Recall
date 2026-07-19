@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "release": "1.1.1",
-  "phase": "1.1.1-patch-readiness",
+  "release": "2.0.0",
+  "phase": "2.0.0-major-readiness",
   "nextTask": null,
   "defaults": {
     "network": "deny",
@@ -812,8 +812,8 @@
         "docs/release/1.0-RELEASE-CHECKLIST.md"
       ],
       "limitations": [
-        "memory-recall 1.1.1 is the source patch candidate; use `npm view memory-recall version` to verify the current registry release before global installation",
-        "Publishing, tagging, or signing the 1.1.1 patch remains a maintainer action",
+        "memory-recall 2.0.0 is the source major-release candidate; use `npm view memory-recall version` to verify the current registry release before global installation",
+        "Publishing, tagging, or signing the 2.0.0 major release remains a maintainer action",
         "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
       ]
     },

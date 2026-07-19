@@ -15,7 +15,7 @@ const HASH_BEFORE: &str = "sha256:cccccccccccccccccccccccccccccccccccccccccccccc
 const HASH_AFTER: &str = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 
 fn options() -> SourceIndexOptions {
-    SourceIndexOptions::new(REPOSITORY_ID, "1.1.1")
+    SourceIndexOptions::new(REPOSITORY_ID, "2.0.0")
 }
 
 fn generation(content_hash: &str, created_at: &str) -> GenerationInput {
@@ -119,7 +119,7 @@ fn doctor_is_read_only_sanitized_and_classifies_failure_fixtures() {
 
     let wrong_repository = doctor_index(
         &interrupted,
-        &SourceIndexOptions::new(OTHER_REPOSITORY_ID, "1.1.1"),
+        &SourceIndexOptions::new(OTHER_REPOSITORY_ID, "2.0.0"),
     )
     .unwrap();
     assert_eq!(

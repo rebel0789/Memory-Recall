@@ -13,7 +13,7 @@ fn exact_query(workspace: &Path, symbol: &str) -> Value {
         ))
         .unwrap(),
         workspace,
-        "1.1.1",
+        "2.0.0",
     )
     .unwrap()
 }
@@ -63,7 +63,7 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
         let build = execute_request(
             parse_request(request("index.build", all_language_writer_arguments(1000))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         let generation = build["result"]["activeGeneration"].clone();
@@ -102,7 +102,7 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
         let bounded = execute_request(
             parse_request(request("index.refresh", all_language_writer_arguments(1))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(bounded["result"]["operation"], "index.refresh", "{mutation:?}");
@@ -154,7 +154,7 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
                 ))
                 .unwrap(),
                 workspace.path(),
-                "1.1.1",
+                "2.0.0",
             )
             .unwrap_err();
             assert_eq!(safe_error_code(&error), "source_index_refresh_required");
@@ -168,7 +168,7 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
             ))
             .unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(recovered["result"]["state"], "ready", "{mutation:?}");
@@ -200,7 +200,7 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
         let status = execute_request(
             parse_request(request("index.status", json!({}))).unwrap(),
             workspace.path(),
-            "1.1.1",
+            "2.0.0",
         )
         .unwrap();
         assert_eq!(status["result"]["freshness"], "current", "{mutation:?}");

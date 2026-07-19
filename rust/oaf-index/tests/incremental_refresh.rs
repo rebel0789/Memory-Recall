@@ -13,7 +13,7 @@ const HASH_D: &str = "sha256:ddddddddddddddddddddddddddddddddddddddddddddddddddd
 const HASH_E: &str = "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 fn options() -> SourceIndexOptions {
-    SourceIndexOptions::new(HASH_A, "1.1.1")
+    SourceIndexOptions::new(HASH_A, "2.0.0")
 }
 
 fn file(locator: &str, hash: &str, language: &str, owner: &str) -> FileRecord {
