@@ -1758,6 +1758,7 @@ fn success_frame(
                 "localFilesWritten": measurements.local_files_written,
             },
             "results": results,
+            "truncated": false,
             "nextCursor": next_cursor,
             "diagnostics": diagnostics.into_iter().take(32).collect::<Vec<_>>(),
             "safeguards": {
@@ -2488,7 +2489,7 @@ mod tests {
         .unwrap();
         assert_eq!(build["result"]["operation"], "index.build");
         assert_eq!(build["result"]["state"], "ready");
-        assert!(build["result"].get("truncated").is_none());
+        assert_eq!(build["result"]["truncated"], false);
         assert_eq!(build["result"]["safeguards"]["canonicalMemoryWrites"], 0);
         assert!(!build
             .to_string()

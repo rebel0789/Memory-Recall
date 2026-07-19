@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-6",
   "phase": 4,
-  "generatedAt": "2026-07-19T11:44:01.702Z",
+  "generatedAt": "2026-07-19T12:02:58.199Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -15,7 +15,7 @@
       "corpus://cirepo_typescript_nestjs_nest_cats_sample@7cdb8f498e7723f5e2e89b6befc693bf07f171b0#sample/01-cats-app/src",
       "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#."
     ],
-    "implementationFingerprint": "sha256:7a1ccbe703cab057306d1341c9b9178c1d4658f17bb29060de41f85cc14dc66e",
+    "implementationFingerprint": "sha256:d0f08672aa0f0e17b4bfb7758ca0c275d666126f90c15691f3b6078907699977",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000,
@@ -47,40 +47,40 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 8.728,
-      "p50": 9.34,
-      "p95": 9.416,
-      "maximum": 9.416
+      "minimum": 8.868,
+      "p50": 9.398,
+      "p95": 10.119,
+      "maximum": 10.119
     },
     "processQueryWallMs": {
-      "minimum": 6.794,
-      "p50": 7.474,
-      "p95": 7.984,
-      "maximum": 7.984
+      "minimum": 7.154,
+      "p50": 8.301,
+      "p95": 8.846,
+      "maximum": 8.846
     },
     "routeQueryWallMs": {
-      "minimum": 7.022,
-      "p50": 7.236,
-      "p95": 7.316,
-      "maximum": 7.316
+      "minimum": 6.97,
+      "p50": 7.423,
+      "p95": 7.655,
+      "maximum": 7.655
     },
     "impactQueryWallMs": {
-      "minimum": 6.929,
-      "p50": 7.672,
-      "p95": 9.074,
-      "maximum": 9.074
+      "minimum": 6.899,
+      "p50": 7.425,
+      "p95": 7.784,
+      "maximum": 7.784
     },
     "searchQueryWallMs": {
-      "minimum": 6.9,
-      "p50": 7.4,
-      "p95": 8.096,
-      "maximum": 8.096
+      "minimum": 6.739,
+      "p50": 7.317,
+      "p95": 7.464,
+      "maximum": 7.464
     },
     "constrainedQueryWallMs": {
-      "minimum": 6.982,
-      "p50": 7.475,
-      "p95": 7.828,
-      "maximum": 7.828
+      "minimum": 6.908,
+      "p50": 7.334,
+      "p95": 7.435,
+      "maximum": 7.435
     },
     "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
@@ -228,7 +228,7 @@
         "repositoryId": "cirepo_javascript_expressjs_express",
         "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
         "language": "javascript",
-        "acquisitionKind": "git-exact-commit",
+        "acquisitionKind": "codeload-exact-commit",
         "query": "router",
         "index": {
           "fileCount": 141,
@@ -239,8 +239,8 @@
           "databaseBytes": 1064960
         },
         "stageMs": {
-          "clone": 1969.5,
-          "index": 173.8
+          "clone": 799.8,
+          "index": 185.6
         },
         "deterministic": true,
         "pagination": {
@@ -451,10 +451,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 28.896,
-              "p50": 29.194,
-              "p95": 29.662,
-              "maximum": 29.662
+              "minimum": 28.762,
+              "p50": 30.788,
+              "p95": 31.896,
+              "maximum": 31.896
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -475,10 +475,10 @@
           },
           "processes": {
             "wallMs": {
-              "minimum": 16.438,
-              "p50": 16.715,
-              "p95": 19.133,
-              "maximum": 19.133
+              "minimum": 17.798,
+              "p50": 17.919,
+              "p95": 19.37,
+              "maximum": 19.37
             },
             "resultCount": 4,
             "locatedResultCount": 4,
@@ -499,10 +499,10 @@
           },
           "routes": {
             "wallMs": {
-              "minimum": 20.91,
-              "p50": 21.416,
-              "p95": 22.476,
-              "maximum": 22.476
+              "minimum": 21.94,
+              "p50": 22.746,
+              "p95": 24.246,
+              "maximum": 24.246
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -523,10 +523,10 @@
           },
           "impact": {
             "wallMs": {
-              "minimum": 16.852,
-              "p50": 17.31,
-              "p95": 17.834,
-              "maximum": 17.834
+              "minimum": 18.765,
+              "p50": 19.181,
+              "p95": 19.848,
+              "maximum": 19.848
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -547,10 +547,10 @@
           },
           "search": {
             "wallMs": {
-              "minimum": 16.432,
-              "p50": 18.137,
-              "p95": 18.954,
-              "maximum": 18.954
+              "minimum": 17.861,
+              "p50": 18.317,
+              "p95": 19.651,
+              "maximum": 19.651
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -571,10 +571,10 @@
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 16.337,
-              "p50": 16.56,
-              "p95": 17.503,
-              "maximum": 17.503
+              "minimum": 17.992,
+              "p50": 18.042,
+              "p95": 18.598,
+              "maximum": 18.598
             },
             "resultCount": 16,
             "locatedResultCount": 16,
@@ -595,10 +595,10 @@
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 16.386,
-              "p50": 17.292,
-              "p95": 17.399,
-              "maximum": 17.399
+              "minimum": 16.958,
+              "p50": 17.838,
+              "p95": 18.587,
+              "maximum": 18.587
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -619,10 +619,10 @@
           },
           "trace": {
             "wallMs": {
-              "minimum": 18.299,
-              "p50": 18.649,
-              "p95": 21.241,
-              "maximum": 21.241
+              "minimum": 19.652,
+              "p50": 20.28,
+              "p95": 21.54,
+              "maximum": 21.54
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -647,7 +647,7 @@
         "repositoryId": "cirepo_typescript_nestjs_nest_cats_sample",
         "sourceRef": "corpus://cirepo_typescript_nestjs_nest_cats_sample@7cdb8f498e7723f5e2e89b6befc693bf07f171b0#sample/01-cats-app/src",
         "language": "typescript",
-        "acquisitionKind": "git-exact-commit",
+        "acquisitionKind": "github-contents-exact-scope",
         "query": "cats",
         "index": {
           "fileCount": 20,
@@ -658,8 +658,8 @@
           "databaseBytes": 233472
         },
         "stageMs": {
-          "clone": 2103.2,
-          "index": 28.4
+          "clone": 8353.2,
+          "index": 25.5
         },
         "deterministic": true,
         "pagination": {
@@ -689,10 +689,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 11.366,
-              "p50": 12.025,
-              "p95": 12.433,
-              "maximum": 12.433
+              "minimum": 11.225,
+              "p50": 11.385,
+              "p95": 11.696,
+              "maximum": 11.696
             },
             "resultCount": 64,
             "locatedResultCount": 64,
@@ -713,10 +713,10 @@
           },
           "processes": {
             "wallMs": {
-              "minimum": 8.19,
-              "p50": 9.056,
-              "p95": 9.989,
-              "maximum": 9.989
+              "minimum": 8.746,
+              "p50": 8.791,
+              "p95": 9.238,
+              "maximum": 9.238
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -737,10 +737,10 @@
           },
           "routes": {
             "wallMs": {
-              "minimum": 8.026,
-              "p50": 8.084,
-              "p95": 8.973,
-              "maximum": 8.973
+              "minimum": 8.022,
+              "p50": 8.243,
+              "p95": 9.292,
+              "maximum": 9.292
             },
             "resultCount": 1,
             "locatedResultCount": 1,
@@ -761,10 +761,10 @@
           },
           "impact": {
             "wallMs": {
-              "minimum": 8.972,
-              "p50": 9.331,
-              "p95": 9.582,
-              "maximum": 9.582
+              "minimum": 8.618,
+              "p50": 9.276,
+              "p95": 9.601,
+              "maximum": 9.601
             },
             "resultCount": 13,
             "locatedResultCount": 13,
@@ -785,10 +785,10 @@
           },
           "search": {
             "wallMs": {
-              "minimum": 9.669,
-              "p50": 10.474,
-              "p95": 10.9,
-              "maximum": 10.9
+              "minimum": 9.513,
+              "p50": 10,
+              "p95": 10.712,
+              "maximum": 10.712
             },
             "resultCount": 43,
             "locatedResultCount": 43,
@@ -809,10 +809,10 @@
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 8.446,
-              "p50": 8.695,
-              "p95": 8.8,
-              "maximum": 8.8
+              "minimum": 8.202,
+              "p50": 8.578,
+              "p95": 9.586,
+              "maximum": 9.586
             },
             "resultCount": 3,
             "locatedResultCount": 3,
@@ -833,10 +833,10 @@
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 8.117,
-              "p50": 8.566,
-              "p95": 8.903,
-              "maximum": 8.903
+              "minimum": 8.417,
+              "p50": 8.91,
+              "p95": 9.385,
+              "maximum": 9.385
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -857,10 +857,10 @@
           },
           "trace": {
             "wallMs": {
-              "minimum": 8.442,
-              "p50": 8.558,
-              "p95": 8.776,
-              "maximum": 8.776
+              "minimum": 8.37,
+              "p50": 8.716,
+              "p95": 9.074,
+              "maximum": 9.074
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -885,7 +885,7 @@
         "repositoryId": "cirepo_go_gin_gonic_gin",
         "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
         "language": "go",
-        "acquisitionKind": "git-exact-commit",
+        "acquisitionKind": "codeload-exact-commit",
         "query": "GET",
         "index": {
           "fileCount": 99,
@@ -896,8 +896,8 @@
           "databaseBytes": 7778304
         },
         "stageMs": {
-          "clone": 1983.6,
-          "index": 972
+          "clone": 1684.7,
+          "index": 998.2
         },
         "deterministic": true,
         "pagination": {
@@ -1145,10 +1145,10 @@
         "queries": {
           "communities": {
             "wallMs": {
-              "minimum": 97.403,
-              "p50": 100.867,
-              "p95": 101.44,
-              "maximum": 101.44
+              "minimum": 102.784,
+              "p50": 103.804,
+              "p95": 106.238,
+              "maximum": 106.238
             },
             "resultCount": 100,
             "locatedResultCount": 100,
@@ -1169,10 +1169,10 @@
           },
           "processes": {
             "wallMs": {
-              "minimum": 24.065,
-              "p50": 25.333,
-              "p95": 25.919,
-              "maximum": 25.919
+              "minimum": 25.226,
+              "p50": 25.837,
+              "p95": 26.926,
+              "maximum": 26.926
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -1193,10 +1193,10 @@
           },
           "routes": {
             "wallMs": {
-              "minimum": 89.532,
-              "p50": 90.305,
-              "p95": 93.606,
-              "maximum": 93.606
+              "minimum": 90.759,
+              "p50": 92.98,
+              "p95": 93.669,
+              "maximum": 93.669
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -1217,10 +1217,10 @@
           },
           "impact": {
             "wallMs": {
-              "minimum": 35.122,
-              "p50": 36.671,
-              "p95": 38.566,
-              "maximum": 38.566
+              "minimum": 34.842,
+              "p50": 35.278,
+              "p95": 36.053,
+              "maximum": 36.053
             },
             "resultCount": 9,
             "locatedResultCount": 9,
@@ -1241,10 +1241,10 @@
           },
           "search": {
             "wallMs": {
-              "minimum": 24.049,
-              "p50": 25.159,
-              "p95": 25.875,
-              "maximum": 25.875
+              "minimum": 24.89,
+              "p50": 31.391,
+              "p95": 33.056,
+              "maximum": 33.056
             },
             "resultCount": 50,
             "locatedResultCount": 50,
@@ -1265,10 +1265,10 @@
           },
           "dependencies": {
             "wallMs": {
-              "minimum": 29.543,
-              "p50": 29.833,
-              "p95": 30.203,
-              "maximum": 30.203
+              "minimum": 34.301,
+              "p50": 39.558,
+              "p95": 48.688,
+              "maximum": 48.688
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -1289,10 +1289,10 @@
           },
           "safeQuery": {
             "wallMs": {
-              "minimum": 25.006,
-              "p50": 25.432,
-              "p95": 26.014,
-              "maximum": 26.014
+              "minimum": 24.665,
+              "p50": 25.644,
+              "p95": 27.732,
+              "maximum": 27.732
             },
             "resultCount": 5,
             "locatedResultCount": 5,
@@ -1313,10 +1313,10 @@
           },
           "trace": {
             "wallMs": {
-              "minimum": 31.084,
-              "p50": 31.141,
-              "p95": 31.719,
-              "maximum": 31.719
+              "minimum": 32.116,
+              "p50": 32.43,
+              "p95": 33.624,
+              "maximum": 33.624
             },
             "resultCount": 2,
             "locatedResultCount": 2,
@@ -1356,5 +1356,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:51ef124ddc431fb7aaba1c6eeda0aefd9bccd9239719a0feeb1c183570261b45"
+  "reportFingerprint": "sha256:9fd2ce0fb6bfd1cec008cc629f357c817d5c00ab93eade2f0cfb5eab28593649"
 }

@@ -35,6 +35,7 @@
       "localFilesWritten": 1
     },
     "results": [],
+    "truncated": false,
     "nextCursor": null,
     "diagnostics": [],
     "safeguards": {

@@ -55,7 +55,7 @@ test('source index lifecycle request and response contracts are closed and bound
   assert.equal(validateJsonSchema(responseSchema, {
     ...reader,
     result: withoutTruncation
-  }).valid, true);
+  }).valid, false);
   assert.equal(validateJsonSchema(responseSchema, {
     ...reader,
     result: { ...reader.result, truncated: 'unknown' }

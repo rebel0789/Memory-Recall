@@ -137,6 +137,7 @@ test('native provider owns the bounded source-index lifecycle without mutating r
     languages: ['javascript', 'typescript']
   });
   assert.equal(built.operation, 'index.build');
+  assert.equal(built.truncated, false);
   assert.equal(built.safeguards.localFilesWritten, 1);
   assert.equal(built.safeguards.canonicalMemoryWrites, 0);
   assert(built.summary.nodeCount > 0);
