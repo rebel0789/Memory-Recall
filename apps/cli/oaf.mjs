@@ -11609,6 +11609,17 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, pro
 
 function isNativeIndexRecoveryRequired(error) {
   return [
+    // Read-only memory and handoff operations remain useful before a matching
+    // platform package has been installed. They must report no graph facts,
+    // rather than resurrecting the retired JS engine or failing unrelated
+    // memory work.
+    'native_platform_package_missing',
+    'native_platform_unsupported',
+    'native_engine_unavailable',
+    'native_engine_checksum_mismatch',
+    'native_engine_manifest_invalid',
+    'native_engine_path_invalid',
+    'native_engine_version_mismatch',
     'source_index_build_required',
     'source_index_refresh_required',
     'source_index_repair_required',
