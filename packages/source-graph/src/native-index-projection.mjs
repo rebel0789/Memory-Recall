@@ -447,7 +447,10 @@ function nativePreviewPayload(input) {
   const orientation = orientationProjection({ architecture, ids, changedLocators: input.changedLocators });
   const degree = nodeDegrees(architecture.relationships);
   const entryPoints = architecture.entryPoints.slice(0, 25).map((node) => nodeReference(node, ids, ['entry_point']));
-  const hotspots = architecture.hotspots.slice(0, 25).map((node) => hotspotReference(node, ids, degree));
+  const hotspots = architecture.hotspots
+    .filter((node) => ids.node.has(node.id))
+    .slice(0, 25)
+    .map((node) => hotspotReference(node, ids, degree));
   const coverage = coverageProjection(status, communityResult);
   const diagnostics = diagnosticsProjection(status);
   const focusNativeIds = new Set([
@@ -599,6 +602,7 @@ function processProjection(architecture, ids) {
       || !sink?.locator
       || nodeIds.length !== process.nodeIds.length
       || relationshipIds.length !== process.relationshipIds.length
+      || relationshipIds.length < 2
     ) return null;
     return {
       id: mappedId('sgprocess', process.id, 24),

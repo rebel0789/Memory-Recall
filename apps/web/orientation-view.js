@@ -9,10 +9,11 @@ export function renderOrientation(model) {
 
   const groups = model.groups ?? [];
   const selectedGroup = groups.find(({ id }) => id === model.selectedGroupId) ?? groups[0] ?? null;
-  const maxLayer = Math.max(0, ...groups.map(({ layer = 0 }) => layer));
+  const boardGroups = architectureBoardGroups(groups, selectedGroup?.id);
+  const maxLayer = Math.max(0, ...boardGroups.map(({ layer = 0 }) => layer));
   const coverageLabel = coverageText(model.coverage);
   const architecture = groups.length
-    ? `<div class="architecture-board" style="--orientation-layers:${maxLayer + 1}">${groups.map((group) => groupButton(group, model.selectedGroupId)).join('')}${renderRelations(model.relations, groups)}</div>${architectureOutline(groups, model.selectedGroupId)}`
+    ? `<div class="architecture-board" style="--orientation-layers:${maxLayer + 1}">${boardGroups.map((group) => groupButton(group, model.selectedGroupId)).join('')}${renderRelations(model.relations, boardGroups)}</div>${architectureDisclosure(groups.length, boardGroups.length)}${architectureOutline(groups, model.selectedGroupId)}`
     : renderIndexState(model.index);
 
   return `<section class="orientation-workbench" aria-labelledby="orientation-title">
@@ -67,6 +68,19 @@ function renderRelations(relations = [], groups = []) {
     if (!source || !target) return '';
     return `<span>${escapeHtml(source.label)} to ${escapeHtml(target.label)} <b>${Number(relation.count ?? 0)}</b></span>`;
   }).join('')}</div>`;
+}
+
+function architectureBoardGroups(groups, selectedGroupId) {
+  const maximum = 6;
+  if (groups.length <= maximum) return groups;
+  const selected = groups.find(({ id }) => id === selectedGroupId);
+  if (!selected || groups.slice(0, maximum).some(({ id }) => id === selected.id)) return groups.slice(0, maximum);
+  return [...groups.slice(0, maximum - 1), selected];
+}
+
+function architectureDisclosure(total, shown) {
+  if (shown >= total) return '';
+  return `<p class="architecture-disclosure">Showing ${shown} of ${total} groups. Open the outline for the complete bounded map.</p>`;
 }
 
 function architectureOutline(groups, selectedGroupId) {

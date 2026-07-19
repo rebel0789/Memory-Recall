@@ -11,11 +11,22 @@ import { renderOrientation } from '../apps/web/orientation-view.js';
 test('Overview renders the first-ten-seconds contract without dashboard slop', () => {
   const html = renderOrientation(buildOrientationModel({ report: orientationFixture({ groupCount: 8, entryPointCount: 5 }) }));
   for (const label of ['Architecture', 'Start here', 'Current impact', 'Trusted context']) assert.match(html, new RegExp(label));
-  assert.equal((html.match(/class="orientation-group/g) ?? []).length, 8);
+  assert.equal((html.match(/class="orientation-group/g) ?? []).length, 6);
+  assert.match(html, /Showing 6 of 8 groups/);
   assert.equal((html.match(/class="start-item/g) ?? []).length, 3);
   assert.match(html, /aria-label="Repository architecture outline"/);
   assert.doesNotMatch(html, /class="metric-strip"/);
   assert.doesNotMatch(html, /hero|tagline|AI-powered|intelligent|smart|magical|seamless|unlock|supercharge|next-generation/iu);
+});
+
+test('Overview progressively discloses architecture groups while keeping an outline-selected group visible', () => {
+  const model = buildOrientationModel({ report: orientationFixture({ groupCount: 12, entryPointCount: 3 }) });
+  const selected = selectOrientationGroup(model, 'group_11');
+  const html = renderOrientation(selected);
+  assert.equal((html.match(/class="orientation-group/g) ?? []).length, 6);
+  assert.match(html, /Showing 6 of 12 groups/);
+  assert.match(html, /data-group-id="group_11" aria-pressed="true"/);
+  assert.match(html, /aria-label="Repository architecture outline"/);
 });
 
 test('repository command bar exposes four deterministic intents', async () => {

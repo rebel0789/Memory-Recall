@@ -1240,6 +1240,61 @@ function nativeReaderResult(overrides = {}) {
   };
 }
 
+test('native source graph projection drops unmapped hotspots and one-edge processes', async () => {
+  const nodes = Array.from({ length: 101 }, (_, index) => nativeQueryNode(index.toString(16).padStart(2, '0'), `node${index}`));
+  const relationship = {
+    id: `ciedge_${'b'.repeat(32)}`,
+    kind: 'calls',
+    fromNodeId: nodes.at(-1).id,
+    toNodeId: nodes[0].id,
+    locator: nodes.at(-1).locator,
+    confidence: 1,
+    generation: 1
+  };
+  const status = nativeReaderResult({ operation: 'index.status', summary: { fileCount: 101, nodeCount: 101, edgeCount: 1, omittedCount: 0 } });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities') return nativeReaderResult({
+        results: nodes,
+        relationships: [relationship],
+        communities: [{
+          id: 'community:src',
+          label: 'src',
+          pathPrefix: 'src',
+          representedNodeCount: nodes.length,
+          representedRelationshipCount: 1,
+          nodeIds: nodes.map((node) => node.id),
+          algorithmVersion: 'deterministic-community-v1',
+          truncated: true
+        }]
+      });
+      if (kind === 'processes') return nativeReaderResult({
+        relationships: [relationship],
+        processes: [{
+          id: 'process:one-edge',
+          label: 'node100 calls node0',
+          entryNodeId: nodes.at(-1).id,
+          entryRelationshipId: relationship.id,
+          sinkNodeId: nodes[0].id,
+          sinkKind: 'call',
+          nodeIds: [nodes.at(-1).id, nodes[0].id],
+          relationshipIds: [relationship.id],
+          confidence: 1,
+          algorithmVersion: 'entry-path-v1',
+          truncated: false
+        }]
+      });
+      throw new Error(`unexpected native query kind: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({ provider, status, root: '.', workspaceId: 'ws_local' });
+  const validation = validateJsonSchema(sourceGraphPreviewSchema, preview);
+  assert.equal(validation.valid, true, JSON.stringify(validation.errors));
+  assert.equal(preview.graph.summary.hotspots.every((hotspot) => typeof hotspot.nodeId === 'string'), true);
+  assert.equal(preview.orientation.processes.length, 0);
+});
+
 test('native source graph preview honors offset by walking opaque query cursors', async () => {
   const cursorOne = `idxcur_${'1'.repeat(32)}`;
   const cursorTwo = `idxcur_${'2'.repeat(32)}`;
