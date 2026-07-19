@@ -14,12 +14,8 @@ and no compatibility layer restores it. Version selection is therefore
 complete; publication remains blocked until the frozen tarball and final release
 gates pass.
 
-`main...d83121c` changes 351 files with 95,260 additions and 2,594 deletions. The
-major-line conclusion comes from observed public contract breaks.
 The major-line conclusion comes from observed public contract breaks, not the
 size of the change.
-`main...d83121c` changes 351 files with 95,260 additions and 2,594 deletions. The
-major-line conclusion comes from observed public contract breaks.
 
 The audited work includes native-first distribution, persistent Rust indexing,
 the twelve-tool MCP surface, and the public Map workbench. None restore or
