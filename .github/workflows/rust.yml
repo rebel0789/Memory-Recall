@@ -24,8 +24,32 @@ jobs:
       - run: cargo test --manifest-path rust/Cargo.toml
       - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/rust-recall-conformance.mjs
+
+  rust-ingest-graph-quality:
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/rust-ingest-quality.mjs
       - run: node scripts/rust-graph-query-quality.mjs
+
+  rust-intelligence-eval:
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/rust-intelligence-quality.mjs
       - run: node scripts/rust-distribution-quality.mjs
       - run: node scripts/rust-eval.mjs
@@ -257,7 +281,7 @@ jobs:
   native-release-set:
     name: Native release set
     if: ${{ github.event_name != 'pull_request' }}
-    needs: [rust, native-artifacts]
+    needs: [rust, rust-ingest-graph-quality, rust-intelligence-eval, native-artifacts]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
