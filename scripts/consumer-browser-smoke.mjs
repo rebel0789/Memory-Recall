@@ -611,6 +611,19 @@ async function runInstalledNativeWorkbenchSmoke() {
     await waitForText(page, 'Refresh the stale source index');
     await waitForText(page, 'recall graph index --refresh --engine native --root . --format summary');
     must(sameFileBundleSnapshot(indexBeforeBrowser, await fileBundleSnapshot(indexPath)), 'MCP, browser, and Control API preserve SQLite bytes and mtime and create no WAL or SHM');
+    await rm(indexPath);
+    const missingIndex = await fileBundleSnapshot(indexPath);
+    const missingResponsePromise = page.waitForResponse((response) => (
+      response.request().url().endsWith('/api/context/graph/preview')
+      && graphPreviewQuery(response.request()) === 'pythonControlProof'
+    ));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const missingResponse = await missingResponsePromise;
+    const missingGraph = JSON.parse(await missingResponse.text());
+    must(missingGraph.snapshot?.status === 'unavailable' && missingGraph.snapshot?.reason?.endsWith('source_index_build_required'), 'packed Control API did not fail closed for a missing native index');
+    await waitForText(page, 'Build the local source index');
+    await waitForText(page, 'recall graph index --write --engine native --root . --format summary');
+    must(sameFileBundleSnapshot(missingIndex, await fileBundleSnapshot(indexPath)), 'missing-index browser recovery created SQLite side files');
     must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
     console.log(`PASS installed verified native workbench ${target}`);
     console.log('PASS compiler-free loopback Control API and browser Map read the prebuilt index without writing it');
