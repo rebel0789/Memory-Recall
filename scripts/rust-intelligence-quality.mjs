@@ -43,7 +43,10 @@ function mcpResponses(command, args, messages, options = {}) {
 }
 
 function nodeMcp(root, messages, cursor = '.local/node-m5-cursors.json', fixedNow = FIXED_NOW) {
-  return mcpResponses(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--cursors', cursor, '--stdio'], messages, { fixedNow });
+  return mcpResponses(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--cursors', cursor, '--stdio'], messages, {
+    fixedNow,
+    env: { ...process.env, OAF_FIXED_NOW: fixedNow, MEMORY_RECALL_NATIVE_BINARY: RUST_BIN }
+  });
 }
 
 function rustMcp(root, messages, cursor = '.local/rust-m5-cursors.json', fixedNow = FIXED_NOW) {
@@ -54,6 +57,18 @@ function nodeCli(root, args, options = {}) {
   return runJson(process.execPath, ['apps/cli/oaf.mjs', ...args, '--root', root, '--sqlite', SQLITE, '--format', 'json'], {
     env: { ...process.env, OAF_FIXED_NOW: FIXED_NOW },
     ...options
+  });
+}
+
+function buildNodeSourceIndex(root) {
+  run(process.execPath, [
+    'apps/cli/oaf.mjs',
+    'graph', 'index', '--write', '--engine', 'native',
+    '--root', root,
+    '--workspace', 'ws_local',
+    '--format', 'json'
+  ], {
+    env: { ...process.env, OAF_FIXED_NOW: FIXED_NOW, MEMORY_RECALL_NATIVE_BINARY: RUST_BIN }
   });
 }
 
@@ -111,6 +126,18 @@ function normalizeMcp(value) {
       if (item?.type === 'text' && typeof item.text === 'string' && item.text.trim().startsWith('{')) {
         item.text = normalize(JSON.parse(item.text));
       }
+      const payload = item?.type === 'text' && item.text && typeof item.text === 'object' ? item.text : null;
+      const data = payload?.data;
+      if (!data?.sourceGraph) continue;
+      data.sourceGraph = '<normalized>';
+      data.warnings = data.warnings?.filter((warning) => !warning.startsWith('source_graph_'));
+      for (const key of ['deliveredByteSize', 'deliveredTokenCount']) {
+        if (data.delivery?.[key] !== undefined) data.delivery[key] = '<normalized>';
+      }
+      if (data.markdownArtifact?.byteSize !== undefined) data.markdownArtifact.byteSize = '<normalized>';
+      for (const file of data.files ?? []) {
+        if (file.byteSize !== undefined) file.byteSize = '<normalized>';
+      }
     }
   }
   return out;
@@ -139,6 +166,7 @@ function seedMemory(root, now = FIXED_NOW) {
 }
 
 function exerciseProfileAndPack(root) {
+  buildNodeSourceIndex(root);
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'context.profile', arguments: { client: 'm5-profile', objective: 'auth token expiry', step: 'ship notes auth', scope: 'workspace', limit: 20, budget: 4096 } } },
