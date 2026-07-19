@@ -6,7 +6,7 @@ Branch: `codex/memory-recall-orientation-workbench`
 
 Initial matrix commit: `dc8fb91`
 
-Current evidence commit: `826365f`
+Current evidence commit: `35f3011`
 
 Public registry rechecked 2026-07-18: `memory-recall@1.1.0`; all five `@memory-recall/native-*` packages returned npm `E404`.
 
@@ -140,7 +140,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 | --- | --- | --- | --- | --- |
 | P-1 | Packaged Rust is the production default in CLI. | Proven | The current-host packed consumer gate installs the root and verified native package with Cargo and rustc unavailable, fails closed before indexing, builds the first SQLite index only through the explicit writer command, and then runs default native stats and search without mutating the index. `auto` and `native-preview` are strict native aliases; no JavaScript intelligence engine remains. | Re-run the same packed gate on the other four release targets and the final registry package under T-4. |
 | P-2 | Packaged Rust is the production default in MCP. | Proven | The same clean packed install exposes exactly twelve read-only tools and executes all twelve against the current native index. The gate proves `context.pack` returns native-index evidence, confirms the retired JavaScript graph paths are absent from the installed root package, and verifies SQLite, WAL, SHM, memory, source, config, and package state remain unchanged. | Preserve this installed-package absence proof through all five release targets. |
-| P-3 | Packaged Rust is the production default in web/Control API. | Incomplete | A clean packed Darwin-arm64 install proves the browser Map and Control API read the verified native index without Cargo, rustc, a C compiler, or any index mutation. After a real source change it returns `source_index_refresh_required` and renders the exact native refresh command rather than falling back. Missing-package and other-platform recovery remain unproven. | Prove the remaining recovery states and all five release targets. |
+| P-3 | Packaged Rust is the production default in web/Control API. | Incomplete | A clean packed Darwin-arm64 install proves the browser Map and Control API read the verified native index without Cargo, rustc, a C compiler, or any index mutation. After a real source change it returns `source_index_refresh_required` and renders the exact native refresh command; after deliberate index removal it returns `source_index_build_required` and renders the explicit writer command. Neither state falls back or creates SQLite side files. Missing-package and other-platform recovery remain unproven. | Prove the remaining recovery states and all five release targets. |
 | P-4 | Delete duplicate JS intelligence and duplicate tests after default cutover. | Proven | The retired JavaScript source-graph modules, providers, compatibility mode, duplicate tests, and old comparison scripts are deleted. Current-host packed smoke proves the installed package excludes those paths while CLI and all twelve MCP tools read the native index. | Re-run the absence proof on the four remaining release targets and final registry tarballs. |
 
 ## Large-repository UI
