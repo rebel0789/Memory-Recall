@@ -252,6 +252,22 @@ try {
   await page.screenshot({ path: path.join(screenshots, 'memory-graph-empty-1440.png'), fullPage: true });
   await page.unroute('**/api/memory/graph?*', emptyMemoryResponse);
 
+  const publishedRoutes = [
+    '/', '/runs', '/workflows', '/loop-workbench', '/fabric-map', '/context',
+    '/context-pack', '/source-graph', '/memory', '/memory-graph', '/evidence',
+    '/approvals', '/content', '/agents-tools', '/settings'
+  ];
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const route of publishedRoutes) {
+    await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#view-root')?.textContent?.trim().length > 20);
+    const routeAudit = await auditVisibleControls(page);
+    must(routeAudit.hasContent, `published route rendered no content: ${route}`);
+    must(!routeAudit.overflow, `published route has horizontal overflow: ${route}`);
+    must(routeAudit.interactiveCount > 0, `published route exposes no interactive controls: ${route}`);
+    must(routeAudit.unnamed.length === 0, `published route has unnamed visible controls: ${route}; ${routeAudit.unnamed.join(', ')}`);
+  }
+
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   for (const width of [320, 375, 414, 768, 1440]) {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
@@ -378,6 +394,34 @@ async function mustNotContain(page, text) {
 
 async function hasHorizontalOverflow(page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+}
+
+async function auditVisibleControls(page) {
+  return page.evaluate(() => {
+    const visible = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+    };
+    const name = (element) => {
+      const labelledBy = String(element.getAttribute('aria-labelledby') ?? '')
+        .split(/\s+/u)
+        .map((id) => document.getElementById(id)?.textContent ?? '')
+        .join(' ');
+      const label = element.id ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.textContent : '';
+      return [element.getAttribute('aria-label'), labelledBy, label, element.textContent, element.getAttribute('value'), element.getAttribute('title')]
+        .map((value) => String(value ?? '').trim())
+        .find(Boolean) ?? '';
+    };
+    const controls = [...document.querySelectorAll('a[href], button, input:not([type="hidden"]), select, textarea, summary')]
+      .filter((element) => visible(element) && !element.hasAttribute('disabled'));
+    return {
+      hasContent: (document.querySelector('#view-root')?.textContent ?? '').trim().length > 20,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      interactiveCount: controls.length,
+      unnamed: controls.filter((element) => !name(element)).map((element) => element.outerHTML.slice(0, 120))
+    };
+  });
 }
 
 async function freePort() {
