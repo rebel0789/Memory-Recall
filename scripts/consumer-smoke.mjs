@@ -1,11 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import { nativeTarget } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
+import { packageNativePlatform } from './package-native-platform.mjs';
 
 const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-consumer-smoke-'));
@@ -15,6 +17,8 @@ const data = path.join(temp, 'data');
 const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
 const password = 'correct horse battery staple';
+const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+const suppliedNativePackageTarball = process.env.MEMORY_RECALL_NATIVE_PACKAGE_TARBALL;
 const expectedMcpTools = Object.freeze([
   'code.context',
   'code.dependencies',
@@ -43,7 +47,11 @@ try {
   must(pack?.files?.some((file) => file.path === 'apps/cli/oaf.mjs'), 'package includes recall bin');
   must(!pack?.files?.some((file) => file.path.startsWith('tests/')), 'package excludes checkout-only tests');
   const tarball = path.join(packDirectory, pack.filename);
-  run('npm', ['install', '-g', '--prefix', prefix, tarball, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: root, env: { ...process.env, HOME: home } });
+  const nativePackage = suppliedNativePackageTarball
+    ? { tarball: path.resolve(suppliedNativePackageTarball) }
+    : await packageNativePlatform({ target: nativeTarget(), binaryPath: nativeBinary, outDirectory: packDirectory, root });
+  must((await stat(nativePackage.tarball)).isFile(), 'matching native package tarball is available');
+  run('npm', ['install', '-g', '--prefix', prefix, tarball, nativePackage.tarball, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: root, env: { ...process.env, HOME: home } });
   const recall = path.join(prefix, 'bin', 'recall');
   const packageRoot = path.join(prefix, 'lib', 'node_modules', 'memory-recall');
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
@@ -98,6 +106,7 @@ try {
   must(isReadyHandoff(run(recall, ['verify'], { cwd: workspace, env }).stdout), 'verify runs the installed handoff gate');
   must(isReadyHandoff(run(recall, ['handoff'], { cwd: workspace, env }).stdout), 'handoff renders from the installed package');
   must(run(recall, ['token-saver'], { cwd: workspace, env }).stdout.includes('Token Saver'), 'token-saver renders from the installed package');
+  runJson(recall, ['graph', 'index', '--write', '--engine', 'native', '--root', '.', '--format', 'json'], { cwd: workspace, env });
   must(run(recall, ['graph', 'stats', '--root', '.', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Stats'), 'graph stats works from the installed package');
   must(run(recall, ['graph', 'search', '--root', '.', '--query', 'launchSmoke', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Search'), 'graph search works from the installed package');
   must(run(recall, ['graph', 'trace', '--root', '.', '--symbol', 'launchSmoke', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Trace'), 'graph trace works from the installed package');
