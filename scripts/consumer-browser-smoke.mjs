@@ -266,6 +266,9 @@ try {
     must(!routeAudit.overflow, `published route has horizontal overflow: ${route}`);
     must(routeAudit.interactiveCount > 0, `published route exposes no interactive controls: ${route}`);
     must(routeAudit.unnamed.length === 0, `published route has unnamed visible controls: ${route}; ${routeAudit.unnamed.join(', ')}`);
+    must(routeAudit.unfocusable.length === 0, `published route has keyboard-unreachable visible controls: ${route}; ${routeAudit.unfocusable.join(', ')}`);
+    must(routeAudit.mainCount === 1, `published route has an invalid main landmark count: ${route}; ${routeAudit.mainCount}`);
+    must(routeAudit.headingCount === 1, `published route has an invalid page-heading count: ${route}; ${routeAudit.headingCount}`);
   }
 
   const desktopNavigation = [
@@ -435,11 +438,18 @@ async function auditVisibleControls(page) {
     };
     const controls = [...document.querySelectorAll('a[href], button, input:not([type="hidden"]), select, textarea, summary')]
       .filter((element) => visible(element) && !element.hasAttribute('disabled'));
+    const unfocusable = controls.filter((element) => {
+      element.focus({ preventScroll: true });
+      return document.activeElement !== element;
+    }).map((element) => element.outerHTML.slice(0, 120));
     return {
       hasContent: (document.querySelector('#view-root')?.textContent ?? '').trim().length > 20,
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       interactiveCount: controls.length,
-      unnamed: controls.filter((element) => !name(element)).map((element) => element.outerHTML.slice(0, 120))
+      unnamed: controls.filter((element) => !name(element)).map((element) => element.outerHTML.slice(0, 120)),
+      unfocusable,
+      mainCount: document.querySelectorAll('main').length,
+      headingCount: document.querySelectorAll('#view-root h1').length
     };
   });
 }
