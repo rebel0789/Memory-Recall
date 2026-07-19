@@ -122,9 +122,9 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 
 | ID | Requirement | Status | Authoritative evidence | Required closure |
 | --- | --- | --- | --- | --- |
-| M-1 | General multi-repository search and traversal. | Incomplete | Registry search opens up to eight indexes; only one exact two-repository Go module path is measured. | Prove multiple independent repositories, mixed languages, ambiguous names, missing repos, and bounded partial results. |
+| M-1 | General multi-repository search and traversal. | Incomplete | The registry now proves bounded qualified search across three TypeScript, Python, and Go repositories with deliberately ambiguous symbols, plus exact Go traversal between two independent Git repositories with an identical decoy rejected. Missing and stale indexes return isolated bounded partial results. | Broaden traversal and relationship evidence beyond the exact Go module path to representative cross-language and cross-service cases. |
 | M-2 | Evidence-backed cross-repository and cross-service relationships. | Incomplete | One Go import/call/trace/impact path and one monorepo two-prefix fixture pass with decoy rejection. | Add general package coordinates, services, routes, data flow, reverse impact, and cross-language cases. |
-| M-3 | Preserve repository/workspace isolation. | Incomplete | Current registry and provider tests cover selected isolation cases. | Add unauthorized repository IDs, stale/missing indexes, concurrent registries, and packaged consumer isolation. |
+| M-3 | Preserve repository/workspace isolation. | Proven | Registry/provider tests reject another workspace, keep unavailable and stale indexes isolated, preserve every queried SQLite bundle, and redact local paths. The packed consumer proof verifies independent Git repositories, decoy exclusion, and no package/config/source mutation. | Preserve these bounds through final cross-platform packaging. |
 
 ## Scale and performance
 
@@ -171,7 +171,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 | 0 | Matrix, ADR, schema, baseline. | Proven | ADR 0023, provider-neutral schemas, corpus, gates, and six-command baseline pass. |
 | 1 | Unify Node and Rust. | Incomplete | Protocol/provider bridge exists; production still has duplicate JS intelligence and divergent defaults. |
 | 2 | Pass fourteen Tier 1 languages. | Incomplete | 75/154 rows meet floor; 78 applicable rows remain unmeasured and one row is not applicable. All fourteen language-level statuses remain unmeasured. |
-| 3 | Scalable index, watcher, and recovery. | Incomplete | Core SQLite lifecycle passes; cross-platform packaged migration/recovery and million-node scale do not. |
+| 3 | Scalable index, watcher, and recovery. | Incomplete | Core SQLite lifecycle and the local one-million-node gate pass; cross-platform packaged migration/recovery remains unproven. |
 | 4 | Search, communities, processes, routes, impact, query, and MCP. | Incomplete | The deterministic fixture and exact pinned Express, Nest cats-sample, and Gin slices pass, including evidence-backed relationship traversal, community/process pagination, all required query families, delivery estimates, and deadlines. The receipt explicitly keeps `phase4IntelligenceProven: false`; reviewed correctness, representative language breadth, large repositories, exact token budgets, cancellation, and full pagination remain missing. |
 | 5 | Multi-repository and cross-service. | Incomplete | One Go cross-repo path and one monorepo fixture are insufficient. |
 | 6 | Signed npm distribution. | Incomplete | The local producer/consumer chain is native-first, transports one exact root tarball, and verifies signed GitHub provenance, file-complete SPDX predicates, npm integrity, and root plus native npm attestation bundles. Remote five-platform proof and publication remain absent. |
@@ -197,8 +197,7 @@ Phase 2 currently reports 75 `meets-floor` rows, 78 applicable `unmeasured` rows
 1. Keep the local root-plus-five-native artifact chain guarded; defer its remote five-platform run until the implementation is frozen.
 2. Close the 78 applicable language rows without weakening gates.
 3. Finish reviewed Phase 4 correctness on real repositories, then general Phase 5.
-4. Profile and fix the million-node cold build within the existing timeout.
-5. Promote packaged Rust across CLI/MCP/API/web; delete JS intelligence only after proof.
-6. Complete the large-repository browser and anti-slop gates.
-7. Run the real identical-corpus comparison.
-8. Freeze implementation, re-run this semantic-version audit against the exact tarball, choose the stable version, obtain five platform receipts, run final audits, and only then request publication authorization.
+4. Prove the clean packaged browser path, including native recovery states.
+5. Complete the large-repository browser and anti-slop gates.
+6. Run the real identical-corpus comparison.
+7. Freeze implementation, re-run this semantic-version audit against the exact tarball, choose the stable version, obtain five platform receipts, run final audits, and only then request publication authorization.
