@@ -133,7 +133,7 @@ try {
   const reloadMapResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
   await page.getByRole('button', { name: 'Reload map' }).click();
   await reloadMapResponse;
-  await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
+  await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map refreshed.');
 
   const recoverableGraphFailure = async (route) => {
     let payload = {};
@@ -254,13 +254,13 @@ try {
 
   const publishedRoutes = [
     '/', '/runs', '/workflows', '/loop-workbench', '/fabric-map', '/context',
-    '/context-pack', '/source-graph', '/memory', '/memory-graph', '/evidence',
-    '/approvals', '/content', '/agents-tools', '/settings'
+    '/context-pack', '/source-graph', '/map', '/memory', '/memory-graph',
+    '/evidence', '/approvals', '/content', '/agents-tools', '/handoffs', '/settings'
   ];
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const route of publishedRoutes) {
     await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => document.querySelector('#view-root')?.textContent?.trim().length > 20);
+    await page.waitForFunction(() => document.querySelectorAll('#view-root h1').length === 1);
     const routeAudit = await auditVisibleControls(page);
     must(routeAudit.hasContent, `published route rendered no content: ${route}`);
     must(!routeAudit.overflow, `published route has horizontal overflow: ${route}`);
@@ -422,6 +422,8 @@ async function hasHorizontalOverflow(page) {
 async function auditVisibleControls(page) {
   return page.evaluate(() => {
     const visible = (element) => {
+      const closedDetails = element.closest('details:not([open])');
+      if (closedDetails && element !== closedDetails.querySelector('summary')) return false;
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
@@ -432,7 +434,8 @@ async function auditVisibleControls(page) {
         .map((id) => document.getElementById(id)?.textContent ?? '')
         .join(' ');
       const label = element.id ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.textContent : '';
-      return [element.getAttribute('aria-label'), labelledBy, label, element.textContent, element.getAttribute('value'), element.getAttribute('title')]
+      const wrappingLabel = element.closest('label')?.textContent ?? '';
+      return [element.getAttribute('aria-label'), labelledBy, label, wrappingLabel, element.textContent, element.getAttribute('value'), element.getAttribute('title')]
         .map((value) => String(value ?? '').trim())
         .find(Boolean) ?? '';
     };
