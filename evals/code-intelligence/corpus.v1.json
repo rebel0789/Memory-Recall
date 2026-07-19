@@ -1,0 +1,439 @@
+{
+  "schemaVersion": "1.0.0",
+  "corpusVersion": "memory-recall-code-intelligence-corpus-1",
+  "generatedAt": "2026-07-17T20:01:19.082Z",
+  "sourceCandidatesFingerprint": "sha256:372c4321cc10ccea8995f1f1bf69ca8edb247e3357bf09598aab3b749104e16a",
+  "repositories": [
+    {
+      "id": "cirepo_typescript_microsoft_typescript",
+      "url": "https://github.com/microsoft/TypeScript.git",
+      "primaryLanguage": "typescript",
+      "sizeClass": "large",
+      "role": "compiler",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/microsoft/TypeScript/blob/HEAD/LICENSE.txt",
+      "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14"
+    },
+    {
+      "id": "cirepo_typescript_microsoft_vscode",
+      "url": "https://github.com/microsoft/vscode.git",
+      "primaryLanguage": "typescript",
+      "sizeClass": "large",
+      "role": "application",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/microsoft/vscode/blob/HEAD/LICENSE.txt",
+      "commit": "53e335d0387969ba6b6bd68f2481be89252089ca"
+    },
+    {
+      "id": "cirepo_typescript_vercel_next_js",
+      "url": "https://github.com/vercel/next.js.git",
+      "primaryLanguage": "typescript",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/vercel/next.js/blob/HEAD/license.md",
+      "commit": "153bf8ac5fa00888ef5fbb2b65cac12f0942a44f"
+    },
+    {
+      "id": "cirepo_javascript_axios_axios",
+      "url": "https://github.com/axios/axios.git",
+      "primaryLanguage": "javascript",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/axios/axios/blob/HEAD/LICENSE",
+      "commit": "3041b8fd1daf17404d1bad1f9d94026ea5ab400b"
+    },
+    {
+      "id": "cirepo_javascript_expressjs_express",
+      "url": "https://github.com/expressjs/express.git",
+      "primaryLanguage": "javascript",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/expressjs/express/blob/HEAD/LICENSE",
+      "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4"
+    },
+    {
+      "id": "cirepo_javascript_lodash_lodash",
+      "url": "https://github.com/lodash/lodash.git",
+      "primaryLanguage": "javascript",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/lodash/lodash/blob/HEAD/LICENSE",
+      "commit": "a666ba591064c8011988275790ad7d625279f09c"
+    },
+    {
+      "id": "cirepo_python_django_djangoproject_com",
+      "url": "https://github.com/django/djangoproject.com.git",
+      "primaryLanguage": "python",
+      "sizeClass": "medium",
+      "role": "application",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/django/djangoproject.com/blob/HEAD/LICENSE",
+      "commit": "7a19ab3bce8f62fed03bb3eef2c19f2d0af15470"
+    },
+    {
+      "id": "cirepo_python_fastapi_fastapi",
+      "url": "https://github.com/fastapi/fastapi.git",
+      "primaryLanguage": "python",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/fastapi/fastapi/blob/HEAD/LICENSE",
+      "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87"
+    },
+    {
+      "id": "cirepo_python_pallets_flask",
+      "url": "https://github.com/pallets/flask.git",
+      "primaryLanguage": "python",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/pallets/flask/blob/HEAD/LICENSE.txt",
+      "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81"
+    },
+    {
+      "id": "cirepo_python_psf_requests",
+      "url": "https://github.com/psf/requests.git",
+      "primaryLanguage": "python",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/psf/requests/blob/HEAD/LICENSE",
+      "commit": "f361ead047be5cb873174218582f7d8b9fcd9f49"
+    },
+    {
+      "id": "cirepo_java_google_gson",
+      "url": "https://github.com/google/gson.git",
+      "primaryLanguage": "java",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/google/gson/blob/HEAD/LICENSE",
+      "commit": "c9f3fd55854a743b66f857ace3c7b268ea3e2ef7"
+    },
+    {
+      "id": "cirepo_java_google_guava",
+      "url": "https://github.com/google/guava.git",
+      "primaryLanguage": "java",
+      "sizeClass": "large",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/google/guava/blob/HEAD/LICENSE",
+      "commit": "5143dbe06b8a1632b50c8fe19b2870fe135e46e2"
+    },
+    {
+      "id": "cirepo_java_spring_projects_spring_petclinic",
+      "url": "https://github.com/spring-projects/spring-petclinic.git",
+      "primaryLanguage": "java",
+      "sizeClass": "medium",
+      "role": "application",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/spring-projects/spring-petclinic/blob/HEAD/LICENSE.txt",
+      "commit": "51045d1648dad955df586150c1a1a6e22ef400c2"
+    },
+    {
+      "id": "cirepo_kotlin_android_nowinandroid",
+      "url": "https://github.com/android/nowinandroid.git",
+      "primaryLanguage": "kotlin",
+      "sizeClass": "large",
+      "role": "application",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/android/nowinandroid/blob/HEAD/LICENSE",
+      "commit": "7d45eae4f8720a0c77f507712ba2437ff974b6ed"
+    },
+    {
+      "id": "cirepo_kotlin_kotlin_kotlinx_coroutines",
+      "url": "https://github.com/Kotlin/kotlinx.coroutines.git",
+      "primaryLanguage": "kotlin",
+      "sizeClass": "large",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/Kotlin/kotlinx.coroutines/blob/HEAD/LICENSE.txt",
+      "commit": "165c6cb5859b5365dec193abc75dee9f49ce1389"
+    },
+    {
+      "id": "cirepo_kotlin_ktorio_ktor",
+      "url": "https://github.com/ktorio/ktor.git",
+      "primaryLanguage": "kotlin",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/ktorio/ktor/blob/HEAD/LICENSE",
+      "commit": "fc6595632e7412abb98b941f926d0ea13c7647d1"
+    },
+    {
+      "id": "cirepo_csharp_dotnet_aspnetcore",
+      "url": "https://github.com/dotnet/aspnetcore.git",
+      "primaryLanguage": "csharp",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/dotnet/aspnetcore/blob/HEAD/LICENSE.txt",
+      "commit": "d89ecc425733c5439096864cb9f7f97cab5416a0"
+    },
+    {
+      "id": "cirepo_csharp_dotnet_runtime",
+      "url": "https://github.com/dotnet/runtime.git",
+      "primaryLanguage": "csharp",
+      "sizeClass": "large",
+      "role": "runtime",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/dotnet/runtime/blob/HEAD/LICENSE.TXT",
+      "commit": "e487c08fc5e689918da3e7fbb2747ca8b02c260d"
+    },
+    {
+      "id": "cirepo_csharp_jamesnk_newtonsoft_json",
+      "url": "https://github.com/JamesNK/Newtonsoft.Json.git",
+      "primaryLanguage": "csharp",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/JamesNK/Newtonsoft.Json/blob/HEAD/LICENSE.md",
+      "commit": "4f73e74372445108d2c1bda37b36e6f5e43402e0"
+    },
+    {
+      "id": "cirepo_go_gin_gonic_gin",
+      "url": "https://github.com/gin-gonic/gin.git",
+      "primaryLanguage": "go",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/gin-gonic/gin/blob/HEAD/LICENSE",
+      "commit": "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd"
+    },
+    {
+      "id": "cirepo_go_go_chi_chi",
+      "url": "https://github.com/go-chi/chi.git",
+      "primaryLanguage": "go",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/go-chi/chi/blob/HEAD/LICENSE",
+      "commit": "8b258c7bb28f97a5f2a856ff7ef962578fec9215"
+    },
+    {
+      "id": "cirepo_go_hashicorp_go_multierror",
+      "url": "https://github.com/hashicorp/go-multierror.git",
+      "primaryLanguage": "go",
+      "sizeClass": "small",
+      "role": "library",
+      "licenseExpression": "MPL-2.0",
+      "licenseUrl": "https://github.com/hashicorp/go-multierror/blob/HEAD/LICENSE",
+      "commit": "6d4d48630db25c3c83fa83ecd41dd8438b82963c"
+    },
+    {
+      "id": "cirepo_rust_dtolnay_itoa",
+      "url": "https://github.com/dtolnay/itoa.git",
+      "primaryLanguage": "rust",
+      "sizeClass": "small",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/dtolnay/itoa/blob/HEAD/LICENSE-APACHE",
+      "commit": "1577ed901354d0d7448ac162328f9dbf5183124c"
+    },
+    {
+      "id": "cirepo_rust_serde_rs_json",
+      "url": "https://github.com/serde-rs/json.git",
+      "primaryLanguage": "rust",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/serde-rs/json/blob/HEAD/LICENSE-APACHE",
+      "commit": "827a315bf2198558f0325b07bcc1e2cd973aba2f"
+    },
+    {
+      "id": "cirepo_rust_tokio_rs_axum",
+      "url": "https://github.com/tokio-rs/axum.git",
+      "primaryLanguage": "rust",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/tokio-rs/axum/blob/HEAD/LICENSE",
+      "commit": "98aea470f9190fad1915897166ac0f149522011a"
+    },
+    {
+      "id": "cirepo_php_laravel_framework",
+      "url": "https://github.com/laravel/framework.git",
+      "primaryLanguage": "php",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/laravel/framework/blob/HEAD/LICENSE.md",
+      "commit": "ee0296f03a02b8f890c6323f18bdf4669468c0c2"
+    },
+    {
+      "id": "cirepo_php_slimphp_slim",
+      "url": "https://github.com/slimphp/Slim.git",
+      "primaryLanguage": "php",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/slimphp/Slim/blob/HEAD/LICENSE.md",
+      "commit": "80900fb39cafce3ae53b18a2c4f642a122f03095"
+    },
+    {
+      "id": "cirepo_php_symfony_symfony",
+      "url": "https://github.com/symfony/symfony.git",
+      "primaryLanguage": "php",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/symfony/symfony/blob/HEAD/LICENSE",
+      "commit": "7dbebd843d25b2f72e2f7dfbe044c632941ea924"
+    },
+    {
+      "id": "cirepo_ruby_rails_rails",
+      "url": "https://github.com/rails/rails.git",
+      "primaryLanguage": "ruby",
+      "sizeClass": "large",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/rails/rails/blob/HEAD/MIT-LICENSE",
+      "commit": "f011d1218bdd77857f30ce3964eef186f0f14de5"
+    },
+    {
+      "id": "cirepo_ruby_ruby_rake",
+      "url": "https://github.com/ruby/rake.git",
+      "primaryLanguage": "ruby",
+      "sizeClass": "medium",
+      "role": "tool",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/ruby/rake/blob/HEAD/MIT-LICENSE",
+      "commit": "162f9f80cad8121c6427d3031a2a85e62e2d570d"
+    },
+    {
+      "id": "cirepo_ruby_sinatra_sinatra",
+      "url": "https://github.com/sinatra/sinatra.git",
+      "primaryLanguage": "ruby",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/sinatra/sinatra/blob/HEAD/LICENSE",
+      "commit": "0c88089be7668326ec5ed52671732f8565a16353"
+    },
+    {
+      "id": "cirepo_swift_alamofire_alamofire",
+      "url": "https://github.com/Alamofire/Alamofire.git",
+      "primaryLanguage": "swift",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/Alamofire/Alamofire/blob/HEAD/LICENSE",
+      "commit": "903c53c710d1cbbac0b4b9c2527aefb791e1fee3"
+    },
+    {
+      "id": "cirepo_swift_apple_swift_nio",
+      "url": "https://github.com/apple/swift-nio.git",
+      "primaryLanguage": "swift",
+      "sizeClass": "large",
+      "role": "runtime",
+      "licenseExpression": "Apache-2.0",
+      "licenseUrl": "https://github.com/apple/swift-nio/blob/HEAD/LICENSE.txt",
+      "commit": "0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b"
+    },
+    {
+      "id": "cirepo_swift_vapor_vapor",
+      "url": "https://github.com/vapor/vapor.git",
+      "primaryLanguage": "swift",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/vapor/vapor/blob/HEAD/LICENSE",
+      "commit": "059b578bde8a037a42543914b8e14041fbec01e7"
+    },
+    {
+      "id": "cirepo_c_antirez_kilo",
+      "url": "https://github.com/antirez/kilo.git",
+      "primaryLanguage": "c",
+      "sizeClass": "small",
+      "role": "application",
+      "licenseExpression": "BSD-2-Clause",
+      "licenseUrl": "https://github.com/antirez/kilo/blob/HEAD/LICENSE",
+      "commit": "323d93b29bd89a2cb446de90c4ed4fea1764176e"
+    },
+    {
+      "id": "cirepo_c_curl_curl",
+      "url": "https://github.com/curl/curl.git",
+      "primaryLanguage": "c",
+      "sizeClass": "large",
+      "role": "library",
+      "licenseExpression": "curl",
+      "licenseUrl": "https://github.com/curl/curl/blob/HEAD/COPYING",
+      "commit": "4176aba5e4871a2f1c7c120dd76568f80f5d5ddc"
+    },
+    {
+      "id": "cirepo_c_libuv_libuv",
+      "url": "https://github.com/libuv/libuv.git",
+      "primaryLanguage": "c",
+      "sizeClass": "large",
+      "role": "runtime",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/libuv/libuv/blob/HEAD/LICENSE",
+      "commit": "2cadaa40167050baf7c6905ac897e6fb57afb2c6"
+    },
+    {
+      "id": "cirepo_cpp_catchorg_catch2",
+      "url": "https://github.com/catchorg/Catch2.git",
+      "primaryLanguage": "cpp",
+      "sizeClass": "large",
+      "role": "test-framework",
+      "licenseExpression": "BSL-1.0",
+      "licenseUrl": "https://github.com/catchorg/Catch2/blob/HEAD/LICENSE.txt",
+      "commit": "ae5d271da2c88b859d6365281ac075112115d4b1"
+    },
+    {
+      "id": "cirepo_cpp_fmtlib_fmt",
+      "url": "https://github.com/fmtlib/fmt.git",
+      "primaryLanguage": "cpp",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/fmtlib/fmt/blob/HEAD/LICENSE",
+      "commit": "a79df4504cd4e42ed004b1113fb82171e62ed822"
+    },
+    {
+      "id": "cirepo_cpp_nlohmann_json",
+      "url": "https://github.com/nlohmann/json.git",
+      "primaryLanguage": "cpp",
+      "sizeClass": "large",
+      "role": "library",
+      "licenseExpression": "MIT",
+      "licenseUrl": "https://github.com/nlohmann/json/blob/HEAD/LICENSE.MIT",
+      "commit": "722c03495f9978eb727f480b6ea0742f652e06a9"
+    },
+    {
+      "id": "cirepo_dart_dart_lang_http",
+      "url": "https://github.com/dart-lang/http.git",
+      "primaryLanguage": "dart",
+      "sizeClass": "medium",
+      "role": "library",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/dart-lang/http/blob/HEAD/LICENSE",
+      "commit": "fe4aaa900d50f0423200dd333314729d2c0650b9"
+    },
+    {
+      "id": "cirepo_dart_dart_lang_shelf",
+      "url": "https://github.com/dart-lang/shelf.git",
+      "primaryLanguage": "dart",
+      "sizeClass": "medium",
+      "role": "framework",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/dart-lang/shelf/blob/HEAD/LICENSE",
+      "commit": "833433edf813df24e9a48e01fc38647d53b979f8"
+    },
+    {
+      "id": "cirepo_dart_flutter_samples",
+      "url": "https://github.com/flutter/samples.git",
+      "primaryLanguage": "dart",
+      "sizeClass": "large",
+      "role": "application",
+      "licenseExpression": "BSD-3-Clause",
+      "licenseUrl": "https://github.com/flutter/samples/blob/HEAD/LICENSE",
+      "commit": "09335b0c7a84ae29bf5454bd54f4e15c2cdd79a1"
+    }
+  ],
+  "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96"
+}

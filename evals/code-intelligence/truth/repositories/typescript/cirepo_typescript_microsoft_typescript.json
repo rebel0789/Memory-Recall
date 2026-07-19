@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_microsoft_typescript",
+  "language": "typescript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/testRunner/unittests/helpers"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-17T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_ts_helpers_test_server_host",
+      "semanticKey": "node:class:virtualFileSystemWithWatch.ts:TestServerHost",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "TestServerHost",
+      "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost",
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290"
+    },
+    {
+      "id": "cititem_ts_helpers_import_tsserver",
+      "semanticKey": "edge:imports:typingsInstaller.ts:tsserver.ts",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "typingsInstaller",
+        "qualifiedName": "typingsInstaller.ts::typingsInstaller",
+        "locator": "workspace://typingsInstaller.ts#L1-L234"
+      },
+      "to": {
+        "kind": "module",
+        "name": "tsserver",
+        "qualifiedName": "tsserver.ts::tsserver",
+        "locator": "workspace://tsserver.ts#L1-L662"
+      },
+      "locator": "workspace://typingsInstaller.ts#L9-L9",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_ts_helpers_export_test_server_host",
+      "semanticKey": "edge:exports:virtualFileSystemWithWatch.ts:TestServerHost",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "virtualFileSystemWithWatch",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::virtualFileSystemWithWatch",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L1-L1405"
+      },
+      "to": {
+        "kind": "class",
+        "name": "TestServerHost",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290"
+      },
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L396-L1290",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_ts_helpers_reset_token_typed_call",
+      "semanticKey": "edge:calls:tsserver.ts:TestServerCancellationToken.setRequestToCancel:resetToken",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "setRequestToCancel",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::setRequestToCancel",
+        "locator": "workspace://tsserver.ts#L410-L414"
+      },
+      "to": {
+        "kind": "method",
+        "name": "resetToken",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::resetToken",
+        "locator": "workspace://tsserver.ts#L432-L436"
+      },
+      "locator": "workspace://tsserver.ts#L412-L412",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_ts_helpers_rename_folder_entries_call",
+      "semanticKey": "edge:calls:virtualFileSystemWithWatch.ts:TestServerHost.renameFolder:renameFolderEntries",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "renameFolder",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolder",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L709-L730"
+      },
+      "to": {
+        "kind": "method",
+        "name": "renameFolderEntries",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolderEntries",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L732-L749"
+      },
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L719-L719",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_ts_helpers_rename_reset_false_call",
+      "semanticKey": "edge:calls:virtualFileSystemWithWatch.ts:TestServerHost.renameFolder:resetToken:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "renameFolder",
+        "qualifiedName": "virtualFileSystemWithWatch.ts::TestServerHost::renameFolder",
+        "locator": "workspace://virtualFileSystemWithWatch.ts#L709-L730"
+      },
+      "to": {
+        "kind": "method",
+        "name": "resetToken",
+        "qualifiedName": "tsserver.ts::TestServerCancellationToken::resetToken",
+        "locator": "workspace://tsserver.ts#L432-L436"
+      },
+      "locator": "workspace://virtualFileSystemWithWatch.ts#L719-L719"
+    }
+  ],
+  "truthFingerprint": "sha256:c1212992d14eb84811588132f3bfb45f4cc943cc5a71b042938ddcdaf8284e2c"
+}

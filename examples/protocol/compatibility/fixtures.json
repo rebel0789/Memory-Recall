@@ -854,6 +854,60 @@
       "expectedValid": true
     },
     {
+      "id": "code-intelligence-graph-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/code-intelligence-graph.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-graph-raw-body-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-graph-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-graph-absolute-path-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-graph-absolute-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-language-truth-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/code-intelligence-language-truth.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-language-report-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-report.schema.json",
+      "instance": "examples/protocol/code-intelligence-language-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-language-truth-raw-body-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-language-truth-absolute-path-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-absolute-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-capability-matrix-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
+      "instance": "evals/code-intelligence/capability-matrix.v1.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-capability-matrix-false-full-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-capability-matrix-false-full.json",
+      "expectedValid": false
+    },
+    {
       "id": "source-graph-preview-current-valid",
       "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
       "instance": "examples/protocol/source-graph-preview.json",
@@ -1091,6 +1145,108 @@
       "id": "loop-run-auto-merge-invalid",
       "schema": "packages/protocol/schemas/loop-run.schema.json",
       "instance": "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-engine-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-engine-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-engine-response-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-response.schema.json",
+      "instance": "examples/protocol/code-intelligence-engine-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-engine-request-absolute-root-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-engine-request-absolute-root.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-engine-response-raw-error-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-response.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-engine-response-raw-error.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-index-build-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-build-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-refresh-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-refresh-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-repair-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-repair-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-status-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-status-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-doctor-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-doctor-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-query-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-query-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-writer-response-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-response.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-writer-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-reader-response-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-response.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-reader-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-index-absolute-path-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-index-absolute-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-index-raw-sql-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-index-raw-sql.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-index-unbounded-query-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-index-unbounded-query.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-index-status-writer-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-index-status-writer.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-index-doctor-repair-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-index-doctor-repair.json",
       "expectedValid": false
     }
   ]

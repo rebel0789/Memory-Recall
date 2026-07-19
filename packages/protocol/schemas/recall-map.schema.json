@@ -59,24 +59,94 @@
     "safeLocator": {
       "type": "string",
       "maxLength": 512,
-      "pattern": "^workspace://(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+(?:/(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+)*(?:#L[0-9]+-L[0-9]+)?$"
+      "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
     },
     "nullableLocator": {
       "type": ["string", "null"],
       "maxLength": 512,
-      "pattern": "^workspace://(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+(?:/(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+)*(?:#L[0-9]+-L[0-9]+)?$"
+      "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
     },
     "safeLabel": {
       "type": "string",
       "minLength": 1,
       "maxLength": 240,
-      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)[A-Za-z0-9_$@~./:#*+,-]+(?: (?:contains|defined_in|imports|exports|references|calls) [A-Za-z0-9_$@~./:#*+,-]+)?$"
+      "pattern": "^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\\\/])(?!.*[?{}=;\\\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])(?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)(?: (?:contains|defined_in|imports|exports|references|calls)(?: (?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)){1,2})?$"
     },
     "nullableSafeLabel": {
       "type": ["string", "null"],
       "minLength": 1,
       "maxLength": 240,
-      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)[A-Za-z0-9_$@~./:#*+,-]+(?: (?:contains|defined_in|imports|exports|references|calls) [A-Za-z0-9_$@~./:#*+,-]+)?$"
+      "pattern": "^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\\\/])(?!.*[?{}=;\\\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])(?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)(?: (?:contains|defined_in|imports|exports|references|calls)(?: (?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)){1,2})?$"
+    },
+    "groupPrefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+(?:/[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+){0,2}$"
+    },
+    "orientationGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prefix", "fileCount", "symbolCount", "changedFileCount", "entryPoints"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "prefix": { "$ref": "#/$defs/groupPrefix" },
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "changedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "entryPoints": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/orientationEntryPoint" } }
+      }
+    },
+    "orientationEntryPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "qualifiedLabel", "locator", "symbolKind"],
+      "properties": {
+        "nodeId": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/nullableSafeLabel" },
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "symbolKind": { "$ref": "#/$defs/symbolKind" }
+      }
+    },
+    "orientationRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceGroupId", "targetGroupId", "sourcePrefix", "targetPrefix", "count", "edgeKindCounts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgrelation_[a-f0-9]{24}$" },
+        "sourceGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "targetGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "sourcePrefix": { "$ref": "#/$defs/groupPrefix" },
+        "targetPrefix": { "$ref": "#/$defs/groupPrefix" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "edgeKindCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "properties": {
+            "imports": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+            "calls": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+          }
+        }
+      }
+    },
+    "orientationProcess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "entryPoint", "sink", "sinkKind", "nodeIds", "relationshipIds", "confidence", "algorithmVersion", "truncated"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgprocess_[a-f0-9]{24}$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "entryPoint": { "$ref": "#/$defs/orientationEntryPoint" },
+        "sink": { "$ref": "#/$defs/orientationEntryPoint" },
+        "sinkKind": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.-]{0,127}$" },
+        "nodeIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" } },
+        "relationshipIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "pattern": "^sgedge_[a-f0-9]{32}$" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "algorithmVersion": { "const": "entry-path-v1" },
+        "truncated": { "type": "boolean" }
+      }
     },
     "symbolKind": {
       "enum": ["class", "function", "method", "interface", "type"]
@@ -99,16 +169,16 @@
             "languages": {
               "type": "array",
               "minItems": 2,
-              "maxItems": 2,
+              "maxItems": 14,
               "uniqueItems": true,
-              "items": { "enum": ["javascript", "typescript"] }
+              "items": { "enum": ["c", "cpp", "csharp", "dart", "go", "java", "javascript", "kotlin", "php", "python", "ruby", "rust", "swift", "typescript"] }
             },
             "coverage": {
               "type": "object",
               "additionalProperties": false,
               "required": ["status", "analyzedFileCount", "maxFiles", "maxFileBytes", "diagnosticCount", "reasonCodes"],
               "properties": {
-                "status": { "enum": ["partial", "unavailable"] },
+                "status": { "enum": ["complete", "partial", "stale", "unavailable"] },
                 "analyzedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
                 "maxFiles": { "type": "integer", "minimum": 1, "maximum": 1000 },
                 "maxFileBytes": { "type": "integer", "minimum": 1024, "maximum": 1048576 },
@@ -121,7 +191,8 @@
                   "items": { "$ref": "#/$defs/code" }
                 }
               }
-            }
+            },
+            "snapshot": { "$ref": "#/$defs/sourceGraphSnapshot" }
           }
         },
         "memory": {
@@ -134,6 +205,19 @@
         }
       }
     },
+    "sourceGraphSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reuse", "reason", "validationMode", "builtAt", "buildDurationMs"],
+      "properties": {
+        "status": { "enum": ["fresh", "stale", "unavailable"] },
+        "reuse": { "enum": ["cold", "cache", "inflight", "none"] },
+        "reason": { "type": ["string", "null"], "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_:-]*$" },
+        "validationMode": { "enum": ["watcher", "metadata-scan", "none"] },
+        "builtAt": { "type": ["string", "null"], "format": "date-time" },
+        "buildDurationMs": { "type": ["number", "null"], "minimum": 0, "maximum": 3600000 }
+      }
+    },
     "architecture": {
       "type": "object",
       "additionalProperties": false,
@@ -141,6 +225,9 @@
       "properties": {
         "entryPoints": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/symbol" } },
         "hotspots": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/hotspot" } },
+        "groups": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationGroup" } },
+        "groupRelations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/orientationRelation" } },
+        "processes": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationProcess" } },
         "search": { "$ref": "#/$defs/search" },
         "impact": { "$ref": "#/$defs/impact" },
         "diagnostics": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/diagnostic" } }

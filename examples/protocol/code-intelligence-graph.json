@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0.0",
+  "graphVersion": "memory-recall-code-intelligence-1",
+  "repository": {
+    "id": "repo_0123456789abcdef0123456789abcdef",
+    "workspaceId": "ws_local",
+    "rootIdentityHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "engine": {
+    "name": "memory-recall-native",
+    "version": "0.1.0",
+    "protocolVersion": "1.0.0"
+  },
+  "generation": {
+    "id": "cigen_0123456789abcdef0123456789abcdef",
+    "builtAt": "2026-07-16T00:00:00.000Z",
+    "freshness": "current"
+  },
+  "coverage": [
+    {
+      "language": "typescript",
+      "support": "partial",
+      "discoveredFileCount": 1,
+      "indexedFileCount": 1,
+      "failedFileCount": 0,
+      "omittedFileCount": 0,
+      "reasonCodes": []
+    }
+  ],
+  "nodes": [
+    {
+      "id": "cinode_0123456789abcdef0123456789abcdef",
+      "kind": "file",
+      "language": "typescript",
+      "languageKind": "source_file",
+      "name": "index.ts",
+      "qualifiedName": "src/index.ts",
+      "locator": "workspace://src/index.ts#L1-L3",
+      "span": {
+        "startLine": 1,
+        "startColumn": 0,
+        "endLine": 3,
+        "endColumn": 1
+      },
+      "generationId": "cigen_0123456789abcdef0123456789abcdef",
+      "freshness": "current",
+      "contentHash": "sha256:123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
+    },
+    {
+      "id": "cinode_abcdef0123456789abcdef0123456789",
+      "kind": "function",
+      "language": "typescript",
+      "languageKind": "function_declaration",
+      "name": "buildIndex",
+      "qualifiedName": "src/index.ts::buildIndex",
+      "locator": "workspace://src/index.ts#L1-L3",
+      "span": {
+        "startLine": 1,
+        "startColumn": 0,
+        "endLine": 3,
+        "endColumn": 1
+      },
+      "generationId": "cigen_0123456789abcdef0123456789abcdef",
+      "freshness": "current"
+    }
+  ],
+  "edges": [
+    {
+      "id": "ciedge_0123456789abcdef0123456789abcdef",
+      "kind": "defines",
+      "fromNodeId": "cinode_0123456789abcdef0123456789abcdef",
+      "toNodeId": "cinode_abcdef0123456789abcdef0123456789",
+      "evidence": {
+        "kind": "declaration",
+        "locator": "workspace://src/index.ts#L1-L3",
+        "span": {
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 3,
+          "endColumn": 1
+        }
+      },
+      "resolver": {
+        "name": "typescript.declarations",
+        "version": "0.1.0"
+      },
+      "confidence": 1,
+      "resolution": "exact",
+      "language": "typescript",
+      "generationId": "cigen_0123456789abcdef0123456789abcdef",
+      "freshness": "current"
+    }
+  ],
+  "diagnostics": [],
+  "graphFingerprint": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+}

@@ -1,0 +1,72 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "cireq_0123456789abcdef0123456789abcdef",
+  "ok": true,
+  "result": {
+    "responseSchemaVersion": "1.0.0",
+    "graph": {
+      "schemaVersion": "1.0.0",
+      "graphVersion": "memory-recall-code-intelligence-1",
+      "repository": {
+        "id": "repo_0123456789abcdef0123456789abcdef",
+        "workspaceId": "ws_local",
+        "rootIdentityHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "engine": {
+        "name": "memory-recall-native",
+        "version": "0.1.0",
+        "protocolVersion": "1.0.0"
+      },
+      "generation": {
+        "id": "cigen_0123456789abcdef0123456789abcdef",
+        "builtAt": "2026-07-16T00:00:00.000Z",
+        "freshness": "current"
+      },
+      "coverage": [
+        {
+          "language": "typescript",
+          "support": "partial",
+          "discoveredFileCount": 1,
+          "indexedFileCount": 1,
+          "failedFileCount": 0,
+          "omittedFileCount": 0,
+          "reasonCodes": []
+        }
+      ],
+      "nodes": [
+        {
+          "id": "cinode_0123456789abcdef0123456789abcdef",
+          "kind": "file",
+          "language": "typescript",
+          "languageKind": "source_file",
+          "name": "index.ts",
+          "qualifiedName": "src/index.ts",
+          "locator": "workspace://src/index.ts#L1-L3",
+          "span": { "startLine": 1, "startColumn": 0, "endLine": 3, "endColumn": 1 },
+          "generationId": "cigen_0123456789abcdef0123456789abcdef",
+          "freshness": "current",
+          "contentHash": "sha256:123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
+        }
+      ],
+      "edges": [],
+      "diagnostics": [],
+      "graphFingerprint": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    },
+    "measurements": {
+      "scannedFileCount": 1,
+      "indexedFileCount": 1,
+      "nodeCount": 1,
+      "edgeCount": 0,
+      "omittedNodeCount": 0,
+      "omittedEdgeCount": 0
+    },
+    "safeguards": {
+      "readOnly": true,
+      "localFilesWritten": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "rawSourceBodiesIncluded": false,
+      "absolutePathsIncluded": false
+    }
+  }
+}

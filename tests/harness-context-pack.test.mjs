@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  buildContextPack,
+  buildContextPack as buildContextPackReport,
   buildContextPackCurrentPointer,
   buildContextPackRegistry,
   buildContextPackRegistryEntry,
@@ -15,11 +15,61 @@ import {
   renderContextPackMarkdown,
   verifyContextPackRegistry
 } from '../packages/harness-context/src/index.mjs';
+import {
+  buildNativeIndexSourceGraphPreview,
+  buildUnavailableSourceGraphPreview
+} from '../packages/source-graph/src/index.mjs';
+import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import contextPackSchema from '../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import contextPackUsePlanSchema from '../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 
 const fixedClock = () => '2026-06-23T12:00:00.000Z';
+const nativeIndexes = new Map();
+
+async function buildContextPack(options) {
+  if (options.sourceGraphPreview) return buildContextPackReport(options);
+  const root = await realpath(options.root);
+  let index = nativeIndexes.get(root);
+  if (!index) {
+    const provider = new RustCodeIntelligenceProvider({
+      binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+      timeoutMs: 60_000
+    });
+    await provider.buildIndex({
+      root,
+      workspaceId: options.workspaceId ?? 'ws_local',
+      maxFiles: 1_000,
+      maxFileBytes: options.sourceGraphMaxFileBytes ?? 512 * 1024,
+      maxNodes: 20_000,
+      maxEdges: 50_000
+    });
+    index = { provider };
+    nativeIndexes.set(root, index);
+  }
+  const status = await index.provider.indexStatus({ root, workspaceId: options.workspaceId ?? 'ws_local' });
+  let sourceGraphPreview;
+  try {
+    sourceGraphPreview = await buildNativeIndexSourceGraphPreview({
+      provider: index.provider,
+      status,
+      root,
+      workspaceId: options.workspaceId ?? 'ws_local',
+      query: `${options.objective ?? ''} ${options.step ?? ''}`.trim(),
+      changedLocators: options.changedLocators ?? [],
+      limit: 12,
+      sampleLimit: 1,
+      clock: options.clock ?? fixedClock
+    });
+  } catch (error) {
+    sourceGraphPreview = buildUnavailableSourceGraphPreview({
+      workspaceId: options.workspaceId ?? 'ws_local',
+      errorCode: error.code ?? 'source_index_unavailable',
+      clock: options.clock ?? fixedClock
+    });
+  }
+  return buildContextPackReport({ ...options, sourceGraphPreview });
+}
 
 async function workspace() {
   return mkdtemp(path.join(os.tmpdir(), 'oaf-context-pack-'));
@@ -83,7 +133,10 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.equal(pack.sourceGraph.status, 'available');
   assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/authWorkflow.ts']);
   assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, ['workspace://src/authWorkflow.ts']);
-  assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'approveTokenResetWorkflow'));
+  assert(
+    pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'approveTokenResetWorkflow'),
+    JSON.stringify(pack.sourceGraph.impact.affectedSymbols)
+  );
   assert.equal(pack.sourceGraph.impact.omittedAffectedSymbolCount, 0);
   assert.equal(pack.sourceGraph.safeguards.graphDatabaseUsed, false);
   assert.equal(pack.sourceGraph.safeguards.sourceSlicesRead, false);

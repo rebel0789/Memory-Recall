@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_vercel_next_js",
+  "language": "typescript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_typescript_vercel_next_js@153bf8ac5fa00888ef5fbb2b65cac12f0942a44f#packages/next/src/server/route-modules/app-route"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_next_parsed_query_function",
+      "semanticKey": "node:function:helpers/parsed-url-query-to-params.ts:parsedUrlQueryToParams",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "parsedUrlQueryToParams",
+      "qualifiedName": "helpers/parsed-url-query-to-params.ts::parsedUrlQueryToParams",
+      "locator": "workspace://helpers/parsed-url-query-to-params.ts#L9-L20"
+    },
+    {
+      "id": "cititem_next_import_parsed_query",
+      "semanticKey": "edge:imports:module.ts:helpers/parsed-url-query-to-params.ts",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "module",
+        "qualifiedName": "module.ts::module",
+        "locator": "workspace://module.ts#L1-L1343"
+      },
+      "to": {
+        "kind": "module",
+        "name": "helpers_parsed_url_query_to_params",
+        "qualifiedName": "helpers/parsed-url-query-to-params.ts::helpers_parsed_url_query_to_params",
+        "locator": "workspace://helpers/parsed-url-query-to-params.ts#L1-L21"
+      },
+      "locator": "workspace://module.ts#L33-L33",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_next_export_parsed_query",
+      "semanticKey": "edge:exports:helpers/parsed-url-query-to-params.ts:parsedUrlQueryToParams",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "helpers_parsed_url_query_to_params",
+        "qualifiedName": "helpers/parsed-url-query-to-params.ts::helpers_parsed_url_query_to_params",
+        "locator": "workspace://helpers/parsed-url-query-to-params.ts#L1-L21"
+      },
+      "to": {
+        "kind": "function",
+        "name": "parsedUrlQueryToParams",
+        "qualifiedName": "helpers/parsed-url-query-to-params.ts::parsedUrlQueryToParams",
+        "locator": "workspace://helpers/parsed-url-query-to-params.ts#L9-L20"
+      },
+      "locator": "workspace://helpers/parsed-url-query-to-params.ts#L9-L20",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_next_resolve_handler_call",
+      "semanticKey": "edge:calls:module.ts:AppRouteRouteModule.handle:resolveHandler",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "handle",
+        "qualifiedName": "module.ts::AppRouteRouteModule::handle",
+        "locator": "workspace://module.ts#L751-L936"
+      },
+      "to": {
+        "kind": "method",
+        "name": "resolveHandler",
+        "qualifiedName": "module.ts::AppRouteRouteModule::resolveHandler",
+        "locator": "workspace://module.ts#L349-L354"
+      },
+      "locator": "workspace://module.ts#L773-L773",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_next_on_userland_loaded_typed_call",
+      "semanticKey": "edge:calls:module.ts:AppRouteRouteModule.constructor:_onUserlandLoaded",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "constructor",
+        "qualifiedName": "module.ts::AppRouteRouteModule::constructor",
+        "locator": "workspace://module.ts#L256-L284"
+      },
+      "to": {
+        "kind": "method",
+        "name": "_onUserlandLoaded",
+        "qualifiedName": "module.ts::AppRouteRouteModule::_onUserlandLoaded",
+        "locator": "workspace://module.ts#L286-L342"
+      },
+      "locator": "workspace://module.ts#L276-L276",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_next_resolve_handler_false_call",
+      "semanticKey": "edge:calls:module.ts:AppRouteRouteModule.handle:parsedUrlQueryToParams:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "handle",
+        "qualifiedName": "module.ts::AppRouteRouteModule::handle",
+        "locator": "workspace://module.ts#L751-L936"
+      },
+      "to": {
+        "kind": "function",
+        "name": "parsedUrlQueryToParams",
+        "qualifiedName": "helpers/parsed-url-query-to-params.ts::parsedUrlQueryToParams",
+        "locator": "workspace://helpers/parsed-url-query-to-params.ts#L9-L20"
+      },
+      "locator": "workspace://module.ts#L773-L773"
+    }
+  ],
+  "truthFingerprint": "sha256:fd1169366c4951e02d6a85af53eb3054e9595f1a2ed121c0af91253f7b7fd8ed"
+}

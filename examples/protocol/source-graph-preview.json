@@ -20,7 +20,7 @@
       "nodeKindCounts": { "file": 1, "symbol": 1 },
       "edgeKindCounts": { "defined_in": 1 },
       "coverage": {
-        "status": "complete",
+        "status": "partial",
         "representedFileCount": 1,
         "representedJsTsLocators": ["workspace://src/auth.ts"],
         "skippedFileCount": 0,
@@ -35,8 +35,26 @@
         "sourceRelevantExcludedDirectoryLocators": [],
         "unsupportedFileCount": 0,
         "unsupportedExtensions": [],
+        "unsupportedExtensionCounts": {},
+        "ignoredFileCount": 1,
+        "ignoredDirectoryCount": 0,
+        "ignoredSamples": ["workspace://src/legacy.test.ts"],
+        "ignoreRuleFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ignoreFileLocators": ["workspace://.recallignore"],
+        "candidateNodeCount": 2,
+        "representedNodeCount": 2,
+        "omittedNodeCount": 0,
+        "candidateNodeKindCounts": { "file": 1, "symbol": 1 },
+        "representedNodeKindCounts": { "file": 1, "symbol": 1 },
+        "omittedNodeKindCounts": {},
+        "candidateEdgeCount": 2,
+        "representedEdgeCount": 1,
+        "omittedEdgeCount": 1,
+        "candidateEdgeKindCounts": { "defined_in": 1, "references": 1 },
+        "representedEdgeKindCounts": { "defined_in": 1 },
+        "omittedEdgeKindCounts": { "references": 1 },
         "maxFilesReached": false,
-        "reasonCodes": []
+        "reasonCodes": ["edge_budget_reached"]
       },
       "hotspots": [
         {
@@ -125,6 +143,75 @@
   },
   "trace": null,
   "impact": null,
+  "orientation": {
+    "groups": [
+      {
+        "id": "sggroup_111111111111111111111111",
+        "prefix": "src",
+        "fileCount": 1,
+        "symbolCount": 1,
+        "changedFileCount": 0,
+        "entryPoints": [
+          {
+            "nodeId": "sgnode_22222222222222222222222222222222",
+            "label": "approveTokenReset",
+            "locator": "workspace://src/auth.ts#L2-L4",
+            "symbolKind": "method"
+          }
+        ]
+      }
+    ],
+    "relations": []
+  },
+  "focus": {
+    "nodeLimit": 200,
+    "edgeLimit": 400,
+    "nodes": [
+      {
+        "id": "sgnode_11111111111111111111111111111111",
+        "workspaceId": "ws_local",
+        "kind": "file",
+        "label": "src/auth.ts",
+        "locator": "workspace://src/auth.ts",
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sourceSnapshotId": "srcsnap_1111111111111111"
+      },
+      {
+        "id": "sgnode_22222222222222222222222222222222",
+        "workspaceId": "ws_local",
+        "kind": "symbol",
+        "label": "approveTokenReset",
+        "locator": "workspace://src/auth.ts#L2-L4",
+        "sourceRef": "symbol_11111111111111111111111111111111",
+        "symbolKind": "method",
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sourceSnapshotId": "srcsnap_1111111111111111"
+      }
+    ],
+    "edges": [
+      {
+        "id": "sgedge_11111111111111111111111111111111",
+        "workspaceId": "ws_local",
+        "kind": "defined_in",
+        "fromNodeId": "sgnode_22222222222222222222222222222222",
+        "toNodeId": "sgnode_11111111111111111111111111111111",
+        "locator": "workspace://src/auth.ts#L2-L4",
+        "sourceRef": "symbol_11111111111111111111111111111111",
+        "confidence": 1
+      }
+    ],
+    "omittedNodes": 0,
+    "omittedEdges": 0
+  },
+  "snapshot": {
+    "status": "fresh",
+    "reuse": "cache",
+    "reason": null,
+    "generation": 1,
+    "validationMode": "watcher",
+    "buildDurationMs": 18,
+    "builtAt": "2026-06-23T00:00:00.000Z"
+  },
   "measurements": {
     "schemaVersion": "1.0.0",
     "measurementScope": "full graph nodes/edges/diagnostics versus delivered preview payload",

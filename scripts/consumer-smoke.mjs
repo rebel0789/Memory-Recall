@@ -1,11 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import { nativeTarget } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
+import { packageNativePlatform } from './package-native-platform.mjs';
 
 const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-consumer-smoke-'));
@@ -15,6 +17,22 @@ const data = path.join(temp, 'data');
 const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
 const password = 'correct horse battery staple';
+const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+const suppliedNativePackageTarball = process.env.MEMORY_RECALL_NATIVE_PACKAGE_TARBALL;
+const expectedMcpTools = Object.freeze([
+  'code.context',
+  'code.dependencies',
+  'code.impact',
+  'code.routes',
+  'code.search',
+  'code.trace',
+  'context.pack',
+  'context.profile',
+  'memory.recall',
+  'repo.architecture',
+  'repo.index_status',
+  'repo.map'
+]);
 let server = null;
 
 try {
@@ -29,13 +47,17 @@ try {
   must(pack?.files?.some((file) => file.path === 'apps/cli/oaf.mjs'), 'package includes recall bin');
   must(!pack?.files?.some((file) => file.path.startsWith('tests/')), 'package excludes checkout-only tests');
   const tarball = path.join(packDirectory, pack.filename);
-  run('npm', ['install', '-g', '--prefix', prefix, tarball, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: root, env: { ...process.env, HOME: home } });
+  const nativePackage = suppliedNativePackageTarball
+    ? { tarball: path.resolve(suppliedNativePackageTarball) }
+    : await packageNativePlatform({ target: nativeTarget(), binaryPath: nativeBinary, outDirectory: packDirectory, root });
+  must((await stat(nativePackage.tarball)).isFile(), 'matching native package tarball is available');
+  run('npm', ['install', '-g', '--prefix', prefix, tarball, nativePackage.tarball, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: root, env: { ...process.env, HOME: home } });
   const recall = path.join(prefix, 'bin', 'recall');
   const packageRoot = path.join(prefix, 'lib', 'node_modules', 'memory-recall');
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
 
   const version = run(recall, ['--version'], { cwd: workspace, env });
-  must(version.stdout.trim() === '1.1.0', 'installed recall reports the release version');
+  must(version.stdout.trim() === '2.0.0', 'installed recall reports the release version');
   const setupOutput = run(recall, ['setup'], { cwd: workspace, env });
   must(setupOutput.stdout.includes('Setup created only local state'), 'installed setup creates explicit local state');
 
@@ -53,6 +75,12 @@ try {
 
   const mcpSmoke = runJson(recall, ['mcp', 'smoke', 'context-pack', '--read-only', '--from', 'codex', '--root', '.', '--objective', 'Consumer smoke', '--step', 'verify context readback', '--target', 'codex', '--changed', 'src/app.js', '--format', 'json'], { cwd: workspace, env });
   must(mcpSmoke.checks?.resourceRead && mcpSmoke.safeguards?.readOnly === true, 'mcp context-pack smoke is read-only');
+  const mcpInspect = runJson(recall, ['mcp', 'inspect', '--read-only', '--root', '.', '--format', 'json'], { cwd: workspace, env });
+  must(
+    JSON.stringify(mcpInspect.serverTools.map(({ name }) => name).sort()) === JSON.stringify(expectedMcpTools),
+    'installed root package exposes exactly the twelve documented MCP tools'
+  );
+  must(mcpInspect.serverTools.every(({ sideEffectClass }) => sideEffectClass === 'read-only'), 'installed root package MCP tools are read-only');
 
   const connect = runJson(recall, ['connect', 'codex', '--dry-run', '--format', 'json'], { cwd: workspace, env });
   must(connect.dryRun === true && connect.safeguards?.homeConfigMutated === false, 'connect remains a dry-run by default');
@@ -78,6 +106,7 @@ try {
   must(isReadyHandoff(run(recall, ['verify'], { cwd: workspace, env }).stdout), 'verify runs the installed handoff gate');
   must(isReadyHandoff(run(recall, ['handoff'], { cwd: workspace, env }).stdout), 'handoff renders from the installed package');
   must(run(recall, ['token-saver'], { cwd: workspace, env }).stdout.includes('Token Saver'), 'token-saver renders from the installed package');
+  runJson(recall, ['graph', 'index', '--write', '--engine', 'native', '--root', '.', '--format', 'json'], { cwd: workspace, env });
   must(run(recall, ['graph', 'stats', '--root', '.', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Stats'), 'graph stats works from the installed package');
   must(run(recall, ['graph', 'search', '--root', '.', '--query', 'launchSmoke', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Search'), 'graph search works from the installed package');
   must(run(recall, ['graph', 'trace', '--root', '.', '--symbol', 'launchSmoke', '--format', 'summary'], { cwd: workspace, env }).stdout.includes('Graph Trace'), 'graph trace works from the installed package');
@@ -114,7 +143,7 @@ try {
   const appJs = await text(base, '/app.js');
   for (const phrase of ['Developer-first', 'nervous system', 'supercharge', 'AI-powered', 'next-generation']) must(!appJs.toLocaleLowerCase().includes(phrase.toLocaleLowerCase()), `web shell omits ${phrase}`);
   const shellModel = await text(base, '/shell-model.js');
-  for (const label of ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']) must(shellModel.includes(`label: '${label}'`), `workbench shell exposes ${label}`);
+  for (const label of ['Start', 'Explore code', 'Review memory', 'Prepare handoff', 'Settings']) must(shellModel.includes(`label: '${label}'`), `workbench shell exposes ${label}`);
 
   const setup = await json(base, '/api/harness/setup/plan', {
     method: 'POST',
@@ -151,6 +180,7 @@ try {
   console.log('PASS bundled benchmark fixtures from installed recall binary');
   console.log('PASS consumer Recall Map first-run report');
   console.log('PASS consumer temp HOME mcp install');
+  console.log('PASS installed root package exact 12-tool MCP inventory');
   console.log('PASS consumer real MCP client smoke');
   console.log('PASS consumer control-api smoke: workbench, Recall Map, handoff, memory review, source graph');
 } finally {

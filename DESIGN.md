@@ -11,7 +11,10 @@ This is the canonical UI contract. Code, prototypes, screenshots, and design-age
 - Typography: native system sans for interface text; native monospace only for code, paths, hashes, commands, and identifiers.
 - Shape: 6 px controls and 8 px bounded panels. Lists and dividers take priority over nested cards.
 - Motion: state transitions only. No ambient or decorative animation.
-- Copy: object, state, and action labels only. No product slogan inside the application shell.
+- Density: minimal means fewer elements, not oversized gaps. Use the spacing scale to group related work and do not add empty height for visual drama.
+- Decoration: no gradients, glass effects, glowing accents, decorative illustrations, heavy shadows, or walls of equal cards. Color and containers must communicate structure or state.
+- Copy: object, state, and action labels only. No product slogan, manifesto, inspirational subtitle, or capability hype inside the application shell.
+- AI language: use `AI`, `intelligent`, or similar terms only when naming a real model, provider, setting, or technical boundary. Never use them as decoration or a product claim.
 
 ## Principles
 
@@ -49,6 +52,7 @@ Executable tokens live in `packages/ui/tokens.json` and `apps/web/tokens.css`.
 - Spacing: `4, 8, 12, 16, 24, 32, 48, 64`.
 - Radius: controls 6 px and bounded panels 8 px.
 - Prefer borders and surface contrast over shadows.
+- Avoid nested panels when a divider, row, or disclosure communicates the same hierarchy.
 
 ## AI-native components
 

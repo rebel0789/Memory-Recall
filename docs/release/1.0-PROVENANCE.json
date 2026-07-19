@@ -3,7 +3,7 @@
   "predicateType": "https://github.com/rebel0789/Memory-Recall/provenance/release-readiness/v1",
   "subject": {
     "name": "memory-recall",
-    "version": "1.1.0",
+    "version": "2.0.0",
     "releaseCandidate": "1.0-readiness"
   },
   "buildType": "local-deterministic-source-readiness",
@@ -21,13 +21,13 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:0b4ad199b2c9bcb0d4832f3da1747633cee59deb65ec94d3a33f83292bef5dff",
-    "package-lock.json": "sha256:66bac759b6c28f95c29eca52c0b42e9bb24237a4a926fb67a42093f9ee425ed7",
-    "PROJECT_STATUS.json": "sha256:66a4cea825b1893e0f234f0f8ae71906dae322756cdde7cccfb967a4d44e2a83",
+    "package.json": "sha256:e5ff8b5bee26f0403a31c2c15b119f4e9b9952db895ccfec9c1da2afd089f4c3",
+    "package-lock.json": "sha256:5a80cd7fc840b4df82d873ca398a68fef89d05c4f2194c2156b41c44aa6d579e",
+    "PROJECT_STATUS.json": "sha256:bf712102fafbb1634cc99e94897d95ce689481357f41ee8a32b4fad1fb14f4b1",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
-    "docs/usage/support-matrix.md": "sha256:dd4108828b742e8d06112e6abdfa4119f90a8b034b417b9e7e41f6924dcf26a6",
-    "docs/benchmarks.md": "sha256:d486819287f1f97c1f51efded6dd7bf6c8491dc8e7a135c9cfaba9ed8f14b212",
+    "docs/usage/support-matrix.md": "sha256:73844778b418c382828bc0877c554ac1592024e078fc2b65ef6a02670d7ac80e",
+    "docs/benchmarks.md": "sha256:975701efde58e54b64213b6904758f562118f29111eae4d77d90ae46dd5ad068",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:af8c910a7f2092f3adc8a9be30f79618d040101c6eda0fda705fdd8f9327b472",
     "GOVERNANCE.md": "sha256:479e1fe15e56b58bd33b41cab67244de87b6f62b491bea0761337a5b87cd7e52"
@@ -35,11 +35,11 @@
   "publicEvidence": [
     {
       "path": "docs/usage/support-matrix.md",
-      "sha256": "sha256:dd4108828b742e8d06112e6abdfa4119f90a8b034b417b9e7e41f6924dcf26a6"
+      "sha256": "sha256:73844778b418c382828bc0877c554ac1592024e078fc2b65ef6a02670d7ac80e"
     },
     {
       "path": "docs/benchmarks.md",
-      "sha256": "sha256:d486819287f1f97c1f51efded6dd7bf6c8491dc8e7a135c9cfaba9ed8f14b212"
+      "sha256": "sha256:975701efde58e54b64213b6904758f562118f29111eae4d77d90ae46dd5ad068"
     }
   ],
   "generatedFiles": [

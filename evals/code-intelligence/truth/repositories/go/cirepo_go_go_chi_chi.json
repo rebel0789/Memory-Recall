@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_go_go_chi_chi",
+  "language": "go",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#."
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "partial",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_chi_router",
+      "semanticKey": "node:interface:chi.go:Router",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "interface",
+      "name": "Router",
+      "qualifiedName": "chi.go::Router",
+      "locator": "workspace://chi.go#L66-L115"
+    },
+    {
+      "id": "cititem_chi_routes",
+      "semanticKey": "node:interface:chi.go:Routes",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "interface",
+      "name": "Routes",
+      "qualifiedName": "chi.go::Routes",
+      "locator": "workspace://chi.go#L119-L134"
+    },
+    {
+      "id": "cititem_chi_new_router",
+      "semanticKey": "node:function:chi.go:NewRouter",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "NewRouter",
+      "qualifiedName": "chi.go::NewRouter",
+      "locator": "workspace://chi.go#L60-L62"
+    },
+    {
+      "id": "cititem_chi_path_value_handler",
+      "semanticKey": "node:function:_examples/pathvalue/main.go:pathValueHandler",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "pathValueHandler",
+      "qualifiedName": "_examples/pathvalue/main.go::pathValueHandler",
+      "locator": "workspace://_examples/pathvalue/main.go#L20-L25"
+    },
+    {
+      "id": "cititem_chi_construct_mux",
+      "semanticKey": "edge:constructs:mux.go:NewMux:Mux",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "NewMux", "qualifiedName": "mux.go::NewMux", "locator": "workspace://mux.go#L52-L58" },
+      "to": { "kind": "struct", "name": "Mux", "qualifiedName": "mux.go::Mux", "locator": "workspace://mux.go#L21-L48" },
+      "locator": "workspace://mux.go#L53-L53",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_chi_call_new_router",
+      "semanticKey": "edge:calls:mux.go:Mux.Route:NewRouter",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "Route", "qualifiedName": "mux.go::Mux::Route", "locator": "workspace://mux.go#L278-L286" },
+      "to": { "kind": "function", "name": "NewRouter", "qualifiedName": "chi.go::NewRouter", "locator": "workspace://chi.go#L60-L62" },
+      "locator": "workspace://mux.go#L282-L282",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_chi_get_path_value_route",
+      "semanticKey": "edge:handles_route:_examples/pathvalue/main.go:pathValueHandler:GET_users_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "pathValueHandler", "qualifiedName": "_examples/pathvalue/main.go::pathValueHandler", "locator": "workspace://_examples/pathvalue/main.go#L20-L25" },
+      "to": { "kind": "route", "name": "GET_users_param", "qualifiedName": "_examples/pathvalue/main.go::GET_users_param", "locator": "workspace://_examples/pathvalue/main.go#L14-L14" },
+      "locator": "workspace://_examples/pathvalue/main.go#L14-L14",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_chi_import_middleware",
+      "semanticKey": "edge:imports:_examples/custom-method/main.go:chi-middleware",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "_examples_custom_method_main", "qualifiedName": "_examples/custom-method/main.go::_examples_custom_method_main", "locator": "workspace://_examples/custom-method/main.go#L1-L34" },
+      "to": { "kind": "module", "name": "github.com/go-chi/chi/v5/middleware", "qualifiedName": "_examples/custom-method/main.go::github.com/go-chi/chi/v5/middleware", "locator": "workspace://_examples/custom-method/main.go#L7-L7" },
+      "locator": "workspace://_examples/custom-method/main.go#L7-L7",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_chi_import_middleware_not_router",
+      "semanticKey": "edge:imports:_examples/custom-method/main.go:middleware-line:not-router",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "_examples_custom_method_main", "qualifiedName": "_examples/custom-method/main.go::_examples_custom_method_main", "locator": "workspace://_examples/custom-method/main.go#L1-L34" },
+      "to": { "kind": "module", "name": "github.com/go-chi/chi/v5", "qualifiedName": "_examples/custom-handler/main.go::github.com/go-chi/chi/v5", "locator": "workspace://_examples/custom-handler/main.go#L7-L7" },
+      "locator": "workspace://_examples/custom-method/main.go#L7-L7",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_chi_export_new_router",
+      "semanticKey": "edge:exports:chi.go:NewRouter",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "chi", "qualifiedName": "chi.go::chi", "locator": "workspace://chi.go#L55-L55" },
+      "to": { "kind": "function", "name": "NewRouter", "qualifiedName": "chi.go::NewRouter", "locator": "workspace://chi.go#L60-L62" },
+      "locator": "workspace://chi.go#L60-L62",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_chi_private_path_value_not_exported",
+      "semanticKey": "edge:exports:_examples/pathvalue/main.go:pathValueHandler:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "main", "qualifiedName": "_examples/pathvalue/main.go::main", "locator": "workspace://_examples/pathvalue/main.go#L1-L1" },
+      "to": { "kind": "function", "name": "pathValueHandler", "qualifiedName": "_examples/pathvalue/main.go::pathValueHandler", "locator": "workspace://_examples/pathvalue/main.go#L20-L25" },
+      "locator": "workspace://_examples/pathvalue/main.go#L20-L25",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:5ff443493e76e815ef0e51fca22abbd3435e0c08c4c41308040d69c1c08d74e7"
+}

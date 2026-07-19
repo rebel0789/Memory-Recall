@@ -3,9 +3,10 @@
 This page is the source of truth for Memory Recall's public measurements. The
 artifact shape is stated for each benchmark below: most CLI benches emit JSON
 with a `reportFingerprint`, while the Context Recall script emits JSON without
-that field and the product-proof commands deliberately render summaries. None
-creates a versioned result artifact in this repository. Save the output yourself
-if you need to retain a run.
+that field and the product-proof commands deliberately render summaries. The
+Phase 0 baseline, Phase 1 JS/TS compatibility receipt, Phase 2 Tier 1 audit, and
+Phase 3 source-index receipt are the committed versioned code-intelligence
+results. Save other output yourself if you need to retain a run.
 
 All token figures are local delivery estimates using `ceil(chars/4)`. They are
 not provider-billed tokens, production-cost estimates, or production-latency
@@ -21,6 +22,202 @@ with `npm run recall --`.
 | Session delta | Six-call current-truth fixture: 6/6 correct and 72% lower estimated delivery (816 vs 2,928) | Synthetic cursor-delta fixture |
 | Temporal current truth | 10/10 correct and clean current answers against the included evolving-fact fixture | Synthetic temporal fixture; not a token-saving result |
 | Structured-ingest sufficiency | 12/12 checkout-derived provider/default answers present after structured ingest | In-repo sufficiency check; not real-world QA |
+
+## Retired JavaScript comparison receipts
+
+The Phase 0 baseline and Phase 1 JavaScript-versus-Rust comparison scripts and
+receipts were retired with the duplicate JavaScript intelligence path. They are
+not current benchmark evidence and do not support a parity or leadership claim.
+Current evidence starts with the Tier 1 audit below.
+
+## Code-intelligence Phase 2 Tier 1 audit
+
+The committed aggregate is
+`evals/code-intelligence/results/phase2-tier1-summary.json`. Reproduce it after
+building the local release Rust binary:
+
+```bash
+node scripts/code-intelligence-phase2-tier1.mjs --check
+```
+
+The aggregate binds five batch receipts covering 14 fixtures and all 43 pinned
+repositories at their exact commits and bounded scopes. Each graph is built
+twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
+The stored audit records 50,664 nodes, 113,640 edges, 79,816,280 serialized
+graph bytes, 22,794.19 ms summed first-run wall time, 23,570.05 ms summed
+second-run wall time, and 254,752 KiB peak evaluator RSS on the recorded macOS
+arm64 run. These machine-specific resource values are evidence receipts, not
+performance promises.
+
+All 59 cases are deterministic and pass their reviewed truth: 0 duplicate
+canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
+0 canonical-memory writes, and 0 workspace writes. Five repository scopes hit a
+node or edge budget and store only safe reason/count diagnostics. The audit
+does not hide those omissions.
+
+Across 154 Tier 1 capability cells, 75 meet the Phase 2 evidence floor, none has
+a recorded floor failure, 78 applicable rows remain unmeasured, and one row is
+explicitly not applicable. A row
+requires reviewed evidence from its fixture and at least three distinct pinned
+repositories before it can say `meets-floor`. Every Tier 1 language remains
+overall `unmeasured`. Java, Go, Rust, Kotlin, C#, PHP, Ruby, Swift, C, and C++
+imports now have reviewed evidence from their fixtures plus three pinned
+repositories per language. PHP evidence covers dotted namespace coordinates and
+exact local-module resolution, Ruby preserves full `require` paths, Swift
+preserves scoped coordinates, and C/C++ preserve angle-bracket header paths.
+Go and Rust exports also meet the sampled floor across one fixture and three
+pinned repositories each. Go export evidence omits exported fields and interface
+methods. Rust exact evidence covers unrestricted top-level `pub` items and
+simple-symbol `pub use`; grouped and glob re-exports remain outside the passing
+sample.
+Dart URI-level module re-exports also meet the sampled floor across one fixture
+and three pinned repositories. Local relative exports and self-package
+`package:` URIs resolve exactly when the scan root is a Dart package root or
+its `lib` directory. `show` and `hide` symbol filtering remain unmeasured and
+outside the passing sample.
+Dart calls also meet the sampled fixture-plus-three-repository floor. In the
+Flutter sample, `BookstoreAuth.of(context)` resolves to the workspace method and
+the same-name `GoRouter.of(context)` decoy does not. This does not establish
+general framework or monorepo call resolution.
+Dart heritage meets the sampled fixture-plus-three-repository floor. Flutter
+keeps `_BookstoreState` attached only to the direct outer `State` superclass,
+rejects the generic argument `Bookstore` as heritage, and retains the sampled
+mixin edge. Shelf's `RouterParams on Request` edge remains explicitly
+unresolved, while HTTP's `BaseClient implements Client` edge resolves exactly.
+Generic substitution, compiler-level inference, and broader framework heritage
+remain unmeasured.
+Kotlin calls meet the sampled floor for callsite-owner attribution. In Now in
+Android, the `UserNewsResource` constructor owns the line-45 `map` call while the
+line-57 `map` call is not attributed to it. The sampled target remains unresolved;
+this does not establish general typed, framework, or monorepo call resolution.
+Kotlin types meet the sampled fixture-plus-three-repository floor. Coroutines
+binds `InlineList(element)` without mislabeling the generic `ArrayList<E>(4)`
+line, and Ktor binds `RoutingResolveTraceEntry(...)` without confusing it with
+`RoutingResolveTrace`. Generic constructor calls and property initializer
+constructions remain missed; `List(size) { ... }` can appear as an unresolved
+construction. Full Kotlin type inference, generic substitution, nullability
+flow, overload resolution, and compiler-equivalent analysis remain unmeasured.
+C++ types meet the sampled fixture-plus-three-repository floor. The fmt case
+keeps `utf8_system_category` as a class and rejects `FMT_STRING(...)` as a
+construction edge. General preprocessor expansion, template analysis, and C++
+type resolution remain unmeasured.
+C++ heritage meets the sampled fixture-plus-three-repository floor for direct
+base specifiers. The reviewed cases bind `ItemService` to `ItemLoader`,
+`ApproxMatcher` to `MatcherBase`, `utf8_system_category` to unresolved external
+`error_category`, and `lexer` to `lexer_base`. Generic type arguments and a
+class referenced from a body are explicit negative decoys. Template
+substitution, alias expansion, dependent names, and compiler-equivalent
+inheritance analysis remain unmeasured.
+Grouped PHP imports such as `use Foo\{Bar, Baz};` remain unsupported and
+unmeasured; they were not counted in the passing sample. Python has exact
+framework-route evidence from narrow
+FastAPI, Flask, and Django application scopes. The broader FastAPI and Flask
+implementation scopes and the Requests client remain in the corpus for their
+other reviewed capabilities. Documentation examples do not qualify as routes.
+Only C heritage is recorded as not applicable because C has no language-level
+inheritance, interface, trait, protocol, or mixin relationship. The native
+engine stays an unbundled preview; the npm, MCP, and web defaults remain JS.
+Competitors remain unmeasured, and the receipt makes no parity, leadership,
+multi-repository, or scale claim.
+
+## Code-intelligence Phase 3 source index
+
+The committed receipt is
+`evals/code-intelligence/results/phase3-source-index.json`. Verify its pinned
+inputs, fingerprint, safety boundary, and pass decision with:
+
+```bash
+node scripts/code-intelligence-phase3-index.mjs --check
+```
+
+Run the script without `--check` to fetch the same exact commits into temporary
+directories and remeasure them. The receipt records the exact Memory Recall
+checkout commit and whether that checkout was dirty at measurement time. The
+current environment is macOS 25.5 arm64, Apple M2 Max, Node 22.22.3. It covers a
+600-file TypeScript dependency fixture, the pinned
+HashiCorp go-multierror repository, the pinned Express repository, and the
+pinned TypeScript compiler-transformers scope.
+
+Across 781 files, 6,646 nodes, and 15,540 edges, the four cold builds had a
+machine-specific p50 of 187.77 ms and maximum of 883.291 ms. Warm status p50
+was 21.763 ms; no-change refresh p50 was 21.367 ms. The 600-file fixture parsed
+zero files on an exact no-op refresh, 11 files after the sampled isolated file
+change, and 5 files after the sampled dependency-impact change. All no-op and
+reader checks preserved the exact SQLite bytes and modification time.
+
+The receipt stores five-sample exact, neighborhood, impact, and trace timings,
+response bytes, database sizes, changed/reused counts, evaluator RSS, omissions,
+and safe diagnostics per case. These are machine-specific preview measurements,
+not latency promises. The engine made no network or model calls; the benchmark
+harness made three network fetches to obtain the pinned repositories. It does
+not measure a packaged native binary, competitors, multi-repository behavior, or
+million-node scale, so it makes no parity or leadership claim.
+
+## Code-intelligence Phase 4 intelligence
+
+The committed receipt is
+`evals/code-intelligence/results/phase4-intelligence.json`. Verify its
+fingerprint, pass decision, evidence integrity, and claim boundary with:
+
+```bash
+node scripts/code-intelligence-phase4-intelligence.mjs --check
+```
+
+The local fixture builds four disconnected TypeScript areas plus one Next.js
+route-to-handler call chain. Five repeated reads prove deterministic exact,
+lexical, and one-hop structural search alongside bounded communities and an
+evidence-backed process. The same fixture proves that an outbound depth-two
+calls-only query retains both call steps and their source-backed endpoints while
+excluding other edge kinds. Every query stays below the bounded two-second deadline
+and preserves the exact SQLite bytes and modification time. The committed
+receipt records the machine-specific p95 values.
+
+This is a deterministic local correctness and deadline gate, not a competitor
+benchmark or a general latency promise. It makes no parity, leadership,
+multi-repository, packaged-binary, or million-node claim.
+
+## Code-intelligence Phase 5 cross-service gate
+
+Verify `evals/code-intelligence/results/phase5-cross-service.json` with:
+
+```bash
+node scripts/code-intelligence-phase5-cross-service.mjs --check
+```
+
+Five TypeScript fixture reads prove a gateway-to-orders import, call, trace,
+and process. Negative cases and bounds pass, reads preserve SQLite, and the
+recorded macOS arm64 p95 was 9.603 ms. This is single-repository evidence; no
+registry, multi-repository, parity, leadership, or scale claim is made.
+
+## Native package consumer gate
+
+Run the checkout-only installed-product gate after a release build:
+
+```bash
+cargo build --release -p oaf --manifest-path rust/Cargo.toml --locked
+node scripts/native-code-intelligence-consumer-smoke.mjs
+```
+
+On the reviewed macOS arm64 run, the platform tarball contained exactly one
+verified native binary and installed beside the root tarball without registry
+access or install scripts. With Cargo and rustc unavailable at runtime, the
+installed provider returned parser-produced graph evidence for all fourteen
+Tier 1 languages and completed SQLite build, status, and query operations. The
+gate also checks checksum/version selection, source and governed-memory
+preservation, and unchanged installed package bytes. It is a current-platform
+consumer gate, not cross-platform, signing, publication, parity, or leadership
+evidence.
+
+The same gate removes both packages, verifies that the executable and package
+roots are gone while the workspace SQLite bundle and governed memory are
+unchanged, then installs the exact same tarballs into a fresh prefix and reopens
+the existing generation for representative TypeScript, Python, and Go queries.
+That proves same-version reinstall survivability, not cross-version downgrade.
+
+The five-target Rust CI matrix reuses this installed-consumer gate with the
+exact unsigned tarball produced by each native runner. Only the macOS arm64 lane
+has been reproduced locally; the workflow configuration does not count as a
+passing result for the other four targets.
 
 ## Dataset
 
@@ -114,12 +311,19 @@ recall graph stats --root . --format summary
 recall mcp inspect --read-only --root . --format summary
 ```
 
-`map` and `graph stats` cover the implemented bounded JS/TS static graph.
+`map` and `graph stats` cover the implemented bounded native SQLite index.
 `context handoff`, `memory refine`, and `mcp inspect` expose their own
 safeguards and status fields. Treat graph and handoff token reports as live
 local measurements, not fixed provider-billing or cross-repository claims.
 
 ## Methods without a headline number
+
+`npm run source-graph:large-smoke` creates a temporary 1,100-file JS fixture,
+exercises the 1,000-file default scan bound, builds and reloads the persistent
+index, changes one represented file, and verifies that refresh parses one file
+while reusing 999 shards. The JSON includes cold, warm, and one-file refresh
+times plus graph and index sizes. Those values are machine-specific and are not
+a production latency or million-node claim.
 
 `recall bench locomo --read-only --root . --dataset evals/locomo/smoke.v1.json --budget 512 --limit 4 --format json`
 is a model-free retrieval-coverage method. The committed smoke fixture contains

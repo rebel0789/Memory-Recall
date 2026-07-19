@@ -1,0 +1,84 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "ciidxreq_00000000000000000000000000000005",
+  "ok": true,
+  "result": {
+    "responseSchemaVersion": "1.0.0",
+    "operation": "index.query",
+    "repositoryIdentityHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "indexLocator": "workspace://.local/source-index/index.v1.sqlite",
+    "storageSchemaVersion": "1",
+    "engineVersion": "2.0.0",
+    "state": "ready",
+    "activeGeneration": 1,
+    "freshness": "current",
+    "health": {
+      "status": "ready",
+      "reasonCodes": [],
+      "lastSuccessfulRefreshAt": "2026-07-16T15:30:00.000Z",
+      "repairRequired": false
+    },
+    "summary": {
+      "fileCount": 144,
+      "nodeCount": 1280,
+      "edgeCount": 2310,
+      "unresolvedCount": 41,
+      "omittedCount": 0,
+      "databaseBytes": 1048576
+    },
+    "measurements": {
+      "durationMs": 4,
+      "parsedFileCount": 0,
+      "reusedFileCount": 144,
+      "changedFileCount": 0,
+      "deletedFileCount": 0,
+      "localFilesWritten": 0
+    },
+    "results": [
+      {
+        "id": "cinode_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kind": "class",
+        "label": "UserController",
+        "locator": "workspace://src/user-controller.ts#L12-L48",
+        "confidence": 1,
+        "generation": 1
+      },
+      {
+        "id": "cinode_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "kind": "class",
+        "label": "UserService",
+        "locator": "workspace://src/user-service.ts#L4-L32",
+        "confidence": 1,
+        "generation": 1
+      }
+    ],
+    "relationships": [
+      {
+        "id": "ciedge_cccccccccccccccccccccccccccccccc",
+        "kind": "calls",
+        "fromNodeId": "cinode_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "toNodeId": "cinode_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "locator": "workspace://src/user-controller.ts#L24",
+        "confidence": 0.95,
+        "resolution": "typed",
+        "resolver": "memory-recall.typed-call",
+        "resolverVersion": "0.1.0",
+        "generation": 1,
+        "stale": false
+      }
+    ],
+    "truncated": false,
+    "nextCursor": null,
+    "diagnostics": [],
+    "safeguards": {
+      "readOnly": true,
+      "localFilesWritten": 0,
+      "canonicalMemoryWrites": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "rawSourceBodiesIncluded": false,
+      "absolutePathsIncluded": false,
+      "repairPerformed": false
+    }
+  }
+}

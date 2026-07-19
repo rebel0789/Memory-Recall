@@ -4,6 +4,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+process.env.MEMORY_RECALL_NATIVE_BINARY = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
@@ -36,6 +38,13 @@ function git(root, args) {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
+}
+
+function buildNativeIndex(root, env) {
+  const result = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(result.status, 0, result.stderr);
 }
 
 test('measure context-pack fails closed for writing, ambiguous, and unsupported modes', () => {
@@ -159,6 +168,7 @@ test('measure context-pack records read-only git changed-file detection against 
 
   const env = { ...process.env, OAF_FIXED_NOW: '2026-06-25T00:00:00.000Z' };
   delete env.OAF_COMMIT_SHA;
+  buildNativeIndex(root, env);
   const result = runMeasure([...baseArgs(root), '--changed-from-git'], { env });
 
   assert.equal(result.status, 0, result.stderr);

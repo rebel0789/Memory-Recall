@@ -1,8 +1,36 @@
-import { navigationItemsFor, navigationOwner, selectOverviewPrimaryAction } from './shell-model.js';
+import { navigationItemsFor, navigationOwner } from './shell-model.js';
+import { csrfToken, requestJson as api } from './api.js';
+import { buildOrientationModel, selectOrientationGroup } from './orientation-model.js';
+import { bindOrientation, renderOrientation } from './orientation-view.js';
+import {
+  bindSourceMap,
+  buildMapRequest,
+  parseMapUrl,
+  renderSourceMap,
+  serializeMapUrl
+} from './source-map-view.js';
+import {
+  bindMemoryGraph,
+  buildMemoryGraphViewModel,
+  renderMemoryGraphView
+} from './memory-graph-view.js';
+import {
+  buildApiErrorUiModel,
+  escapeHtml as esc,
+  formatDate as date,
+  renderApiErrorPanel,
+  renderApiErrorRecovery,
+  safeErrorToken,
+  shortFingerprint,
+  statePanel,
+  titleize
+} from './ui-primitives.js';
+
+export { buildApiErrorUiModel } from './ui-primitives.js';
 
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
-const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_CHECKOUT_COMMAND_PREFIX = 'recall';
 const OAF_COMPATIBILITY_URL = 'https://github.com/rebel0789/Memory-Recall/blob/main/docs/usage/oaf-compatibility.md';
 const OAF_URI_COMPATIBILITY_NOTE = 'Legacy oaf:// URIs remain supported compatibility identifiers; normal commands use recall.';
 
@@ -14,7 +42,7 @@ export const ROUTES = [
   { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
   { id:'context', path:'/context', label:'Context', title:'Context', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
   { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
-  { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
+  { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', description:'Search symbols, trace calls, and inspect likely diff impact from the local source index.' },
   { id:'memory', path:'/memory', label:'Memory', title:'Memory', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
   { id:'memory-graph', path:'/memory-graph', label:'Graph', title:'Memory Graph', description:'Explore current and historical governed memory relationships from the local SQLite store.' },
   { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
@@ -61,13 +89,19 @@ let memoryIntakeDraft={sourceLocator:'memory/inbox.md',text:''};
 let memoryGraph=null;
 let memoryGraphError=null;
 let memoryGraphOptions={history:false,query:'',entity:'',communities:false};
+let memoryGraphCleanup=()=>{};
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
 let sourceGraphError=null;
+let sourceGraphLoading=false;
+let sourceGraphLoadSequence=0;
+let sourceMapCleanup=()=>{};
 let harnessSetupResult=null;
 let harnessSetupError=null;
 let activeFabricNode='context';
+let orientationModel=null;
+let orientationCleanup=()=>{};
 
 export function legacyViewPath(view) {
   return legacyViews.get(String(view??'')) ?? '/';
@@ -158,55 +192,6 @@ function gitDetectionUnavailableMessage(reason) {
     git_status_failed:'Git change detection is unavailable because local status could not be read.',
     git_status_timeout:'Git change detection is unavailable because local status timed out.'
   })[reason] ?? 'Git change detection is unavailable. Retry the local scan.';
-}
-
-const API_ISSUE_HINTS = new Map([
-  ['$.body.changedLocators',['Changed files','Use workspace-relative paths under this repository, one per line. Keep the list bounded and review it before building.']],
-  ['$.body.userSelectedFiles',['Explicit files','Use workspace-relative paths under this repository. Do not paste file bodies, absolute paths, credentials, or provider URLs.']],
-  ['$.body.memoryConfig.memoryPaths',['Memory preflight sources','Use reviewed workspace-relative files only. Do not use absolute paths, URLs, credentials, or generated/local state directories.']],
-  ['$.body.client',['Client','Choose a supported local harness client from the menu.']],
-  ['$.body.objective',['Objective','Use a plain task summary. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
-  ['$.body.step',['Step','Use a short current-step label. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
-  ['$.body.tokenBudget',['Token budget','Use a positive number within the field limit.']],
-  ['$.body.sourceLocator',['Source locator','Use a workspace-relative source file such as notes/memory.md.']],
-  ['$.body.text',['Memory text','Use simple Fact or Decision lines with safe subject, predicate, and object text.']],
-  ['$.body.targetHarness',['Target','Choose Codex, Claude Code, Cursor, or Generic agent.']],
-  ['$.body.from',['Source families','Use supported source families only, such as codex, cursor, or claude-code.']],
-  ['$.body.workspaceId',['Workspace','Use the current local workspace.']]
-]);
-
-function safeErrorToken(value,fallback,maxLength=120) {
-  const text=String(value ?? '').trim();
-  if(!text)return fallback;
-  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(text))return fallback;
-  const normalized=text.replace(/[^\w$.[\]:-]/gu,'_').slice(0,maxLength);
-  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(normalized))return fallback;
-  return normalized;
-}
-
-function apiIssueHint(path,code) {
-  const direct=API_ISSUE_HINTS.get(path);
-  if(direct)return { label:direct[0], detail:direct[1] };
-  if(path.startsWith('$.body.'))return { label:titleize(path.slice('$.body.'.length)), detail:'Review this field and use only supported local values.' };
-  return { label:'Request field', detail:'Review the highlighted request field and retry with supported local values.' };
-}
-
-export function buildApiErrorUiModel(errorLike) {
-  const error=typeof errorLike==='object' && errorLike ? errorLike : { message:String(errorLike ?? 'Request failed.') };
-  const message=String(error.message ?? 'Request failed.');
-  const issues=Array.isArray(error.issues) ? error.issues.slice(0,5).map((issue)=>{
-    const path=safeErrorToken(issue?.path,'$.body');
-    const code=safeErrorToken(issue?.code,'validation_failed',64);
-    return { path, code, ...apiIssueHint(path,code) };
-  }) : [];
-  const correlationId=safeErrorToken(error.correlationId,'',96);
-  return {
-    message,
-    status:Number.isFinite(Number(error.status)) ? Number(error.status) : null,
-    code:safeErrorToken(error.code,'',64),
-    correlationId,
-    issues
-  };
 }
 
 export const WORKFLOW_STEPS = [
@@ -574,7 +559,8 @@ export function buildMemoryCockpitModel(cockpit = null) {
   };
 }
 
-export function deliveryChangeLabel(percent) {
+export function deliveryChangeLabel(percent, baselineTokens = null) {
+  if (baselineTokens !== null && !(Number(baselineTokens) > 0)) return 'Not measured';
   const value=Math.round(Number(percent) || 0);
   if(value>0)return `${value}% reduction`;
   if(value<0)return `${Math.abs(value)}% overhead`;
@@ -810,8 +796,8 @@ export function buildHarnessSetupUiModel(report = null) {
     serverStatus:safeText(report?.status?.server ?? 'not checked'),
     operation:operation ? safeText(operation.summary) : 'No MCP config change needed',
     operationKind:safeText(operation?.op ?? 'none'),
-    command:report ? `npm run oaf -- harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json',
-    bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : oafCommand('mcp resources --read-only --stdio'),
+    command:report ? `recall harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'recall harness setup plan --client codex --server oaf --dry-run --format json',
+    bridgeCommand:report?.desiredServer ? publicRecallCommand([report.desiredServer.command,...report.desiredServer.args].join(' ')) : oafCommand('mcp resources --read-only --stdio'),
     manualConfigSnippet:report?.manualConfigSnippet ? {
       format:safeText(report.manualConfigSnippet.format),
       configRef:safeText(report.manualConfigSnippet.configRef),
@@ -856,38 +842,8 @@ function currentRoute() {
   return resolveRoute(globalThis.location?.href ?? '/');
 }
 
-function csrfToken() {
-  return /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(globalThis.document?.cookie ?? '')?.[1] ?? '';
-}
-
 export function shouldLoadProtectedShellData({ bootstrapRequired = false, csrfTokenValue = '' } = {}) {
   return bootstrapRequired === false && String(csrfTokenValue ?? '').trim().length > 0;
-}
-
-async function api(path, options = {}) {
-  const headers = new Headers(options.headers ?? {});
-  if (options.body && !headers.has('content-type')) headers.set('content-type','application/json');
-  const token = csrfToken();
-  if (token && options.method && !['GET','HEAD'].includes(options.method)) headers.set('x-csrf-token', token);
-  const response = await fetch(path, { ...options, headers });
-  const payload = await response.clone().json().catch(()=>null);
-  if (!response.ok) {
-    const code = payload?.error?.code ?? null;
-    const message = code === 'bootstrap_required'
-      ? 'Local owner setup is required.'
-      : code === 'invalid_credentials'
-        ? 'Username or password is incorrect.'
-        : response.status === 401
-          ? 'Local authentication required.'
-          : payload?.error?.message ?? `Request failed with ${response.status}`;
-    const error = new Error(message);
-    error.status = response.status;
-    error.code = code;
-    error.correlationId = payload?.error?.correlationId ?? response.headers.get('x-correlation-id') ?? null;
-    error.issues = Array.isArray(payload?.error?.issues) ? payload.error.issues : [];
-    throw error;
-  }
-  return payload ?? response.json();
 }
 
 async function load() {
@@ -908,7 +864,14 @@ async function load() {
       return;
     }
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await Promise.all([loadRecallMap(), loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
+    await Promise.all([
+      loadRecallMap(),
+      loadPinnedHandoffStatus(),
+      loadLoopWorkbench(),
+      loadMemoryCockpit(),
+      loadMemoryGraph(),
+      currentRoute().id==='source-graph' ? loadSourceMap(parseMapUrl(globalThis.location?.href)) : Promise.resolve()
+    ]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -941,6 +904,25 @@ async function loadRecallMap() {
     recallMap = null;
     recallMapGitChanges = gitChanges;
     recallMapError = error;
+  }
+}
+
+async function loadSourceMap(state,{refresh=false}={}) {
+  const sequence=++sourceGraphLoadSequence;
+  sourceGraphLoading=true;
+  try{
+    sourceGraphResult=await api('/api/context/graph/preview',{
+      method:'POST',
+      body:JSON.stringify({workspaceId:workspaceId(),...buildMapRequest(state),...(refresh?{refresh:true}:{})})
+    });
+    if(sequence!==sourceGraphLoadSequence)return;
+    sourceGraphError=null;
+  }catch(error){
+    if(sequence!==sourceGraphLoadSequence)return;
+    sourceGraphResult=null;
+    sourceGraphError=error;
+  }finally{
+    if(sequence===sourceGraphLoadSequence)sourceGraphLoading=false;
   }
 }
 
@@ -1069,6 +1051,12 @@ async function submitMemoryIntake(event) {
 }
 
 function render() {
+  orientationCleanup();
+  orientationCleanup=()=>{};
+  sourceMapCleanup();
+  sourceMapCleanup=()=>{};
+  memoryGraphCleanup();
+  memoryGraphCleanup=()=>{};
   const route=currentRoute();
   const setupScreen = shellState.kind === 'setup' || shellState.kind === 'denied';
   const appShell = document.querySelector('.app-shell');
@@ -1084,7 +1072,7 @@ function render() {
     : renderRoute(route);
   root.querySelectorAll('[data-action=run]').forEach(button=>button.addEventListener('click',runDemo));
   root.querySelectorAll('[data-action=reset]').forEach(button=>button.addEventListener('click',resetDemo));
-  root.querySelectorAll('[data-action=refresh-recall-map]').forEach(button=>button.addEventListener('click',refreshRecallMap));
+  if(route.id!=='home')root.querySelectorAll('[data-action=refresh-recall-map]').forEach(button=>button.addEventListener('click',refreshRecallMap));
   root.querySelectorAll('[data-run-id]').forEach(link=>link.addEventListener('click',showRun));
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
@@ -1093,11 +1081,7 @@ function render() {
   root.querySelectorAll('[data-action=detect-git-changes]').forEach(button=>button.addEventListener('click',detectContextPackGitChanges));
   root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
-  root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
-  root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
   root.querySelector('#memory-intake-form')?.addEventListener('submit',submitMemoryIntake);
-  root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
-  root.querySelector('#memory-graph-communities')?.addEventListener('change',toggleMemoryGraphCommunities);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
   root.querySelectorAll('[data-action=copy-receiver-packet]').forEach(button=>button.addEventListener('click',copyPinnedReceiverPacket));
@@ -1112,8 +1096,42 @@ function render() {
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
-  if(route.id==='memory-graph')drawMemoryGraphCanvas(root.querySelector('#memory-graph-canvas'),memoryGraph,memoryGraphOptions);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
+  if(route.id==='home')bindCurrentOrientation(root);
+  if(route.id==='source-graph')bindCurrentSourceMap(root);
+  if(route.id==='memory-graph')bindCurrentMemoryGraph(root);
+}
+
+function bindCurrentOrientation(root) {
+  orientationCleanup=bindOrientation(root,{
+    onSelectGroup:(groupId)=>{
+      orientationModel=selectOrientationGroup(orientationModel,groupId);
+      root.innerHTML=renderOrientation(orientationModel);
+      document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
+      orientationCleanup();
+      bindCurrentOrientation(root);
+    },
+    onRefresh:refreshRecallMap
+  });
+}
+
+function bindCurrentSourceMap(root) {
+  sourceMapCleanup=bindSourceMap(root,{
+    report:sourceGraphResult,
+    onSubmit:submitSourceGraph,
+    onRefresh:refreshSourceGraph,
+    onPage:pageSourceGraph
+  });
+}
+
+function bindCurrentMemoryGraph(root) {
+  const model=buildMemoryGraphViewModel(memoryGraph,memoryGraphOptions,memoryGraphError);
+  memoryGraphCleanup=bindMemoryGraph(root,{
+    model,
+    onSubmit:submitMemoryGraph,
+    onHistoryChange:toggleMemoryGraphHistory,
+    onGroupChange:toggleMemoryGraphCommunities
+  });
 }
 
 function renderNav(container, mode) {
@@ -1132,6 +1150,10 @@ function renderRepositoryBar(route) {
   document.querySelector('#repository-name').textContent = repository?.name ?? 'Local workspace';
   document.querySelector('#repository-branch').textContent = repository?.branch ?? 'Branch unavailable';
   document.querySelector('#repository-scan').textContent = recallMap?.generatedAt ? `Scanned ${date(recallMap.generatedAt)}` : 'Not scanned';
+  const boundary=document.querySelector('#repository-boundary');
+  const externalWrites=recallMap?.safeguards?.externalWritesEnabled===true;
+  boundary.textContent=`Local only / External writes ${externalWrites?'on':'off'}`;
+  boundary.dataset.state=externalWrites?'warning':'safe';
   const conditionNode = document.querySelector('#repository-condition');
   conditionNode.textContent = condition.kind;
   conditionNode.dataset.state = condition.kind;
@@ -1220,7 +1242,7 @@ export function buildPinnedHandoffStatusModel(report=null,error=null) {
     usePlanFingerprint:currentEntry?.usePlan?.fingerprint ? shortFingerprint(currentEntry.usePlan.fingerprint) : 'unavailable',
     sourceChecks,
     targetLabel:harnessClientLabel(targetHarness),
-    primaryCommand:verified ? {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`} : null,
+    primaryCommand:verified ? {label:'Receive pinned pack',command:`recall context receive --read-only --root . --target ${targetHarness} --format json`} : null,
     commands:pinnedHandoffCommands(targetHarness,verified),
     facts:[
       ['Registry', registryExists ? report.registry.fingerprintStatus : 'missing'],
@@ -1239,13 +1261,13 @@ export function canReceivePinnedHandoff(state) {
 
 function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
   const commands=[
-    {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`},
-    {label:'Receive summary',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format summary`},
-    {label:'Check registry',command:'npm run oaf -- context registry status --read-only --format json'},
-    {label:'Read registry',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
+    {label:'Receive pinned pack',command:`recall context receive --read-only --root . --target ${targetHarness} --format json`},
+    {label:'Receive summary',command:`recall context receive --read-only --root . --target ${targetHarness} --format summary`},
+    {label:'Check registry',command:'recall context registry status --read-only --format json'},
+    {label:'Read registry',command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
   ];
   if(includeUsePlan){
-    commands.splice(2,0,{label:'Read pinned use plan',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'});
+    commands.splice(2,0,{label:'Read pinned use plan',command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'});
   }
   return commands;
 }
@@ -1255,238 +1277,54 @@ function renderRoute(route) {
   if (shellState.kind === 'denied') return renderSetupScreen('login', 'Use the local owner account for this workspace.');
   if (shellState.kind === 'error') return statePanel('error','Could not load local state', shellState.message, true);
   if (route.id === 'home') return renderHome();
-  if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
-  if (route.id === 'workflows') return renderWorkflows();
-  if (route.id === 'loop-workbench') return renderLoopWorkbench();
-  if (route.id === 'fabric-map') return renderFabricMap();
-  if (route.id === 'context') return renderContext();
+  if (route.id === 'runs') return renderSecondaryRoute(route, activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns());
+  if (route.id === 'workflows') return renderSecondaryRoute(route, renderWorkflows());
+  if (route.id === 'loop-workbench') return renderSecondaryRoute(route, renderLoopWorkbench());
+  if (route.id === 'fabric-map') return renderSecondaryRoute(route, renderFabricMap());
+  if (route.id === 'context') return renderSecondaryRoute(route, renderContext());
   if (route.id === 'context-pack') return renderContextPack();
   if (route.id === 'source-graph') return renderSourceGraph();
   if (route.id === 'memory') return renderMemory();
-  if (route.id === 'memory-graph') return renderMemoryGraph(memoryGraph,memoryGraphOptions,memoryGraphError);
-  if (route.id === 'evidence') return renderEvidence();
-  if (route.id === 'approvals') return renderApprovals();
-  if (route.id === 'content') return renderContentLab();
-  if (route.id === 'agents') return renderAgentsTools();
+  if (route.id === 'memory-graph') return renderMemoryGraphView(buildMemoryGraphViewModel(memoryGraph,memoryGraphOptions,memoryGraphError));
+  if (route.id === 'evidence') return renderSecondaryRoute(route, renderEvidence());
+  if (route.id === 'approvals') return renderSecondaryRoute(route, renderApprovals());
+  if (route.id === 'content') return renderSecondaryRoute(route, renderContentLab());
+  if (route.id === 'agents') return renderSecondaryRoute(route, renderAgentsTools());
   if (route.id === 'settings') return renderSettings();
   return renderHome();
 }
 
+export function renderSecondaryRoute(route, content) {
+  return `<div class="tool-workspace advanced-workspace"><header class="tool-page-heading"><div><h1>${esc(route?.title ?? 'Advanced view')}</h1><p>${esc(route?.description ?? '')}</p></div><span>Advanced view</span></header>${content}</div>`;
+}
+
 function renderHome() {
-  return renderOverview(buildRecallMapHomeModel({
+  orientationModel=buildOrientationModel({
     report: recallMap,
     error: recallMapError,
+    loading:!recallMap&&!recallMapError,
     gitChanges: recallMapGitChanges,
-    pinnedHandoffStatus,
-    pinnedHandoffError
-  }));
+    handoff:pinnedHandoffStatus,
+    handoffError:pinnedHandoffError,
+    selectedGroupId:orientationModel?.selectedGroupId
+  });
+  return renderOrientation(orientationModel);
 }
 
 export function buildRecallMapHomeModel({ report=null, error=null, gitChanges=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
-  if (error) {
-    return {
-      state:'error',
-      error:buildApiErrorUiModel(error),
-      title:'Recall Map unavailable',
-      copy:'The local API did not return a map. Retry the read-only request or inspect the correlation details below.',
-      commands:[]
-    };
-  }
-  if (!report) {
-    return {
-      state:'loading',
-      title:'Loading Recall Map',
-      copy:'Reading bounded local source metadata and governed memory summaries.',
-      commands:[]
-    };
-  }
-  const sourceGraph=report.support?.sourceGraph ?? {};
-  const coverage=sourceGraph.coverage ?? {};
-  const architecture=report.architecture ?? {};
-  const impact=architecture.impact ?? {};
-  const memory=report.memory ?? {};
-  const repository=report.repository ?? {
-    name:'Local workspace',
-    branch:null,
-    commitSha:null,
-    dirtyCount:0,
-    gitStatusAvailable:false,
-    reason:'repository_identity_unavailable'
-  };
-  const entryPoints=Array.isArray(architecture.entryPoints)?architecture.entryPoints:[];
-  const hotspots=Array.isArray(architecture.hotspots)?architecture.hotspots:[];
-  const changedLocators=Array.isArray(impact.changedLocators)?impact.changedLocators:[];
-  const representedChangedLocators=Array.isArray(impact.representedChangedLocators)?impact.representedChangedLocators:[];
-  const affectedSymbols=Array.isArray(impact.affectedSymbols)?impact.affectedSymbols:[];
-  const detectedChanges=normalizeRecallMapGitChanges(gitChanges);
-  const activeFacts=Array.isArray(memory.activeFacts)?memory.activeFacts:[];
-  const pendingProposals=Array.isArray(memory.pendingProposals)?memory.pendingProposals:[];
-  const handoffStatus=String(pinnedHandoffStatus?.current?.status ?? '');
-  const handoffEntryId=pinnedHandoffStatus?.current?.entryId ?? null;
-  const handoffEntry=(pinnedHandoffStatus?.entries ?? []).find((entry)=>entry.id===handoffEntryId) ?? null;
-  const handoffState=pinnedHandoffError
-    ? 'blocked'
-    : handoffStatus==='verified'
-      ? 'ready'
-      : handoffStatus==='stale'||handoffStatus==='review'
-        ? 'review'
-        : handoffStatus==='tampered'
-          ? 'blocked'
-          : report.readiness?.handoff?.status==='available'
-            ? 'pending'
-            : 'blocked';
-  const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
-  const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
-  const baseState=sourceUnavailable?'partial':noArchitecture?'empty':'success';
-  const state=handoffState==='review'?'stale':baseState;
-  const nextCommands=[
-    'recall map --root . --sqlite .local/memory.sqlite --format summary',
-    ...(Array.isArray(report.readiness?.nextCommands)?report.readiness.nextCommands:[]),
-    report.readiness?.mcp?.command
-  ].filter((command,index,all)=>typeof command==='string'&&command.length>0&&all.indexOf(command)===index).slice(0,5);
-  return {
-    state,
-    generatedAt:report.generatedAt ?? null,
-    repository,
-    index:{
-      status:sourceGraph.status ?? 'unavailable',
-      kind:sourceGraph.status==='implemented'?'success':'error',
-      label:sourceGraph.status==='implemented'?'JS/TS map indexed':'Source graph unavailable',
-      copy:sourceGraph.status==='implemented'?'Bounded static metadata only; raw source bodies stay local.':'The local source graph could not be read.'
-    },
-    coverage:{
-      status:coverage.status ?? 'unavailable',
-      kind:coverage.status==='unavailable'?'error':'partial',
-      label:`${Number(coverage.analyzedFileCount??0)} / ${Number(coverage.maxFiles??0)} files`,
-      diagnosticCount:Number(coverage.diagnosticCount??0),
-      reasonCodes:Array.isArray(coverage.reasonCodes)?coverage.reasonCodes:[]
-    },
-    entryPoints,
-    hotspots,
-    impact:{
-      changedLocators,
-      representedChangedLocators,
-      affectedSymbols,
-      changedCount:changedLocators.length,
-      representedCount:representedChangedLocators.length,
-      affectedCount:affectedSymbols.length,
-      totalChangedCount:detectedChanges.status==='available'?detectedChanges.totalCount:changedLocators.length,
-      omittedChangedCount:detectedChanges.status==='available'?detectedChanges.omittedCount:0,
-      truncated:detectedChanges.truncated,
-      detectionStatus:detectedChanges.status,
-      detectionReason:detectedChanges.reason,
-      detectionMessage:detectedChanges.message,
-      repositoryDirtyCount:Number(repository.dirtyCount??0),
-      depth:Number(impact.depth??0)
-    },
-    memory:{
-      status:memory.status ?? 'unavailable',
-      kind:memory.status==='available'?(Number(memory.staleFactCount??0)>0?'stale':'success'):'error',
-      activeCount:activeFacts.length,
-      pendingCount:pendingProposals.length,
-      staleCount:Number(memory.staleFactCount??0),
-      unavailableReason:memory.unavailableReason ?? null
-    },
-    handoff:{
-      state:handoffState,
-      kind:handoffState==='ready'?'success':handoffState==='review'||handoffState==='pending'?'partial':'error',
-      command:report.readiness?.handoff?.command ?? 'recall handoff',
-      createdAt:handoffEntry?.createdAt ?? null,
-      ageLabel:relativeAge(handoffEntry?.createdAt,pinnedHandoffStatus?.generatedAt??report.generatedAt),
-      copy:handoffState==='ready'
-        ? 'Pinned handoff is verified for the next coding agent.'
-        : handoffState==='review'
-          ? 'Pinned sources changed and need review before handoff.'
-          : handoffState==='pending'
-            ? 'The handoff command is available; no verified pinned packet is active.'
-            : 'Handoff verification is unavailable. Review the local registry before sharing context.'
-    },
-    safeguards:report.safeguards ?? {},
-    commands:nextCommands.map((command)=>({ label:recallMapCommandLabel(command), command })),
-    recentActivity:[
-      ...pendingProposals.slice(0,3).map((proposal)=>({
-        kind:'proposal',
-        label:'Memory proposed',
-        detail:proposal.sourceLocator,
-        at:proposal.enqueuedAt
-      })),
-      ...activeFacts.slice(0,3).map((fact)=>({
-        kind:'memory',
-        label:'Memory current',
-        detail:fact.sourceLocator,
-        at:fact.validFrom
-      }))
-    ].sort((left,right)=>String(right.at).localeCompare(String(left.at))).slice(0,5)
-  };
+  const model=buildOrientationModel({
+    report,
+    error,
+    loading:!report&&!error,
+    gitChanges,
+    handoff:pinnedHandoffStatus,
+    handoffError:pinnedHandoffError
+  });
+  return model.state==='failure' ? Object.freeze({...model,state:'error'}) : model;
 }
 
-export function renderOverview(model) {
-  if (model.state==='loading') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Scan repository</button></header>${statePanel('loading',model.title,model.copy)}</section>`;
-  if (model.state==='error') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Retry scan</button></header>${renderApiErrorPanel(model.title,model.error)}</section>`;
-  const action=selectOverviewPrimaryAction(model);
-  const actionHtml=action?.action
-    ? `<button class="button primary" data-action="${esc(action.action)}" type="button">${esc(action.label)}</button>`
-    : action
-      ? `<a class="button primary" href="${esc(action.route)}" data-route="${esc(action.routeId)}">${esc(action.label)}</a>`
-      : '<span class="overview-current">No action queued</span>';
-  const stateCopy=model.state==='stale'
-    ? statePanel('stale','Source changes need review','Repository evidence changed after the current handoff was pinned. Review the affected sources before sharing context.')
-    : model.state==='empty'
-      ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
-      : model.state==='partial'||model.coverage.status==='partial'
-        ? statePanel('partial','Bounded coverage','The bounded scan completed, but the Map only indexes supported JS/TS metadata within its scan limits. Review its coverage notes before treating the repository picture as complete.')
-        : '';
-  const detectionFailed=model.impact.detectionStatus==='unavailable'||model.impact.detectionStatus==='error';
-  const omittedChangeEvidence=model.impact.detectionStatus==='available'&&model.impact.omittedChangedCount>0;
-  const changed=model.impact.changedLocators.length
-    ? `<ul class="plain-list overview-changes">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>${model.impact.omittedChangedCount?`<p class="muted">${model.impact.changedCount} shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`:''}`
-    : detectionFailed
-      ? `<div class="change-detection-warning"><strong>${model.impact.repositoryDirtyCount>0?`${model.impact.repositoryDirtyCount} changed entr${model.impact.repositoryDirtyCount===1?'y':'ies'}; `:''}file detection unavailable.</strong><p>${esc(model.impact.detectionMessage)}</p><button class="button secondary" data-action="refresh-recall-map" type="button">Retry scan</button></div>`
-      : omittedChangeEvidence
-        ? `<p class="muted">0 shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`
-      : model.impact.detectionStatus==='available'
-        ? '<p class="muted">No changed files detected.</p>'
-        : '<p class="muted">Changed-file detection has not run.</p>';
-  const attention=[
-    model.memory.pendingCount?`<a href="/memory" data-route="memory"><strong>${model.memory.pendingCount} pending</strong><span>Review proposed memory</span></a>`:'',
-    model.memory.staleCount?`<a href="/memory" data-route="memory"><strong>${model.memory.staleCount} stale</strong><span>Check source changes</span></a>`:'',
-    model.handoff.state==='blocked'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff blocked</strong><span>Repair registry or pinned artifacts</span></a>`:'',
-    model.handoff.state==='review'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff needs review</strong><span>Update changed sources</span></a>`:'',
-    detectionFailed?`<button type="button" data-action="refresh-recall-map"><strong>Change detection unavailable</strong><span>${esc(model.impact.detectionReason)}</span></button>`:'',
-    omittedChangeEvidence?`<a href="/map" data-route="source-graph"><strong>${model.impact.omittedChangedCount} change${model.impact.omittedChangedCount===1?'':'s'} omitted</strong><span>Inspect safety and scan bounds</span></a>`:'',
-    model.coverage.status==='partial'||model.coverage.diagnosticCount?`<a href="/map" data-route="source-graph"><strong>${model.coverage.diagnosticCount?`${model.coverage.diagnosticCount} coverage note${model.coverage.diagnosticCount===1?'':'s'}`:'Bounded coverage'}</strong><span>Inspect supported files and scan scope</span></a>`:''
-  ].filter(Boolean).join('')||'<p class="muted">Nothing needs review.</p>';
-  const affected=model.impact.affectedSymbols.length
-    ? `<ol class="plain-list">${model.impact.affectedSymbols.slice(0,6).map((entry)=>`<li><strong>${esc(entry.label)}</strong><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
-    : '<p class="muted">No focused impact set.</p>';
-  const activity=model.recentActivity.length
-    ? `<ol class="activity-list">${model.recentActivity.map((item)=>`<li><span>${esc(item.label)}</span><code>${esc(item.detail ?? 'source unavailable')}</code><time>${esc(item.at?date(item.at):'time unavailable')}</time></li>`).join('')}</ol>`
-    : '<p class="muted">No memory activity recorded.</p>';
-  return `<section class="overview" aria-label="Repository overview">
-    <header class="page-heading">
-      <div><h1>${esc(model.repository.name)}</h1><p>${esc(model.repository.branch ?? 'Branch unavailable')} · ${model.repository.dirtyCount} changed · scanned ${esc(model.generatedAt?date(model.generatedAt):'not yet')}</p></div>
-      ${actionHtml}
-    </header>
-    ${stateCopy}
-    <div class="overview-grid">
-      <section class="overview-section"><header><h2>Changes</h2><a href="/map" data-route="source-graph">Open Map</a></header>${changed}</section>
-      <section class="overview-section"><header><h2>Needs attention</h2><a href="/memory" data-route="memory">Open Memory</a></header><div class="attention-list">${attention}</div></section>
-      <section class="overview-section overview-impact"><header><h2>Impact</h2><span>${model.impact.affectedCount} affected</span></header>${affected}</section>
-      <section class="overview-section"><header><h2>Current handoff</h2><a href="/handoffs" data-route="context-pack">Open Handoffs</a></header><dl class="summary-list"><div><dt>State</dt><dd>${esc(model.handoff.state)}</dd></div><div><dt>Age</dt><dd>${esc(model.handoff.ageLabel)}</dd></div><div><dt>Source check</dt><dd>${esc(model.handoff.copy)}</dd></div></dl></section>
-      <section class="overview-section overview-activity"><header><h2>Recent activity</h2><span>${model.recentActivity.length}</span></header>${activity}</section>
-    </div>
-  </section>`;
-}
-
-export const renderRecallMapHome=renderOverview;
-
-function recallMapCommandLabel(command) {
-  if (command.startsWith('recall map')) return 'Refresh map locally';
-  if (command.startsWith('recall handoff')) return 'Create Next-Agent Handoff';
-  if (command.includes('mcp inspect')) return 'Inspect read-only MCP';
-  if (command.includes('graph stats')) return 'Check source graph';
-  return 'Copy command';
-}
+export const renderOverview=renderOrientation;
+export const renderRecallMapHome=renderOrientation;
 
 function renderRuns() {
   if (activeRunDetail) return renderRunDetail(activeRunDetail);
@@ -1502,7 +1340,7 @@ function renderRunDetail(data) {
 
 function renderWorkflows() {
   const steps=['collect','normalize','analyze-patterns','compile-context','generate-angles','verify-recommendations','local-draft-outcome'];
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Content Intelligence</h2><span>workflow:content-intelligence</span></div><ol class="outline">${steps.map((step,index)=>`<li><span>${index+1}</span><strong>${step}</strong><em>${workflowStepCopy(step)}</em></li>`).join('')}</ol></div><aside class="inspector"><h2>Equivalent outline</h2><p>Graph information is presented as an ordered list for keyboard and screen-reader access.</p><dl class="facts"><div><dt>Risk</dt><dd>Read-only/local-only outputs</dd></div><div><dt>Timeout</dt><dd>5s deterministic steps, 120s model step</dd></div><div><dt>Approval</dt><dd>Local candidate approval record only</dd></div></dl></aside></section>`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Content analysis</h2><span>workflow:content-intelligence</span></div><ol class="outline">${steps.map((step,index)=>`<li><span>${index+1}</span><strong>${step}</strong><em>${workflowStepCopy(step)}</em></li>`).join('')}</ol></div><aside class="inspector"><h2>Equivalent outline</h2><p>Graph information is presented as an ordered list for keyboard and screen-reader access.</p><dl class="facts"><div><dt>Risk</dt><dd>Read-only/local-only outputs</dd></div><div><dt>Timeout</dt><dd>5s deterministic steps, 120s model step</dd></div><div><dt>Approval</dt><dd>Local candidate approval record only</dd></div></dl></aside></section>`;
 }
 
 export function buildLoopWorkbenchModel(report=null,{dashboard=null,error=null}={}) {
@@ -2103,7 +1941,7 @@ function zeroCount(value) {
 function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
-    const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+    const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command:publicRecallCommand(command) }));
     insertContextPackReceiveCommand(commands,pack);
     const generated=[
       {label:'Test local handoff',command:contextPackPreflightCommand(pack,{memoryConfig})},
@@ -2132,18 +1970,18 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
     { label:'Test local handoff', command:contextPackPreflightCommand(pack,{memoryConfig}) },
     { label:'Test handoff summary', command:contextPackPreflightCommand(pack,{memoryConfig,format:'summary'}) },
     { label:'Copy impact command', command:contextPackImpactCommand(pack) },
-    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
-    { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
-    { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Rebuild from CLI', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
+    { label:'Pin locally', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
+    { label:'Verify pin', command:'recall context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
-    { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
-    { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
-    { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
-    { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
-    { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
+    { label:'Preview harness setup', command:`recall harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
+    { label:'Read use plan', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
+    { label:'Read registry', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read current context pack', command:`recall mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
+    { label:'Read MCP resources', command:'recall mcp resources --read-only --format json' },
+    { label:'Read latest handoff', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
 }
 
@@ -2195,12 +2033,12 @@ function contextPackPreflightCommand(pack,{memoryConfig=null,format='json'}={}) 
 
 function contextPackReceiveCommand(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
-  return `npm run oaf -- context receive --read-only --root . --target ${target} --format json`;
+  return `recall context receive --read-only --root . --target ${target} --format json`;
 }
 
 function contextPackReceiveSummaryCommand(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
-  return `npm run oaf -- context receive --read-only --root . --target ${target} --format summary`;
+  return `recall context receive --read-only --root . --target ${target} --format summary`;
 }
 
 function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
@@ -2215,13 +2053,13 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const uri=String(usePlan?.resource?.uri ?? 'oaf://workspace/ws_local/context-pack/use-plan/current');
   return [
-    { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
-    { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Pin locally', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
+    { label:'Verify pin', command:'recall context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
-    { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
+    { label:'Read registry', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read use plan', command:`recall mcp resources --read-only --uri ${uri} --format json` }
   ];
 }
 
@@ -2250,6 +2088,12 @@ function contextPackCommandLabel(command) {
 
 function oafCommand(args) {
   return `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}`;
+}
+
+function publicRecallCommand(command) {
+  return String(command ?? '')
+    .replace(/^npm\s+--silent\s+run\s+oaf\s+--\s+/u, 'recall ')
+    .replace(/^npm\s+run\s+oaf\s+--\s+/u, 'recall ');
 }
 
 function contextPackSetupClient(pack) {
@@ -2286,11 +2130,12 @@ function contextPackFormDraft() {
   const payload=selectContextPackPinPayload({reviewedPayload:contextPackResult?.reviewedPayload ?? contextPackReviewedPayload});
   const memoryConfig=normalizeMemoryWorkspaceConfig(contextPackResult?.memoryConfig ?? contextPackMemoryConfig);
   const sourceFamilies=String(payload?.from ?? 'codex').split(',').map((item)=>item.trim()).filter(Boolean);
+  const objectiveFromUrl=String(new URL(globalThis.location?.href??'http://127.0.0.1/handoffs').searchParams.get('objective')??'').trim().slice(0,2000);
   return {
     targetHarness:String(payload?.targetHarness ?? 'codex'),
     tokenBudget:String(Number(payload?.tokenBudget ?? 4096)),
     sourceFamilies:sourceFamilies.length ? sourceFamilies : ['codex'],
-    objective:String(payload?.objective ?? DEFAULT_CONTEXT_PACK_OBJECTIVE),
+    objective:objectiveFromUrl||String(payload?.objective ?? DEFAULT_CONTEXT_PACK_OBJECTIVE),
     step:String(payload?.step ?? DEFAULT_CONTEXT_PACK_STEP),
     userSelectedFiles:(payload?.userSelectedFiles ?? []).join('\n'),
     changedLocators:(payload?.changedLocators ?? []).map((locator)=>String(locator).replace(/^workspace:\/\//u,'')).join('\n'),
@@ -2534,10 +2379,12 @@ function memoryConfigDownloadName() {
 }
 
 function renderSourceGraph() {
-  const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  const query=recallMapSearchQuery();
-  const globalResults=renderRepositorySearchState({query,report:recallMap,error:recallMapError});
-  return `<div class="tool-workspace map-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Repository structure</p><h1>Map</h1><p>Find an entry point, trace a symbol, or inspect the impact of a changed file.</p></div><span>Read-only · bounded metadata</span></header>${globalResults}<section class="tool-query"><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="${esc(query||'where should I start')}" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="query-options"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label><button class="button primary" type="submit">Run map</button><span class="muted">No model or network calls</span></div></form></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No map results','Run the map to inspect files, symbols, import neighbors, and likely starting points.')}</div>`;
+  return renderSourceMap({
+    state:parseMapUrl(globalThis.location?.href),
+    report:sourceGraphResult,
+    error:sourceGraphError,
+    loading:sourceGraphLoading
+  });
 }
 
 function renderRecallMapSearchResults(report,query){const search=report?.architecture?.search;const results=Array.isArray(search?.results)?search.results:[];return `<section class="surface repository-search-results" aria-label="Repository search results"><div class="section-heading"><h2>Search results</h2><span>${Number(search?.total??0)} matches for ${esc(query)}</span></div>${results.length?`<ol class="plain-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.locator)}</code></li>`).join('')}</ol>`:'<p class="muted">No bounded source-graph matches.</p>'}</section>`}
@@ -2548,131 +2395,9 @@ export function renderRepositorySearchState({query='',report=null,error=null}={}
   return renderRecallMapSearchResults(report,query);
 }
 
-export function renderSourceGraphResult(report) {
-  const summary=report.graph?.summary ?? {};
-  return `<div class="tool-workspace map-workspace"><section class="tool-result-heading"><div><p class="eyebrow">Map results</p><h2>Repo Map</h2></div><dl class="tool-summary" aria-label="Source graph summary"><div><dt>Files</dt><dd>${Number(summary.fileCount??0)}</dd></div><div><dt>Symbols</dt><dd>${Number(summary.symbolCount??0)}</dd></div><div><dt>Relations</dt><dd>${Number(summary.edgeCount??0)}</dd></div><div><dt>Matches</dt><dd>${Number(report.search?.total??0)}</dd></div></dl></section>${renderRepoMap(report)}<section class="tool-detail-grid"><section><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</section><section><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</section><section><div class="section-heading"><h2>Changed impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</section><details class="tool-disclosure"><summary>Scan details</summary>${sourceGraphSafeguards(report.safeguards)}<div class="section-heading"><h3>Sample nodes</h3><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}<code>${esc(shortFingerprint(report.graph?.graphFingerprint))}</code></details></section></div>`;
-}
-
-function renderRepoMap(report) {
-  const nodes=report.graph?.sampleNodes ?? [];
-  const byId=new Map(nodes.map((node)=>[node.id,node]));
-  const files=nodes.filter((node)=>node.kind==='file').slice(0,6);
-  const symbols=uniqueBy([
-    ...(report.graph?.summary?.entryPoints ?? []),
-    ...(report.graph?.summary?.hotspots ?? []),
-    ...nodes.filter((node)=>node.kind==='symbol')
-  ],(item)=>item.locator ?? item.label).slice(0,6);
-  const imports=(report.graph?.sampleEdges ?? []).filter((edge)=>edge.kind==='imports').map((edge)=>{
-    const from=byId.get(edge.fromNodeId);
-    const to=byId.get(edge.toNodeId);
-    return from&&to?`${from.label} -> ${to.label}`:'';
-  }).filter(Boolean).slice(0,6);
-  const readFirst=(report.graph?.summary?.entryPoints ?? []).map((item)=>item.locator).filter(Boolean).slice(0,6);
-  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div>${sourceGraphStartHere(report)}<div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
-}
-
-function uniqueBy(items,key) {
-  const seen=new Set();
-  return items.filter((item)=>{const value=key(item);if(!value||seen.has(value))return false;seen.add(value);return true;});
-}
-
-function sourceGraphStartHere(report) {
-  const entry=report.graph?.summary?.entryPoints?.[0];
-  const changed=report.impact?.representedChangedLocators?.[0] ?? report.impact?.changedLocators?.[0];
-  const affected=report.impact?.affectedSymbols?.[0];
-  if(!entry && !changed && !affected)return '';
-  return `<div class="state-panel state-success"><h3>Start here</h3><p>${entry?`Begin at ${esc(entry.label)} (${esc(entry.locator)}).`:'Use the read-first list below.'}${changed?` Changed impact: ${esc(changed)}${affected?` touches ${esc(affected.name)}`:''}.`:''}</p></div>`;
-}
-
-function sourceGraphSymbolList(symbols=[]) {
-  if(!symbols.length)return '<p class="muted">No key symbols in the bounded preview.</p>';
-  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.label)}</strong><span>${esc(symbol.symbolKind??'symbol')} · ${esc(symbol.locator??`${Number(symbol.total??0)} links`)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphTextList(items=[]) {
-  if(!items.length)return '<p class="muted">No bounded preview items.</p>';
-  return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item)}</strong></li>`).join('')}</ol>`;
-}
-
-function sourceGraphSearchList(results=[]) {
-  if(!results.length)return '<p class="muted">No matching graph records.</p>';
-  return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><span>${esc(item.kind)} · ${esc(item.locator??'no locator')} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphNodeList(nodes=[]) {
-  if(!nodes.length)return '<p class="muted">No sample nodes.</p>';
-  return `<ol class="compact-list locator-list">${nodes.map((node)=>`<li><strong>${esc(node.label)}</strong><span>${esc(node.kind)} · ${esc(node.locator??node.sourceRef??node.id)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphTraceList(paths=[]) {
-  if(!paths.length)return '<p class="muted">No trace paths for the selected symbol.</p>';
-  return `<ol class="compact-list locator-list">${paths.map((path)=>`<li><strong>${esc(path.terminalLabel)}</strong><span>depth ${Number(path.depth??0)} · ${path.nodeIds?.length??0} nodes</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphImpactList(symbols=[]) {
-  if(!symbols.length)return '<p class="muted">No impacted symbols for the supplied locator.</p>';
-  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.name)}</strong><span>${esc(symbol.symbolKind)} · ${esc(symbol.locator)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphSafeguards(safeguards={}) {
-  return `<dl class="facts compact-facts"><div><dt>Persisted</dt><dd>${safeguards.persisted?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(safeguards.networkCalls??0)}</dd></div><div><dt>Graph DB</dt><dd>${safeguards.graphDatabaseUsed?'yes':'no'}</dd></div><div><dt>Raw bodies</dt><dd>${safeguards.rawBodyIncluded?'included':'excluded'}</dd></div></dl>`;
-}
-
 function renderMemory() {
   if(memoryCockpitError)return statePanel('error','Memory cockpit unavailable',memoryCockpitError);
   return renderMemoryCockpit(memoryCockpit);
-}
-
-export function buildMemoryGraphModel(report = null) {
-  if(!report?.graph)return {ready:false,summary:{nodeCount:0,edgeCount:0,communityCount:0},nodes:[],edges:[],focus:null};
-  const nodes=Array.isArray(report.graph.nodes)?report.graph.nodes:[];
-  const edges=Array.isArray(report.graph.edges)?report.graph.edges:[];
-  const summary={nodeCount:nodes.length,edgeCount:edges.length,communityCount:0,...(report.summary??{})};
-  return {
-    ready:true,
-    provider:report.provider??'provider:native:memory:sqlite',
-    mode:report.mode??'current',
-    generatedAt:report.generatedAt,
-    reportFingerprint:report.reportFingerprint,
-    communityMethod:report.communityMethod??'label-propagation',
-    summary,
-    nodes,
-    edges,
-    focus:report.focus,
-    safeguards:report.safeguards??{}
-  };
-}
-
-export function renderMemoryGraph(report = null, options = {}, error = null) {
-  if(error)return statePanel('error','Memory graph unavailable',error);
-  const model=buildMemoryGraphModel(report);
-  if(!model.ready)return statePanel('empty','No governed graph loaded','Ingest and approve temporal memory facts, then refresh this local graph view.');
-  const query=options.query??'';
-  const historyChecked=options.history?' checked':'';
-  const communityChecked=options.communities?' checked':'';
-  const focus=model.focus?.nodes?.length?model.focus:null;
-  const focusList=focus
-    ? `<ol class="compact-list locator-list">${focus.nodes.slice(0,12).map((node)=>`<li><strong>${esc(node.name)}</strong><span>${esc(node.type)} · degree ${Number(node.degree??0)} · community ${Number(node.community??0)}</span></li>`).join('')}</ol>`
-    : '<p class="muted">Click a node or search for an entity to focus its governed neighborhood.</p>';
-  const currentEdges=model.edges.filter((edge)=>edge.current).slice(0,12);
-  const staleEdges=model.edges.filter((edge)=>!edge.current).slice(0,12);
-  const currentList=currentEdges.length
-    ? memoryGraphEdgeList(currentEdges)
-    : '<p class="muted">No current graph facts are visible.</p>';
-  const historyList=staleEdges.length
-    ? memoryGraphEdgeList(staleEdges)
-    : '<p class="muted">No superseded graph edges are visible in this mode.</p>';
-  return `<section class="metric-strip" aria-label="Governed memory graph metrics">${metric(model.summary.nodeCount,'Nodes',`${model.summary.currentNodeCount??0} current`)}${metric(model.summary.edgeCount,'Edges',`${model.summary.currentEdgeCount??0} current`)}${metric(model.summary.communityCount,'Communities',model.communityMethod)}${metric(model.summary.historyEdgeCount??0,'History edges',model.mode==='history'?'visible':'hidden')}</section><section class="memory-graph-shell"><div class="surface surface-primary"><div class="section-heading"><h2>Governed knowledge graph</h2><span>${esc(model.mode)} · ${esc(shortFingerprint(model.reportFingerprint))}</span></div><form id="memory-graph-form" class="memory-graph-toolbar"><label class="field memory-graph-search"><span>Search entity</span><input name="query" value="${esc(query)}" placeholder="provider:native:memory:sqlite" maxlength="512"></label><label class="toggle-field"><input id="memory-graph-history" name="history" type="checkbox"${historyChecked}> <span>Show history</span></label><label class="toggle-field"><input id="memory-graph-communities" name="communities" type="checkbox"${communityChecked}> <span>Community colors</span></label><button class="button primary" type="submit">Refresh graph</button></form><div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="1120" height="640" role="img" aria-label="Interactive governed memory graph"></canvas></div><div class="memory-graph-legend">${memoryGraphLegend(model.nodes)}</div></div><aside class="inspector"><h2>Current facts</h2>${currentList}<hr><h2>History facts</h2>${historyList}<hr><h2>Focus neighborhood</h2>${focusList}<hr><dl class="facts compact-facts"><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div><div><dt>Read-only</dt><dd>${model.safeguards.readOnly?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(model.safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(model.safeguards.networkCalls??0)}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div></dl></aside></section>`;
-}
-
-function memoryGraphEdgeList(edges=[]) {
-  return `<ol class="compact-list locator-list">${edges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${edge.current?'Current':'Superseded'} · ${edge.supersededBy?`superseded by ${esc(edge.supersededBy)}`:'current winner'}</span><small>Valid from ${date(edge.validFrom)} · Valid until ${edge.validUntil?date(edge.validUntil):'open'} · Provenance ${esc(edge.source)}</small></li>`).join('')}</ol>`;
-}
-
-function memoryGraphLegend(nodes=[]) {
-  const types=[...new Set(nodes.map((node)=>node.type))].sort();
-  if(!types.length)return '<p class="muted">No node types to render.</p>';
-  return types.map((type)=>`<span><i style="background:${memoryGraphNodeColor(type,0,false)}"></i>${esc(type)}</span>`).join('');
 }
 
 export function renderMemoryIntakePanel(result=null,error=null,draft={sourceLocator:'memory/inbox.md',text:''}) {
@@ -2705,7 +2430,8 @@ export function renderMemoryCockpit(cockpit = null) {
   const toolStats=model.mcpStats.byTool.length
     ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
     : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
-  return `<div class="tool-workspace memory-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Governed repository memory</p><h1>Memory</h1><p>Review proposed facts, inspect current truth, and add explicit source-backed memory.</p></div><dl class="tool-summary"><div><dt>Pending</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Active</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Delivery</dt><dd>${deliveryChangeLabel(model.savings.percent)}</dd></div></dl></header><section class="memory-review-grid"><section class="memory-review-queue"><div class="section-heading"><h2>Review queue</h2><span>${model.summary.pendingProposalCount} pending</span></div>${queue}</section><aside class="memory-intake-panel">${intake}</aside></section><section class="memory-ledger"><div class="section-heading"><h2>Active memory</h2><span>${model.facts.length} facts</span></div>${facts}</section><details class="tool-disclosure memory-delivery"><summary>Delivery details · ${deliveryChangeLabel(model.savings.percent)}</summary><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>Memory Recall delivery</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div></dl>${toolStats}${history}<p class="muted">Delivery values are local estimates, not provider billing claims. No model, network, or raw source body is used on this route.</p></details></div>`;
+  const deliveryLabel=deliveryChangeLabel(model.savings.percent,model.savings.beforeDeliveryTokens);
+  return `<div class="tool-workspace memory-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Governed repository memory</p><h1>Memory</h1><p>Review proposed facts, inspect current truth, and add explicit source-backed memory.</p></div><dl class="tool-summary"><div><dt>Pending</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Active</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Delivery</dt><dd>${deliveryLabel}</dd></div></dl></header><section class="memory-review-grid"><section class="memory-review-queue"><div class="section-heading"><h2>Review queue</h2><span>${model.summary.pendingProposalCount} pending</span></div>${queue}</section><aside class="memory-intake-panel">${intake}</aside></section><section class="memory-ledger"><div class="section-heading"><h2>Active memory</h2><span>${model.facts.length} facts</span></div>${facts}</section><details class="tool-disclosure memory-delivery"><summary>Delivery details · ${deliveryLabel}</summary><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens||'Not measured'}</dd></div><div><dt>Memory Recall delivery</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.beforeDeliveryTokens>0?model.savings.tokensSaved:'Not measured'}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div></dl>${toolStats}${history}<p class="muted">${model.savings.beforeDeliveryTokens>0?'Delivery values are local estimates, not provider billing claims.':'Run a context delivery with a comparable baseline to measure reduction.'} No model, network, or raw source body is used on this route.</p></details></div>`;
 }
 
 function renderEvidence() {
@@ -2743,22 +2469,12 @@ function renderHarnessSetupResult(report) {
 }
 
 function renderSettings() {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Local system</h2><span>Shared tokens</span></div><div class="token-grid">${[['Ink','--ink'],['Paper','--paper'],['Signal','--signal'],['Proof','--proof'],['Caution','--caution'],['Danger','--danger'],['Success','--success']].map(([name,token])=>`<div class="swatch" style="background:var(${token})"><strong>${name}<code>${token}</code></strong></div>`).join('')}</div></div><aside class="inspector"><h2>Defaults</h2>${localBoundary()}</aside></section>`;
+  return `<div class="tool-workspace settings-workspace"><header class="tool-page-heading"><div><h1>Settings</h1><p>Inspect the local paths, scan bounds, and privacy rules used by this workspace.</p></div><span>Local workspace</span></header><section class="settings-grid"><section><div class="section-heading"><h2>Local storage</h2><span>Derived and governed state</span></div><dl class="facts facts-wide"><div><dt>Memory</dt><dd><code>.local/memory.sqlite</code></dd></div><div><dt>Source graph</dt><dd>Persistent native index; unavailable until explicitly built or refreshed</dd></div><div><dt>Context packs</dt><dd><code>context-packs/</code> when explicitly pinned</dd></div></dl></section><section><div class="section-heading"><h2>Scan limits</h2><span>Bounded by default</span></div><dl class="facts facts-wide"><div><dt>Languages</dt><dd>14 Tier 1 languages; current coverage is reported per scan</dd></div><div><dt>File size</dt><dd>512 KiB default</dd></div><div><dt>Graph display</dt><dd>200 nodes / 400 relationships</dd></div></dl></section><section><div class="section-heading"><h2>Privacy</h2><span>Offline default</span></div>${localBoundary()}<p class="muted">Map and read-only MCP responses expose bounded locators and metadata, never raw source bodies.</p></section></section></div>`;
 }
 
 function metric(value,label,copy){return `<div class="metric"><strong>${Number(value??0)}</strong><span>${label}</span><small>${copy}</small></div>`}
 function statusChip(kind,label,description){return `<span class="status-chip status-${esc(kind)}"><strong>${esc(label)}</strong><small>${esc(description)}</small></span>`}
 function localBoundary(){return `<dl class="facts"><div><dt>Residency</dt><dd>Local-only</dd></div><div><dt>Network</dt><dd>Denied by default</dd></div><div><dt>Writes</dt><dd>External writes disabled</dd></div><div><dt>Model</dt><dd>Deterministic offline default</dd></div></dl>`}
-function renderApiErrorPanel(heading,error) {
-  const model=buildApiErrorUiModel(error);
-  return statePanel('error',heading,model.message,false,renderApiErrorRecovery(model));
-}
-function renderApiErrorRecovery(model) {
-  const issues=model.issues.length ? `<div class="issue-recovery"><h3>Fix this field</h3><ul>${model.issues.map((issue)=>`<li><strong>${esc(issue.label)}</strong><span>${esc(issue.detail)}</span><code>${esc(issue.path)} · ${esc(issue.code)}</code></li>`).join('')}</ul></div>` : '';
-  const correlation=model.correlationId ? `<p class="error-correlation">Correlation <code>${esc(model.correlationId)}</code></p>` : '';
-  return `${issues}${correlation}`;
-}
-function statePanel(kind,heading,copy,button=false,extra=''){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${extra}${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
 export function renderSetupScreen(mode, copy, inputModel=null) {
   const model=inputModel ?? buildAuthViewModel({mode,copy,draft:authDraft,error:authError});
   const isBootstrap = mode === 'bootstrap';
@@ -2871,10 +2587,11 @@ function keyValueFacts(items){
   return `<dl class="summary-list">${items.map((item)=>`<div><dt>${esc(item.key)}</dt><dd>${esc(item.value)}</dd></div>`).join('')}</dl>`;
 }
 
-function navigate(event) {
+async function navigate(event) {
   event.preventDefault();
   activeRunDetail=null;
   history.pushState({},'',event.currentTarget.getAttribute('href'));
+  if(currentRoute().id==='source-graph')await loadSourceMap(parseMapUrl(globalThis.location?.href));
   render();
   document.querySelector('#main').focus({preventScroll:true});
 }
@@ -2886,7 +2603,40 @@ function navigateLocal(event) {
   document.querySelector('#main').focus({preventScroll:true});
 }
 
-async function submitGlobalSearch(event){event.preventDefault();const input=event.currentTarget.elements.query;const query=String(input?.value??'').trim().slice(0,256);if(!query){input?.focus();return}const params=new URLSearchParams({query});const currentWorkspace=workspaceId();if(currentWorkspace!=='ws_local')params.set('workspaceId',currentWorkspace);history.pushState({},'',`/map?${params.toString()}`);document.querySelector('#live-status').textContent='Searching bounded repository metadata.';await loadRecallMap();render();document.querySelector('#main').focus({preventScroll:true});document.querySelector('#live-status').textContent=recallMapError?`Repository search failed. ${buildApiErrorUiModel(recallMapError).message}`:'Repository search loaded.'}
+const COMMAND_TARGETS=Object.freeze({
+  explain:(value)=>`/map?query=${encodeURIComponent(value)}`,
+  trace:(value)=>`/map?query=${encodeURIComponent(value)}&start=${encodeURIComponent(value)}`,
+  impact:(value)=>`/map?query=${encodeURIComponent(value)}&changed=${encodeURIComponent(value)}`,
+  handoff:(value)=>`/handoffs?objective=${encodeURIComponent(value)}`
+});
+
+async function submitGlobalSearch(event){
+  event.preventDefault();
+  const input=event.currentTarget.elements.query;
+  const query=String(input?.value??'').trim().slice(0,256);
+  if(!query){
+    input?.focus();
+    document.querySelector('#live-status').textContent='Enter a file, symbol, concept, or path.';
+    return;
+  }
+  const intent=String(event.currentTarget.elements.intent?.value??'explain');
+  const target=(COMMAND_TARGETS[intent]??COMMAND_TARGETS.explain)(query);
+  const url=new URL(target,'http://127.0.0.1');
+  const currentWorkspace=workspaceId();
+  if(currentWorkspace!=='ws_local')url.searchParams.set('workspaceId',currentWorkspace);
+  history.pushState({},'',`${url.pathname}${url.search}`);
+  if(intent==='handoff'){
+    render();
+    document.querySelector('#main').focus({preventScroll:true});
+    document.querySelector('#live-status').textContent='Handoff objective filled in for review.';
+    return;
+  }
+  document.querySelector('#live-status').textContent='Loading bounded repository metadata.';
+  await loadSourceMap(parseMapUrl(globalThis.location?.href));
+  render();
+  document.querySelector('#main').focus({preventScroll:true});
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map loaded.';
+}
 
 function selectFabricNode(event) {
   activeFabricNode=event.currentTarget.dataset.fabricNode ?? 'context';
@@ -3220,66 +2970,49 @@ async function pinCurrentContextPack(event) {
   }
 }
 
-async function submitSourceGraph(event){
-  event.preventDefault();
-  const form=event.currentTarget;
-  const button=form.querySelector('button[type=submit]');
-  const data=new FormData(form);
-  const query=String(data.get('query') ?? '').trim();
-  const startName=String(data.get('startName') ?? '').trim();
-  const changedLocator=String(data.get('changedLocator') ?? '').trim();
-  const limit=Number(data.get('limit') ?? 8);
-  const depth=Number(data.get('depth') ?? 2);
-  const body={
-    workspaceId:workspaceId(),
-    limit,
-    depth,
-    sampleLimit:6
-  };
-  if(query)body.query=query;
-  if(startName)body.startName=startName;
-  if(changedLocator)body.changedLocators=[changedLocator];
-  button.disabled=true;
-  button.textContent='Previewing...';
-  document.querySelector('#live-status').textContent='Previewing local source graph.';
-  try{
-    sourceGraphResult=await api('/api/context/graph/preview',{method:'POST',body:JSON.stringify(body)});
-    sourceGraphError=null;
-    document.querySelector('#live-status').textContent='Source graph preview ready.';
-    render();
-  }catch(error){
-    document.querySelector('#live-status').textContent=error.message;
-    sourceGraphError=error;
-    render();
-  }finally{
-    button.disabled=false;
-    button.textContent='Preview repo map';
-  }
+async function submitSourceGraph(state){
+  state={...state,offset:0};
+  const target=serializeMapUrl(state);
+  const current=`${globalThis.location?.pathname??''}${globalThis.location?.search??''}`;
+  if(target!==current)history.pushState({},'',target);
+  document.querySelector('#live-status').textContent='Loading the submitted map scope.';
+  await loadSourceMap(state);
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map loaded.';
 }
 
-async function submitMemoryGraph(event){
-  event.preventDefault();
-  const form=event.currentTarget;
-  const button=form.querySelector('button[type=submit]');
-  const data=new FormData(form);
-  const query=String(data.get('query')??'').trim();
-  const history=data.get('history')==='on';
-  const communities=data.get('communities')==='on';
-  button.disabled=true;
-  button.textContent='Refreshing...';
+async function pageSourceGraph(offset){
+  const state={...parseMapUrl(globalThis.location?.href),offset};
+  const target=serializeMapUrl(state);
+  history.pushState({},'',target);
+  document.querySelector('#live-status').textContent='Loading the requested query page.';
+  await loadSourceMap(state);
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Query page loaded.';
+}
+
+async function refreshSourceGraph(){
+  const state=parseMapUrl(globalThis.location?.href);
+  document.querySelector('#live-status').textContent='Refreshing the local source scan.';
+  await loadSourceMap(state,{refresh:true});
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map refresh failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map refreshed.';
+}
+
+async function submitMemoryGraph(options){
   document.querySelector('#live-status').textContent='Refreshing governed memory graph.';
-  await loadMemoryGraph({history,query,entity:'',communities});
+  await loadMemoryGraph(options);
   render();
   document.querySelector('#live-status').textContent=memoryGraphError??'Governed memory graph ready.';
 }
 
-async function toggleMemoryGraphHistory(event){
-  await loadMemoryGraph({...memoryGraphOptions,history:event.currentTarget.checked,entity:''});
+async function toggleMemoryGraphHistory(checked){
+  await loadMemoryGraph({...memoryGraphOptions,history:checked,entity:''});
   render();
 }
 
-function toggleMemoryGraphCommunities(event){
-  memoryGraphOptions={...memoryGraphOptions,communities:event.currentTarget.checked};
+function toggleMemoryGraphCommunities(checked){
+  memoryGraphOptions={...memoryGraphOptions,communities:checked};
   render();
 }
 
@@ -3512,12 +3245,7 @@ async function loadRunById(id,{push=true}={}){
   }
 }
 
-function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
-function relativeAge(from,to){const start=Date.parse(String(from??''));const end=Date.parse(String(to??''));if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 'Not pinned';const minutes=Math.floor((end-start)/60000);if(minutes<60)return `${Math.max(0,minutes)} minute${minutes===1?'':'s'} old`;const hours=Math.floor(minutes/60);if(hours<24)return `${hours} hour${hours===1?'':'s'} old`;const days=Math.floor(hours/24);return `${days} day${days===1?'':'s'} old`}
-function shortFingerprint(value){return `${String(value??'').slice(0,19)}...`}
-function date(value){return value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-'}
 function duration(start,end){if(!start)return '-';const from=Date.parse(start),to=end?Date.parse(end):Date.now();if(!Number.isFinite(from)||!Number.isFinite(to))return '-';const ms=Math.max(0,to-from);if(ms<1000)return `${ms} ms`;if(ms<60000)return `${Math.round(ms/1000)} s`;return `${Math.round(ms/60000)} min`}
-function titleize(value){return String(value??'').split(/[-_]/).filter(Boolean).map((part)=>part[0]?.toUpperCase()+part.slice(1)).join(' ')||'Step'}
 function labelize(value){return titleize(value).replace(/\bId\b/g,'ID')}
 function safeText(value){return String(value??'').replace(/[\r\n\t]+/g,' ').slice(0,160)}
 function previewText(value){return safeText(value).slice(0,220)}
@@ -3530,165 +3258,11 @@ function memoryDisplayText(value){const text=String(value??'');return /sk-[A-Za-
 function safeKeyValueList(value){if(!value||typeof value!=='object'||Array.isArray(value))return [];return Object.entries(value).filter(([key])=>!/prompt|body|credential|token|secret|path|url|reasoning|sql/i.test(key)).slice(0,8).map(([key,raw])=>({key:labelize(key),value:Array.isArray(raw)?raw.slice(0,4).map(safeText).join(', '):safeText(raw)}))}
 function quoteShell(value){return `'${String(value??'').replaceAll("'","'\"'\"'")}'`}
 
-function memoryGraphNodeColor(type,community=0,useCommunity=false){
-  if(useCommunity){
-    const palette=['#4cc9a6','#7aa2ff','#f7b955','#e56b8b','#b38cff','#62d3ff','#9bd66f','#f08f4f'];
-    return palette[Math.abs(Number(community??0))%palette.length];
-  }
-  return ({project:'#4cc9a6',provider:'#7aa2ff',port:'#f7b955',decision:'#e56b8b',module:'#b38cff',entity:'#8a96a8'})[type]??'#8a96a8';
-}
-
-function memoryGraphVisiblePayload(report){
-  const nodes=Array.isArray(report?.graph?.nodes)?report.graph.nodes:[];
-  const edges=Array.isArray(report?.graph?.edges)?report.graph.edges:[];
-  const focusNames=new Set((report?.focus?.nodes??[]).map((node)=>node.name));
-  if(!focusNames.size)return {nodes,edges};
-  return {
-    nodes:nodes.filter((node)=>focusNames.has(node.name)),
-    edges:edges.filter((edge)=>focusNames.has(edge.from)&&focusNames.has(edge.to))
-  };
-}
-
-function layoutMemoryGraph(nodes,edges,width,height){
-  const positions=new Map();
-  const centerX=width/2;
-  const centerY=height/2;
-  const radius=Math.max(80,Math.min(width,height)*0.36);
-  nodes.forEach((node,index)=>{
-    const angle=(Math.PI*2*index)/Math.max(1,nodes.length);
-    positions.set(node.id,{x:centerX+Math.cos(angle)*radius,y:centerY+Math.sin(angle)*radius,vx:0,vy:0,node});
-  });
-  const linked=edges.map((edge)=>({source:positions.get(edge.from),target:positions.get(edge.to),edge})).filter((item)=>item.source&&item.target);
-  for(let tick=0;tick<90;tick+=1){
-    for(let i=0;i<nodes.length;i+=1){
-      const a=positions.get(nodes[i].id);
-      for(let j=i+1;j<nodes.length;j+=1){
-        const b=positions.get(nodes[j].id);
-        let dx=a.x-b.x;
-        let dy=a.y-b.y;
-        let distance=Math.max(24,Math.hypot(dx,dy));
-        const force=780/(distance*distance);
-        dx/=distance;dy/=distance;
-        a.vx+=dx*force;b.vx-=dx*force;
-        a.vy+=dy*force;b.vy-=dy*force;
-      }
-    }
-    for(const link of linked){
-      const dx=link.target.x-link.source.x;
-      const dy=link.target.y-link.source.y;
-      const distance=Math.max(1,Math.hypot(dx,dy));
-      const target=140;
-      const force=(distance-target)*0.015;
-      const fx=(dx/distance)*force;
-      const fy=(dy/distance)*force;
-      link.source.vx+=fx;link.target.vx-=fx;
-      link.source.vy+=fy;link.target.vy-=fy;
-    }
-    for(const entry of positions.values()){
-      entry.vx+=(centerX-entry.x)*0.004;
-      entry.vy+=(centerY-entry.y)*0.004;
-      entry.x=Math.max(36,Math.min(width-36,entry.x+entry.vx));
-      entry.y=Math.max(36,Math.min(height-36,entry.y+entry.vy));
-      entry.vx*=0.82;entry.vy*=0.82;
-    }
-  }
-  return positions;
-}
-
-function drawMemoryGraphCanvas(canvas,report,options={}){
-  if(!canvas||!report?.graph)return;
-  const ctx=canvas.getContext('2d');
-  if(!ctx)return;
-  const rect=canvas.getBoundingClientRect();
-  const width=Math.max(640,Math.floor(rect.width||canvas.width||1120));
-  const height=Math.max(420,Math.floor(rect.height||canvas.height||640));
-  const dpr=Math.min(2,globalThis.devicePixelRatio||1);
-  canvas.width=width*dpr;
-  canvas.height=height*dpr;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,width,height);
-  ctx.fillStyle='#111826';
-  ctx.fillRect(0,0,width,height);
-  const {nodes,edges}=memoryGraphVisiblePayload(report);
-  if(!nodes.length){
-    ctx.fillStyle='#8a96a8';
-    ctx.font='14px Inter, system-ui, sans-serif';
-    ctx.fillText('No governed graph nodes to render.',24,34);
-    return;
-  }
-  const positions=layoutMemoryGraph(nodes,edges,width,height);
-  const focusNodes=new Set((report.focus?.nodes??[]).map((node)=>node.name));
-  const query=String(options.query??'').toLowerCase();
-  ctx.lineCap='round';
-  for(const edge of edges){
-    const source=positions.get(edge.from);
-    const target=positions.get(edge.to);
-    if(!source||!target)continue;
-    const focused=!focusNodes.size||focusNodes.has(edge.from)||focusNodes.has(edge.to);
-    ctx.globalAlpha=edge.current?(focused?0.72:0.32):0.18;
-    ctx.strokeStyle=edge.current?'#4f5d75':'#9aa3b2';
-    ctx.lineWidth=edge.current?1.4:1;
-    ctx.setLineDash(edge.current?[]:[5,5]);
-    ctx.beginPath();
-    ctx.moveTo(source.x,source.y);
-    ctx.lineTo(target.x,target.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    const labelX=(source.x+target.x)/2;
-    const labelY=(source.y+target.y)/2;
-    ctx.globalAlpha=edge.current?0.75:0.32;
-    ctx.fillStyle='#c7ced9';
-    ctx.font='11px Inter, system-ui, sans-serif';
-    ctx.fillText(edge.predicate.slice(0,28),labelX+4,labelY-4);
-  }
-  ctx.globalAlpha=1;
-  for(const node of nodes){
-    const point=positions.get(node.id);
-    if(!point)continue;
-    const matched=query&&node.name.toLowerCase().includes(query);
-    const focused=!focusNodes.size||focusNodes.has(node.name);
-    const r=Number(node.size??10)+(matched?4:0);
-    ctx.globalAlpha=node.current?(focused?1:0.52):0.34;
-    ctx.fillStyle=memoryGraphNodeColor(node.type,node.community,options.communities);
-    ctx.beginPath();
-    ctx.arc(point.x,point.y,r,0,Math.PI*2);
-    ctx.fill();
-    if(node.governedDecision||matched){
-      ctx.strokeStyle=node.governedDecision?'#ff7395':'#f7b955';
-      ctx.lineWidth=3;
-      ctx.stroke();
-    }
-    ctx.globalAlpha=node.current?0.92:0.46;
-    ctx.fillStyle='#f5f7fb';
-    ctx.font='12px Inter, system-ui, sans-serif';
-    ctx.fillText(node.name.slice(0,34),point.x+r+5,point.y+4);
-  }
-  ctx.globalAlpha=1;
-  canvas.onclick=async (event)=>{
-    const box=canvas.getBoundingClientRect();
-    const x=(event.clientX-box.left)*(width/box.width);
-    const y=(event.clientY-box.top)*(height/box.height);
-    let selected=null;
-    let best=Infinity;
-    for(const node of nodes){
-      const point=positions.get(node.id);
-      if(!point)continue;
-      const distance=Math.hypot(point.x-x,point.y-y);
-      const hit=(Number(node.size??10)+8);
-      if(distance<hit&&distance<best){selected=node;best=distance;}
-    }
-    if(!selected)return;
-    document.querySelector('#live-status').textContent=`Focusing ${selected.name}.`;
-    await loadMemoryGraph({...memoryGraphOptions,entity:selected.name,query:''});
-    render();
-  };
-}
-
 function boot(){
   document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
   document.querySelector('#global-search-form')?.addEventListener('submit',submitGlobalSearch);
   document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){const menu=document.querySelector('#repository-menu[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus()}}});
-  window.addEventListener('popstate',async()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else if(currentRoute().id==='source-graph'){await loadRecallMap();render()}else render()});
+  window.addEventListener('popstate',async()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else if(currentRoute().id==='source-graph'){await loadSourceMap(parseMapUrl(location.href));render()}else render()});
   const runId=new URL(location.href).searchParams.get('run');
   load().then(()=>{if(runId)loadRunById(runId,{push:false})});
 }

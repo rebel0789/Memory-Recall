@@ -1,0 +1,2208 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase2-batch-c-1",
+  "phase": 2,
+  "batch": "C",
+  "generatedAt": "2026-07-18T17:36:44.826Z",
+  "inputs": {
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
+    "bounds": {
+      "maxFiles": 5000,
+      "maxFileBytes": 524288,
+      "maxNodes": 5000,
+      "maxEdges": 10000
+    },
+    "fixtureTruth": [
+      "evals/code-intelligence/truth/fixtures/java.json",
+      "evals/code-intelligence/truth/fixtures/kotlin.json",
+      "evals/code-intelligence/truth/fixtures/csharp.json"
+    ],
+    "repositoryTruth": [
+      "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
+      "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json",
+      "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json",
+      "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json",
+      "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json",
+      "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json",
+      "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json",
+      "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json",
+      "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json"
+    ],
+    "repositoryRefs": [
+      "corpus://cirepo_java_google_gson@c9f3fd55854a743b66f857ace3c7b268ea3e2ef7#gson/src/main/java/com/google/gson/reflect",
+      "corpus://cirepo_java_google_guava@5143dbe06b8a1632b50c8fe19b2870fe135e46e2#guava/src/com/google/common/base/internal",
+      "corpus://cirepo_java_spring_projects_spring_petclinic@51045d1648dad955df586150c1a1a6e22ef400c2#src/main/java/org/springframework/samples/petclinic/owner",
+      "corpus://cirepo_kotlin_android_nowinandroid@7d45eae4f8720a0c77f507712ba2437ff974b6ed#core/model/src/main/kotlin",
+      "corpus://cirepo_kotlin_kotlin_kotlinx_coroutines@165c6cb5859b5365dec193abc75dee9f49ce1389#kotlinx-coroutines-core/common/src/internal",
+      "corpus://cirepo_kotlin_ktorio_ktor@fc6595632e7412abb98b941f926d0ea13c7647d1#ktor-server/ktor-server-core/common/src/io/ktor/server/routing",
+      "corpus://cirepo_csharp_dotnet_aspnetcore@d89ecc425733c5439096864cb9f7f97cab5416a0#src/Http/Routing/src/Patterns",
+      "corpus://cirepo_csharp_dotnet_runtime@e487c08fc5e689918da3e7fbb2747ca8b02c260d#src/libraries/System.Text.Json/src/System/Text/Json/Nodes",
+      "corpus://cirepo_csharp_jamesnk_newtonsoft_json@4f73e74372445108d2c1bda37b36e6f5e43402e0#Src/Newtonsoft.Json/Linq/JsonPath"
+    ]
+  },
+  "thresholds": {
+    "symbolRecallMinimum": 0.95,
+    "resolvedCallPrecisionMinimum": 0.9,
+    "duplicateCanonicalSymbolMaximum": 0,
+    "deterministicStructuralFingerprintRequired": true,
+    "malformedFileRepositoryFailureMaximum": 0,
+    "explicitPartialAndUnsupportedDiagnosticsRequired": true,
+    "realRepositoryGatesRequired": true
+  },
+  "cases": [
+    {
+      "id": "fixture_java_batch_c",
+      "language": "java",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:ad39462c53135511473eb41f8b657da328927345db347861b0a7ff10bdfc769c",
+      "truthPath": "evals/code-intelligence/truth/fixtures/java.json",
+      "graph": {
+        "fingerprint": "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd",
+        "nodeCount": 26,
+        "edgeCount": 31,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "java",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 34.035,
+        "secondElapsedMs": 12.829,
+        "evaluatorMaxRssKb": 61664,
+        "graphResponseBytes": 29861,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_java_batch_c_fixture",
+        "language": "java",
+        "sourceRef": "fixture://sha256:ad39462c53135511473eb41f8b657da328927345db347861b0a7ff10bdfc769c",
+        "graphFingerprints": [
+          "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd",
+          "sha256:e6b5542480c2b3b869577528a7d5cde1b9c804e0274823494b0c7dce356c3bbd"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 10,
+            "denominator": 10,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 17,
+          "matchedTruthItemCount": 17
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 9,
+            "matchedItemCount": 9
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:bc843f0a04e6524eb48f1b9fba71c997def8f957a7e9ce841139b48e064c4f76"
+      }
+    },
+    {
+      "id": "fixture_kotlin_batch_c",
+      "language": "kotlin",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:cfff5566f8341ab07fb7b53d900368fbf47cb2535fcec14ad2c8a1b2a7cccac5",
+      "truthPath": "evals/code-intelligence/truth/fixtures/kotlin.json",
+      "graph": {
+        "fingerprint": "sha256:d7c6bef8b1e4a9e28fc9003b74e89d913646a6a37bc883560ffeac355b37db2e",
+        "nodeCount": 25,
+        "edgeCount": 30,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "kotlin",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 12.915,
+        "secondElapsedMs": 12.173,
+        "evaluatorMaxRssKb": 66592,
+        "graphResponseBytes": 28638,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_kotlin_batch_c_fixture",
+        "language": "kotlin",
+        "sourceRef": "fixture://sha256:cfff5566f8341ab07fb7b53d900368fbf47cb2535fcec14ad2c8a1b2a7cccac5",
+        "graphFingerprints": [
+          "sha256:d7c6bef8b1e4a9e28fc9003b74e89d913646a6a37bc883560ffeac355b37db2e",
+          "sha256:d7c6bef8b1e4a9e28fc9003b74e89d913646a6a37bc883560ffeac355b37db2e"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 11,
+            "denominator": 11,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 18,
+          "matchedTruthItemCount": 18
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 9,
+            "matchedItemCount": 9
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:62ad498c2e5cda308fb47ab4cbbf956c8d89e7e32fbc2dcddbd2bd0e1f4b42d3"
+      }
+    },
+    {
+      "id": "fixture_csharp_batch_c",
+      "language": "csharp",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:fb5825d7f930972c667cd4d519daaa8afe058367eeba76a07a88fa67e42f88b1",
+      "truthPath": "evals/code-intelligence/truth/fixtures/csharp.json",
+      "graph": {
+        "fingerprint": "sha256:bcfc56309cec380829a6e3344f56eb9f1a3026914f106fc20ff6ae87e46ead19",
+        "nodeCount": 32,
+        "edgeCount": 37,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "csharp",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 12.725,
+        "secondElapsedMs": 12.459,
+        "evaluatorMaxRssKb": 67984,
+        "graphResponseBytes": 32773,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_csharp_batch_c_fixture",
+        "language": "csharp",
+        "sourceRef": "fixture://sha256:fb5825d7f930972c667cd4d519daaa8afe058367eeba76a07a88fa67e42f88b1",
+        "graphFingerprints": [
+          "sha256:bcfc56309cec380829a6e3344f56eb9f1a3026914f106fc20ff6ae87e46ead19",
+          "sha256:bcfc56309cec380829a6e3344f56eb9f1a3026914f106fc20ff6ae87e46ead19"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 14,
+            "denominator": 14,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 22,
+          "matchedTruthItemCount": 22
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 12,
+            "matchedItemCount": 12
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:0c42d94dc401a69e63eea301227e6888534743bc11c63424f306f5913735a1ba"
+      }
+    },
+    {
+      "id": "cirepo_java_google_gson",
+      "repositoryId": "cirepo_java_google_gson",
+      "language": "java",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_java_google_gson@c9f3fd55854a743b66f857ace3c7b268ea3e2ef7#gson/src/main/java/com/google/gson/reflect",
+      "commit": "c9f3fd55854a743b66f857ace3c7b268ea3e2ef7",
+      "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
+      "graph": {
+        "fingerprint": "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1",
+        "nodeCount": 74,
+        "edgeCount": 149,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "java",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 19.49,
+        "secondElapsedMs": 18.813,
+        "evaluatorMaxRssKb": 72576,
+        "graphResponseBytes": 107661,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_java_google_gson_reflect",
+        "language": "java",
+        "sourceRef": "corpus://cirepo_java_google_gson@c9f3fd55854a743b66f857ace3c7b268ea3e2ef7#gson/src/main/java/com/google/gson/reflect",
+        "graphFingerprints": [
+          "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1",
+          "sha256:b0f172e92b298f3f7bc9ce294eeb39688fe590065133ab8fe560aba6f041a2a1"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:99f0e2a7aeeac0e3faaad9eab56e483e812880240fd6db3130e856a0bc806b7f"
+      }
+    },
+    {
+      "id": "cirepo_java_google_guava",
+      "repositoryId": "cirepo_java_google_guava",
+      "language": "java",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_java_google_guava@5143dbe06b8a1632b50c8fe19b2870fe135e46e2#guava/src/com/google/common/base/internal",
+      "commit": "5143dbe06b8a1632b50c8fe19b2870fe135e46e2",
+      "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json",
+      "graph": {
+        "fingerprint": "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf",
+        "nodeCount": 45,
+        "edgeCount": 53,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "java",
+            "support": "partial",
+            "discoveredFileCount": 1,
+            "indexedFileCount": 1,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 12.398,
+        "secondElapsedMs": 12.854,
+        "evaluatorMaxRssKb": 72880,
+        "graphResponseBytes": 46010,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_java_google_guava_finalizer",
+        "language": "java",
+        "sourceRef": "corpus://cirepo_java_google_guava@5143dbe06b8a1632b50c8fe19b2870fe135e46e2#guava/src/com/google/common/base/internal",
+        "graphFingerprints": [
+          "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf",
+          "sha256:94aeb8dd47b6fe2a467196ef479e3d2936587cd8209a2002528accc5a833adaf"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:8ee217002cc6849ff53dd32ae5970ab8d5120033427bdedcce2312915ad8d5e8"
+      }
+    },
+    {
+      "id": "cirepo_java_spring_projects_spring_petclinic",
+      "repositoryId": "cirepo_java_spring_projects_spring_petclinic",
+      "language": "java",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_java_spring_projects_spring_petclinic@51045d1648dad955df586150c1a1a6e22ef400c2#src/main/java/org/springframework/samples/petclinic/owner",
+      "commit": "51045d1648dad955df586150c1a1a6e22ef400c2",
+      "truthPath": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json",
+      "graph": {
+        "fingerprint": "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068",
+        "nodeCount": 263,
+        "edgeCount": 391,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "java",
+            "support": "partial",
+            "discoveredFileCount": 12,
+            "indexedFileCount": 12,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 35.111,
+        "secondElapsedMs": 36.171,
+        "evaluatorMaxRssKb": 75376,
+        "graphResponseBytes": 312840,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_java_spring_petclinic_owner",
+        "language": "java",
+        "sourceRef": "corpus://cirepo_java_spring_projects_spring_petclinic@51045d1648dad955df586150c1a1a6e22ef400c2#src/main/java/org/springframework/samples/petclinic/owner",
+        "graphFingerprints": [
+          "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068",
+          "sha256:f7c946087b2898df39c915afc8ef76ad9fc8add1e35b0d8e2dbdc36696be8068"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 5,
+            "denominator": 5,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:10aca7402f0ecabc48a16b1b9a70c24c96ebc9711f7650b910b989e76011fecd"
+      }
+    },
+    {
+      "id": "cirepo_kotlin_android_nowinandroid",
+      "repositoryId": "cirepo_kotlin_android_nowinandroid",
+      "language": "kotlin",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_kotlin_android_nowinandroid@7d45eae4f8720a0c77f507712ba2437ff974b6ed#core/model/src/main/kotlin",
+      "commit": "7d45eae4f8720a0c77f507712ba2437ff974b6ed",
+      "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json",
+      "graph": {
+        "fingerprint": "sha256:49e21b3bb196e319df8cafd6034fba58c155dcee2853deb8f9797fa19b0cccb7",
+        "nodeCount": 40,
+        "edgeCount": 35,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "kotlin",
+            "support": "partial",
+            "discoveredFileCount": 9,
+            "indexedFileCount": 9,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 14.381,
+        "secondElapsedMs": 12.92,
+        "evaluatorMaxRssKb": 75376,
+        "graphResponseBytes": 43299,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_kotlin_android_nowinandroid_model",
+        "language": "kotlin",
+        "sourceRef": "corpus://cirepo_kotlin_android_nowinandroid@7d45eae4f8720a0c77f507712ba2437ff974b6ed#core/model/src/main/kotlin",
+        "graphFingerprints": [
+          "sha256:49e21b3bb196e319df8cafd6034fba58c155dcee2853deb8f9797fa19b0cccb7",
+          "sha256:49e21b3bb196e319df8cafd6034fba58c155dcee2853deb8f9797fa19b0cccb7"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:278cb8c8ef1e8f94ce5695c1247c0c3f9ad97d4195fa2c5d8136c984820f1de5"
+      }
+    },
+    {
+      "id": "cirepo_kotlin_kotlin_kotlinx_coroutines",
+      "repositoryId": "cirepo_kotlin_kotlin_kotlinx_coroutines",
+      "language": "kotlin",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_kotlin_kotlin_kotlinx_coroutines@165c6cb5859b5365dec193abc75dee9f49ce1389#kotlinx-coroutines-core/common/src/internal",
+      "commit": "165c6cb5859b5365dec193abc75dee9f49ce1389",
+      "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json",
+      "graph": {
+        "fingerprint": "sha256:f2baf843c94ea36c696359a57d383f45f214f8de73b2e9871b7092708c2d7645",
+        "nodeCount": 401,
+        "edgeCount": 573,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "kotlin",
+            "support": "partial",
+            "discoveredFileCount": 23,
+            "indexedFileCount": 23,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 57.481,
+        "secondElapsedMs": 57.268,
+        "evaluatorMaxRssKb": 84752,
+        "graphResponseBytes": 471062,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_kotlin_coroutines_internal_heap",
+        "language": "kotlin",
+        "sourceRef": "corpus://cirepo_kotlin_kotlin_kotlinx_coroutines@165c6cb5859b5365dec193abc75dee9f49ce1389#kotlinx-coroutines-core/common/src/internal",
+        "graphFingerprints": [
+          "sha256:f2baf843c94ea36c696359a57d383f45f214f8de73b2e9871b7092708c2d7645",
+          "sha256:f2baf843c94ea36c696359a57d383f45f214f8de73b2e9871b7092708c2d7645"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:5439a016996708ac6a0f034904b22cd1261ade3107a39adc11b6c074013ff677"
+      }
+    },
+    {
+      "id": "cirepo_kotlin_ktorio_ktor",
+      "repositoryId": "cirepo_kotlin_ktorio_ktor",
+      "language": "kotlin",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_kotlin_ktorio_ktor@fc6595632e7412abb98b941f926d0ea13c7647d1#ktor-server/ktor-server-core/common/src/io/ktor/server/routing",
+      "commit": "fc6595632e7412abb98b941f926d0ea13c7647d1",
+      "truthPath": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json",
+      "graph": {
+        "fingerprint": "sha256:cbaedb913e34c0ecbd81821be54249507a3d360c35af36765f7d42c398ce218e",
+        "nodeCount": 498,
+        "edgeCount": 846,
+        "diagnosticCount": 0,
+        "diagnostics": [],
+        "coverage": [
+          {
+            "language": "kotlin",
+            "support": "partial",
+            "discoveredFileCount": 15,
+            "indexedFileCount": 15,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 74.381,
+        "secondElapsedMs": 73.754,
+        "evaluatorMaxRssKb": 88432,
+        "graphResponseBytes": 647921,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_kotlin_ktor_routing_trace",
+        "language": "kotlin",
+        "sourceRef": "corpus://cirepo_kotlin_ktorio_ktor@fc6595632e7412abb98b941f926d0ea13c7647d1#ktor-server/ktor-server-core/common/src/io/ktor/server/routing",
+        "graphFingerprints": [
+          "sha256:cbaedb913e34c0ecbd81821be54249507a3d360c35af36765f7d42c398ce218e",
+          "sha256:cbaedb913e34c0ecbd81821be54249507a3d360c35af36765f7d42c398ce218e"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:64678515917323d976499bc19c794dc148d4d95229574f3c6c388fe497ac60e6"
+      }
+    },
+    {
+      "id": "cirepo_csharp_dotnet_aspnetcore",
+      "repositoryId": "cirepo_csharp_dotnet_aspnetcore",
+      "language": "csharp",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_csharp_dotnet_aspnetcore@d89ecc425733c5439096864cb9f7f97cab5416a0#src/Http/Routing/src/Patterns",
+      "commit": "d89ecc425733c5439096864cb9f7f97cab5416a0",
+      "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json",
+      "graph": {
+        "fingerprint": "sha256:85d8485ccd0b106a89af7f739f63cef9b454bfbe35444d7102af0cf69661832d",
+        "nodeCount": 303,
+        "edgeCount": 644,
+        "diagnosticCount": 11,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 11
+          }
+        ],
+        "coverage": [
+          {
+            "language": "csharp",
+            "support": "partial",
+            "discoveredFileCount": 17,
+            "indexedFileCount": 17,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 75.111,
+        "secondElapsedMs": 72.761,
+        "evaluatorMaxRssKb": 101696,
+        "graphResponseBytes": 481162,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_csharp_aspnetcore_route_patterns",
+        "language": "csharp",
+        "sourceRef": "corpus://cirepo_csharp_dotnet_aspnetcore@d89ecc425733c5439096864cb9f7f97cab5416a0#src/Http/Routing/src/Patterns",
+        "graphFingerprints": [
+          "sha256:85d8485ccd0b106a89af7f739f63cef9b454bfbe35444d7102af0cf69661832d",
+          "sha256:85d8485ccd0b106a89af7f739f63cef9b454bfbe35444d7102af0cf69661832d"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:4b3e9cb70dbacf62b72722d0b2089dbefa5b78ec25591bf509b2d254bbd91876"
+      }
+    },
+    {
+      "id": "cirepo_csharp_dotnet_runtime",
+      "repositoryId": "cirepo_csharp_dotnet_runtime",
+      "language": "csharp",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_csharp_dotnet_runtime@e487c08fc5e689918da3e7fbb2747ca8b02c260d#src/libraries/System.Text.Json/src/System/Text/Json/Nodes",
+      "commit": "e487c08fc5e689918da3e7fbb2747ca8b02c260d",
+      "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json",
+      "graph": {
+        "fingerprint": "sha256:7f7185263a8876aac482108eedd4a3537323bac5e00470f468c0a8009789bdef",
+        "nodeCount": 473,
+        "edgeCount": 746,
+        "diagnosticCount": 4,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 4
+          }
+        ],
+        "coverage": [
+          {
+            "language": "csharp",
+            "support": "partial",
+            "discoveredFileCount": 17,
+            "indexedFileCount": 17,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 80.035,
+        "secondElapsedMs": 80.341,
+        "evaluatorMaxRssKb": 106176,
+        "graphResponseBytes": 588258,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_csharp_dotnet_runtime_json_nodes",
+        "language": "csharp",
+        "sourceRef": "corpus://cirepo_csharp_dotnet_runtime@e487c08fc5e689918da3e7fbb2747ca8b02c260d#src/libraries/System.Text.Json/src/System/Text/Json/Nodes",
+        "graphFingerprints": [
+          "sha256:7f7185263a8876aac482108eedd4a3537323bac5e00470f468c0a8009789bdef",
+          "sha256:7f7185263a8876aac482108eedd4a3537323bac5e00470f468c0a8009789bdef"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:4ca087e2643f411948977ca30013655b19113b1488cd115e6ef95bfd7fbf6232"
+      }
+    },
+    {
+      "id": "cirepo_csharp_jamesnk_newtonsoft_json",
+      "repositoryId": "cirepo_csharp_jamesnk_newtonsoft_json",
+      "language": "csharp",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_csharp_jamesnk_newtonsoft_json@4f73e74372445108d2c1bda37b36e6f5e43402e0#Src/Newtonsoft.Json/Linq/JsonPath",
+      "commit": "4f73e74372445108d2c1bda37b36e6f5e43402e0",
+      "truthPath": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json",
+      "graph": {
+        "fingerprint": "sha256:6c2f77dbc8071ff987c9fc9374f1b56c39eb7088a50276a094c26c55303e7d43",
+        "nodeCount": 180,
+        "edgeCount": 387,
+        "diagnosticCount": 2,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 2
+          }
+        ],
+        "coverage": [
+          {
+            "language": "csharp",
+            "support": "partial",
+            "discoveredFileCount": 13,
+            "indexedFileCount": 13,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 42.467,
+        "secondElapsedMs": 43.928,
+        "evaluatorMaxRssKb": 106560,
+        "graphResponseBytes": 276583,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_csharp_newtonsoft_jsonpath",
+        "language": "csharp",
+        "sourceRef": "corpus://cirepo_csharp_jamesnk_newtonsoft_json@4f73e74372445108d2c1bda37b36e6f5e43402e0#Src/Newtonsoft.Json/Linq/JsonPath",
+        "graphFingerprints": [
+          "sha256:6c2f77dbc8071ff987c9fc9374f1b56c39eb7088a50276a094c26c55303e7d43",
+          "sha256:6c2f77dbc8071ff987c9fc9374f1b56c39eb7088a50276a094c26c55303e7d43"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:e558f6385a60e8780009af16a65afc4483bbb6a10f01410bf71c1ec021115ebb"
+      }
+    }
+  ],
+  "languages": [
+    {
+      "language": "java",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 21,
+          "denominator": 21,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    },
+    {
+      "language": "kotlin",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 20,
+          "denominator": 20,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 13,
+          "denominator": 13,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    },
+    {
+      "language": "csharp",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 23,
+          "denominator": 23,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 10,
+          "denominator": 10,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    }
+  ],
+  "failures": [],
+  "gateDecision": "pass",
+  "publicDefault": {
+    "engine": "js",
+    "changed": false
+  },
+  "claims": {
+    "accuracyFloorMet": true,
+    "parity": false,
+    "leadership": false,
+    "reason": "Batch C measures reviewed Java, Kotlin, and C# truth. It does not change the public engine or claim competitor parity."
+  },
+  "safeguards": {
+    "rawSourceStored": false,
+    "absoluteCheckoutPathsStored": false,
+    "environmentVariablesStored": false,
+    "engineNetworkCalls": 0,
+    "engineModelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "workspaceWrites": 0
+  },
+  "reportFingerprint": "sha256:90c5ca1e633671993de1f9f0dae40368f08324fae7ec10f8d9c5f07f44c2ee10"
+}

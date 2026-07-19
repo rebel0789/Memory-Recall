@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/code-intelligence-benchmark-manifest.schema.json",
+  "title": "Memory Recall Code Intelligence Benchmark Corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "corpusVersion", "generatedAt", "sourceCandidatesFingerprint", "repositories", "corpusFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "corpusVersion": { "const": "memory-recall-code-intelligence-corpus-1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "sourceCandidatesFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "repositories": {
+      "type": "array",
+      "minItems": 43,
+      "maxItems": 43,
+      "items": { "$ref": "#/$defs/repository" }
+    },
+    "corpusFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "language": {
+      "enum": ["typescript", "javascript", "python", "java", "kotlin", "csharp", "go", "rust", "php", "ruby", "swift", "c", "cpp", "dart"]
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "commit", "primaryLanguage", "sizeClass", "role", "licenseExpression", "licenseUrl"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cirepo_[a-z0-9_]{3,120}$"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "primaryLanguage": { "$ref": "#/$defs/language" },
+        "sizeClass": { "enum": ["small", "medium", "large"] },
+        "role": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,63}$"
+        },
+        "licenseExpression": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9.+() -]+$"
+        },
+        "licenseUrl": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(?:blob|tree)/HEAD/[A-Za-z0-9._/-]+$"
+        }
+      }
+    }
+  }
+}

@@ -2,13 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import os from 'node:os';
 import path from 'node:path';
 import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
 import { assertJsonSchema, validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
-import { buildRecallMap } from '../packages/recall-map/src/index.mjs';
+import { buildRecallMap as buildRecallMapReport } from '../packages/recall-map/src/index.mjs';
+import {
+  buildNativeIndexSourceGraphPreview,
+  buildUnavailableSourceGraphPreview
+} from '../packages/source-graph/src/index.mjs';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 
 const WORKSPACE_ID = 'ws_local';
@@ -91,6 +95,146 @@ function sha256File(filename) {
 
 const loadJson = async (filename) => JSON.parse(await readFile(filename, 'utf8'));
 
+async function buildRecallMap(options) {
+  const rootStatus = await stat(options.root).catch(() => null);
+  const sourceGraphPreviewBuilder = rootStatus?.isDirectory()
+    ? buildFixtureNativePreview
+    : (request) => buildUnavailableSourceGraphPreview({
+      ...request,
+      errorCode: 'source_index_unavailable'
+    });
+  return buildRecallMapReport({ ...options, sourceGraphPreviewBuilder });
+}
+
+function buildFixtureNativePreview(request) {
+  const label = String(request.query ?? '').includes('mapLimit') ? 'mapLimitOne' : 'startWorkspace';
+  const file = {
+    id: 'cinode_fixture_file',
+    kind: 'file',
+    label: 'src/index.ts',
+    locator: 'workspace://src/index.ts',
+    confidence: 1,
+    generation: 1
+  };
+  const symbol = {
+    id: 'cinode_fixture_symbol',
+    kind: 'function',
+    label,
+    locator: 'workspace://src/index.ts#L1-L3',
+    confidence: 1,
+    generation: 1
+  };
+  const relationship = {
+    id: 'ciedge_fixture_defined',
+    kind: 'defined_in',
+    fromNodeId: symbol.id,
+    toNodeId: file.id,
+    locator: symbol.locator,
+    confidence: 1,
+    resolution: 'exact',
+    resolver: 'fixture',
+    resolverVersion: '1.0.0',
+    generation: 1,
+    stale: false
+  };
+  const status = fixtureNativeResult({ operation: 'index.status', results: [] });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities') {
+        return fixtureNativeResult({
+          results: [file, symbol],
+          relationships: [relationship],
+          communities: [{
+            id: 'cicommunity_fixture_src',
+            label: 'src',
+            pathPrefix: 'src',
+            representedNodeCount: 2,
+            representedRelationshipCount: 1,
+            nodeIds: [file.id, symbol.id],
+            algorithmVersion: 'label-propagation-v1',
+            truncated: false
+          }]
+        });
+      }
+      if (kind === 'processes') return fixtureNativeResult({ results: [], relationships: [], processes: [] });
+      if (kind === 'search') return fixtureNativeResult({ results: [symbol] });
+      if (kind === 'neighborhood' || kind === 'impact') {
+        return fixtureNativeResult({ results: [file, symbol], relationships: [relationship] });
+      }
+      if (kind === 'dependencies') return fixtureNativeResult({ results: [symbol], relationships: [] });
+      throw new Error(`unexpected fixture native query: ${kind}`);
+    }
+  };
+  return buildNativeIndexSourceGraphPreview({ provider, status, ...request });
+}
+
+function fixtureNativeResult(overrides = {}) {
+  return {
+    schemaVersion: '1.0.0',
+    operation: 'index.query',
+    state: 'ready',
+    freshness: 'current',
+    indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+    activeGeneration: 1,
+    repositoryIdentityHash: `sha256:${'1'.repeat(64)}`,
+    engineVersion: '2.0.0',
+    health: {
+      status: 'ready',
+      repairRequired: false,
+      lastSuccessfulRefreshAt: '2026-07-10T00:00:00.000Z'
+    },
+    summary: { fileCount: 1, nodeCount: 2, edgeCount: 1 },
+    results: [],
+    relationships: [],
+    diagnostics: [],
+    truncated: false,
+    nextCursor: null,
+    measurements: { durationMs: 1 },
+    safeguards: { readOnly: true, localFilesWritten: 0 },
+    ...overrides
+  };
+}
+
+function nativeNode(id, kind, label, locator) {
+  return {
+    id: `cinode_${id.padEnd(32, '0')}`,
+    kind,
+    label,
+    locator,
+    confidence: 1,
+    generation: 1
+  };
+}
+
+function nativeRelationship(kind, fromNodeId, toNodeId, locator) {
+  return {
+    id: `ciedge_${kind.padEnd(32, '0')}`,
+    kind,
+    fromNodeId,
+    toNodeId,
+    locator,
+    confidence: 1,
+    resolution: 'exact',
+    resolver: 'fixture',
+    resolverVersion: '1.0.0',
+    generation: 1,
+    stale: false
+  };
+}
+
+function nativeCommunity(id, pathPrefix, nodeIds) {
+  return {
+    id: `cicommunity_${id.padEnd(32, '0')}`,
+    label: pathPrefix,
+    pathPrefix,
+    representedNodeCount: nodeIds.length,
+    representedRelationshipCount: 0,
+    nodeIds,
+    algorithmVersion: 'label-propagation-v1',
+    truncated: false
+  };
+}
+
 test('Recall Map composes bounded architecture and governed-memory truth without writes', async (t) => {
   const root = await fixtureWorkspace(t);
   const sqlitePath = path.join(root, '.local', 'memory.sqlite');
@@ -114,7 +258,9 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   assert.equal(report.safeguards.rawSourceBodiesIncluded, false);
   assert.equal(report.safeguards.localFilesWritten, 0);
   assert.equal(report.support.sourceGraph.status, 'implemented');
-  assert.equal(report.support.sourceGraph.coverage.status, 'partial');
+  assert.equal(report.support.sourceGraph.coverage.status, 'complete');
+  assert.deepEqual(report.architecture.groups.map(({ prefix }) => prefix), ['src']);
+  assert.deepEqual(report.architecture.groupRelations, []);
   assert.deepEqual(report.architecture.impact.changedLocators, ['workspace://src/index.ts']);
   assert.deepEqual(report.memory.activeFacts, []);
   assert.deepEqual(report.memory.pendingProposals, []);
@@ -124,6 +270,42 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   assert.equal(existsSync(path.join(root, '.local')), false);
   assert.equal(existsSync(sqlitePath), false);
   assert.equal(JSON.stringify(report).includes(SOURCE_BODY_SENTINEL), false);
+});
+
+test('native orientation merges communities that share one path prefix', async () => {
+  const file = nativeNode('file', 'file', 'packages/core/index.js', 'workspace://packages/core/index.js');
+  const left = nativeNode('left', 'function', 'leftHelper', 'workspace://packages/core/index.js#L1-L1');
+  const right = nativeNode('right', 'function', 'rightHelper', 'workspace://packages/core/helpers.js#L1-L1');
+  const relationship = nativeRelationship('calls', left.id, right.id, left.locator);
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities') {
+        return fixtureNativeResult({
+          results: [file, left, right],
+          relationships: [relationship],
+          communities: [
+            nativeCommunity('left', 'packages/core', [file.id, left.id]),
+            nativeCommunity('right', 'packages/core', [right.id])
+          ]
+        });
+      }
+      if (kind === 'processes') return fixtureNativeResult({ results: [], relationships: [], processes: [] });
+      throw new Error(`unexpected native query: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status: fixtureNativeResult({ operation: 'index.status', results: [] }),
+    root: '.',
+    workspaceId: WORKSPACE_ID,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.deepEqual(preview.orientation.groups.map(({ prefix }) => prefix), ['packages/core']);
+  assert.equal(preview.orientation.groups[0].fileCount, 1);
+  assert.equal(preview.orientation.groups[0].symbolCount, 2);
+  assert.deepEqual(preview.orientation.relations, []);
 });
 
 test('Recall Map forwards bounded depth and limit to safe source-graph summaries', async (t) => {

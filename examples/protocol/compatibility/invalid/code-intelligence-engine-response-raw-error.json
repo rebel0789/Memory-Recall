@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "cireq_0123456789abcdef0123456789abcdef",
+  "ok": false,
+  "error": {
+    "code": "engine_internal",
+    "retryable": false,
+    "details": ["read /Users/example/private.ts"],
+    "rawError": "parser failed on export const secret = true"
+  }
+}

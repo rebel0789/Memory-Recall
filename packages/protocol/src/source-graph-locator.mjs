@@ -2,7 +2,7 @@
 // Keep it narrowly scoped to portable workspace-relative source graph locators.
 export const SOURCE_GRAPH_WORKSPACE_ID_PATTERN = String.raw`^[a-z][a-z0-9_-]{0,127}$`;
 export const SOURCE_GRAPH_FINGERPRINT_PATTERN = String.raw`^sha256:[a-f0-9]{64}$`;
-export const SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN = String.raw`^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\.\.(?:/|$))(?!.*\/\.\.(?:/|$))(?!(?:Users|private)(?:/|$))(?!var/folders(?:/|$))(?!.*\/(?:Users|private)(?:/|$))(?!.*\/var/folders(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\[\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$`;
+export const SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN = String.raw`^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\.\.(?:/|$))(?!.*\/\.\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\[\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$`;
 export const SOURCE_GRAPH_WORKSPACE_ID_RE = new RegExp(SOURCE_GRAPH_WORKSPACE_ID_PATTERN, 'u');
 export const SOURCE_GRAPH_FINGERPRINT_RE = new RegExp(SOURCE_GRAPH_FINGERPRINT_PATTERN, 'u');
 export const SOURCE_GRAPH_WORKSPACE_LOCATOR_RE = new RegExp(SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN, 'u');
@@ -50,5 +50,9 @@ function sourceGraphLocatorHasUriScheme(value) {
 export const SOURCE_GRAPH_SAFE_LABEL_TOKEN_PATTERN = String.raw`[A-Za-z0-9_$@~./#*+,\[\]-]+`;
 const SOURCE_GRAPH_SAFE_NODE_MODULE_PATTERN = String.raw`[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*`;
 const SOURCE_GRAPH_SAFE_LABEL_VALUE_PATTERN = String.raw`(?:${SOURCE_GRAPH_SAFE_LABEL_TOKEN_PATTERN}|node:${SOURCE_GRAPH_SAFE_NODE_MODULE_PATTERN}|local:absolute-import)`;
-export const SOURCE_GRAPH_SAFE_LABEL_PATTERN = String.raw`^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\/])(?!.*(?:^|[\\/])[Uu][Ss][Ee][Rr][Ss][\\/])(?!.*(?:^|[\\/])[Pp][Rr][Ii][Vv][Aa][Tt][Ee][\\/])(?!.*(?:^|[\\/])[Vv][Aa][Rr][\\/][Ff][Oo][Ll][Dd][Ee][Rr][Ss][\\/])(?!.*[?{}=;\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])${SOURCE_GRAPH_SAFE_LABEL_VALUE_PATTERN}(?: (?:contains|defined_in|imports|exports|references|calls)(?: ${SOURCE_GRAPH_SAFE_LABEL_VALUE_PATTERN}){1,2})?$`;
+export const SOURCE_GRAPH_SAFE_LABEL_PATTERN = String.raw`^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\/])(?!.*[?{}=;\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])${SOURCE_GRAPH_SAFE_LABEL_VALUE_PATTERN}(?: (?:contains|defined_in|imports|exports|references|calls)(?: ${SOURCE_GRAPH_SAFE_LABEL_VALUE_PATTERN}){1,2})?$`;
 export const SOURCE_GRAPH_SAFE_LABEL_RE = new RegExp(SOURCE_GRAPH_SAFE_LABEL_PATTERN, 'u');
+
+export function isSafeSourceGraphDisplayLabel(value) {
+  return typeof value === 'string' && SOURCE_GRAPH_SAFE_LABEL_RE.test(value);
+}

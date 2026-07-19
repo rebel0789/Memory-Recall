@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_python_psf_requests",
+  "language": "python",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "unmeasured",
+    "heritage": "partial",
+    "types": "partial",
+    "calls": "partial",
+    "config": "partial",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_requests_case_insensitive_dict",
+      "semanticKey": "node:class:structures.py:CaseInsensitiveDict",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "CaseInsensitiveDict",
+      "qualifiedName": "structures.py::CaseInsensitiveDict",
+      "locator": "workspace://structures.py#L20-L93"
+    },
+    {
+      "id": "cititem_requests_eq",
+      "semanticKey": "node:method:structures.py:CaseInsensitiveDict:__eq__",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "__eq__",
+      "qualifiedName": "structures.py::CaseInsensitiveDict::__eq__",
+      "locator": "workspace://structures.py#L80-L86"
+    },
+    {
+      "id": "cititem_requests_lower_items",
+      "semanticKey": "node:method:structures.py:CaseInsensitiveDict:lower_items",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "lower_items",
+      "qualifiedName": "structures.py::CaseInsensitiveDict::lower_items",
+      "locator": "workspace://structures.py#L76-L78"
+    },
+    {
+      "id": "cititem_requests_copy",
+      "semanticKey": "node:method:structures.py:CaseInsensitiveDict:copy",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "copy",
+      "qualifiedName": "structures.py::CaseInsensitiveDict::copy",
+      "locator": "workspace://structures.py#L89-L90"
+    },
+    {
+      "id": "cititem_requests_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:requests",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "requests",
+      "qualifiedName": "__init__.py::requests",
+      "locator": "workspace://__init__.py#L1-L219"
+    },
+    {
+      "id": "cititem_requests_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:requests",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "requests", "qualifiedName": "__init__.py::requests", "locator": "workspace://__init__.py#L1-L219" },
+      "to": { "kind": "package", "name": "requests", "qualifiedName": "__init__.py::requests", "locator": "workspace://__init__.py#L1-L219" },
+      "locator": "workspace://__init__.py#L1-L219",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_requests_import_adapters",
+      "semanticKey": "edge:imports:sessions.py:adapters.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "sessions",
+        "qualifiedName": "sessions.py::sessions",
+        "locator": "workspace://sessions.py#L1-L921"
+      },
+      "to": {
+        "kind": "module",
+        "name": "adapters",
+        "qualifiedName": "adapters.py::adapters",
+        "locator": "workspace://adapters.py#L1-L749"
+      },
+      "locator": "workspace://sessions.py#L21-L21",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_requests_invalid_json_extends_request_exception",
+      "semanticKey": "edge:extends:exceptions.py:InvalidJSONError:RequestException",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "extends",
+      "from": { "kind": "class", "name": "InvalidJSONError", "qualifiedName": "exceptions.py::InvalidJSONError", "locator": "workspace://exceptions.py#L38-L39" },
+      "to": { "kind": "class", "name": "RequestException", "qualifiedName": "exceptions.py::RequestException", "locator": "workspace://exceptions.py#L20-L35" },
+      "locator": "workspace://exceptions.py#L38-L39",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_requests_call_lower_items",
+      "semanticKey": "edge:calls:structures.py:CaseInsensitiveDict.__eq__:lower_items",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "__eq__", "qualifiedName": "structures.py::CaseInsensitiveDict::__eq__", "locator": "workspace://structures.py#L80-L86" },
+      "to": { "kind": "method", "name": "lower_items", "qualifiedName": "structures.py::CaseInsensitiveDict::lower_items", "locator": "workspace://structures.py#L76-L78" },
+      "locator": "workspace://structures.py#L86-L86",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_requests_construct_copy",
+      "semanticKey": "edge:constructs:structures.py:CaseInsensitiveDict.copy:CaseInsensitiveDict",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "method", "name": "copy", "qualifiedName": "structures.py::CaseInsensitiveDict::copy", "locator": "workspace://structures.py#L89-L90" },
+      "to": { "kind": "class", "name": "CaseInsensitiveDict", "qualifiedName": "structures.py::CaseInsensitiveDict", "locator": "workspace://structures.py#L20-L93" },
+      "locator": "workspace://structures.py#L90-L90",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:bc32d95b6d5d5fce20c0b6306fa876b681f85301425dc49f42471e98a89ce546"
+}

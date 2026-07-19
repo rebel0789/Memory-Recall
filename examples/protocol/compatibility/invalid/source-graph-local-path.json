@@ -22,7 +22,7 @@
       "workspaceId": "ws_ast",
       "kind": "symbol",
       "label": "/Users/rebel/private/auth.ts",
-      "locator": "workspace://Users/rebel/private/auth.ts#L4-L8"
+      "locator": "workspace:///Users/rebel/project/src/auth.ts#L4-L8"
     }
   ],
   "edges": [],

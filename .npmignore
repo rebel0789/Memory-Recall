@@ -19,3 +19,4 @@ adapters/**/UPSTREAM.lock
 *.zip
 .DS_Store
 REPOSITORY_MANIFEST.json.tmp
+REPOSITORY_MANIFEST.json

@@ -1,0 +1,17 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "ciidxreq_00000000000000000000000000000002",
+  "workspaceId": "ws_local",
+  "operation": "index.refresh",
+  "root": ".",
+  "indexLocator": "workspace://.local/source-index/index.v1.sqlite",
+  "deadlineMs": 120000,
+  "responseSchemaVersion": "1.0.0",
+  "arguments": {
+    "write": true,
+    "maxFiles": 100000,
+    "maxFileBytes": 1048576,
+    "maxNodes": 250000,
+    "maxEdges": 1000000
+  }
+}

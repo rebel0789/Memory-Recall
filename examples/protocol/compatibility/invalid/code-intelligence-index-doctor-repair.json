@@ -1,0 +1,13 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "ciidxreq_0000000000000000000000000000000a",
+  "workspaceId": "ws_local",
+  "operation": "index.doctor",
+  "root": ".",
+  "indexLocator": "workspace://.local/source-index/index.v1.sqlite",
+  "deadlineMs": 30000,
+  "responseSchemaVersion": "1.0.0",
+  "arguments": {
+    "repair": true
+  }
+}

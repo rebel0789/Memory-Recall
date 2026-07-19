@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_python_fastapi_fastapi",
+  "language": "python",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "unmeasured",
+    "heritage": "partial",
+    "types": "partial",
+    "calls": "partial",
+    "config": "partial",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_fastapi_class",
+      "semanticKey": "node:class:applications.py:FastAPI",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "FastAPI",
+      "qualifiedName": "applications.py::FastAPI",
+      "locator": "workspace://applications.py#L42-L4768"
+    },
+    {
+      "id": "cititem_fastapi_init",
+      "semanticKey": "node:method:applications.py:FastAPI:__init__",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "__init__",
+      "qualifiedName": "applications.py::FastAPI::__init__",
+      "locator": "workspace://applications.py#L58-L1018"
+    },
+    {
+      "id": "cititem_fastapi_setup",
+      "semanticKey": "node:method:applications.py:FastAPI:setup",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "setup",
+      "qualifiedName": "applications.py::FastAPI::setup",
+      "locator": "workspace://applications.py#L1105-L1158"
+    },
+    {
+      "id": "cititem_fastapi_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:fastapi",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "fastapi",
+      "qualifiedName": "__init__.py::fastapi",
+      "locator": "workspace://__init__.py#L1-L25"
+    },
+    {
+      "id": "cititem_fastapi_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:fastapi",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "fastapi", "qualifiedName": "__init__.py::fastapi", "locator": "workspace://__init__.py#L1-L25" },
+      "to": { "kind": "package", "name": "fastapi", "qualifiedName": "__init__.py::fastapi", "locator": "workspace://__init__.py#L1-L25" },
+      "locator": "workspace://__init__.py#L1-L25",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_fastapi_import_openapi_utils",
+      "semanticKey": "edge:imports:applications.py:openapi/utils.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "applications",
+        "qualifiedName": "applications.py::applications",
+        "locator": "workspace://applications.py#L1-L4769"
+      },
+      "to": {
+        "kind": "module",
+        "name": "openapi_utils",
+        "qualifiedName": "openapi/utils.py::openapi_utils",
+        "locator": "workspace://openapi/utils.py#L1-L618"
+      },
+      "locator": "workspace://applications.py#L22-L22",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_fastapi_response_validation_extends_validation",
+      "semanticKey": "edge:extends:exceptions.py:ResponseValidationError:ValidationException",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "extends",
+      "from": { "kind": "class", "name": "ResponseValidationError", "qualifiedName": "exceptions.py::ResponseValidationError", "locator": "workspace://exceptions.py#L234-L243" },
+      "to": { "kind": "class", "name": "ValidationException", "qualifiedName": "exceptions.py::ValidationException", "locator": "workspace://exceptions.py#L174-L209" },
+      "locator": "workspace://exceptions.py#L234-L243",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_fastapi_construct_default_placeholder",
+      "semanticKey": "edge:constructs:datastructures.py:Default:DefaultPlaceholder",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "function",
+        "name": "Default",
+        "qualifiedName": "datastructures.py::Default",
+        "locator": "workspace://datastructures.py#L174-L181"
+      },
+      "to": {
+        "kind": "class",
+        "name": "DefaultPlaceholder",
+        "qualifiedName": "datastructures.py::DefaultPlaceholder",
+        "locator": "workspace://datastructures.py#L153-L168"
+      },
+      "locator": "workspace://datastructures.py#L181-L181",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_fastapi_call_setup",
+      "semanticKey": "edge:calls:applications.py:FastAPI.__init__:FastAPI.setup",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "__init__", "qualifiedName": "applications.py::FastAPI::__init__", "locator": "workspace://applications.py#L58-L1018" },
+      "to": { "kind": "method", "name": "setup", "qualifiedName": "applications.py::FastAPI::setup", "locator": "workspace://applications.py#L1105-L1158" },
+      "locator": "workspace://applications.py#L1018-L1018",
+      "resolution": "typed"
+    }
+  ],
+  "truthFingerprint": "sha256:99d0e6ed888ff5e20bb86d8d744b4149490de11723542ef89305eef3a4508782"
+}

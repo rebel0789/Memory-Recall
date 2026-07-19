@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_c_antirez_kilo_core", "language": "c",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_c_antirez_kilo@323d93b29bd89a2cb446de90c4ed4fea1764176e#." },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "unmeasured", "types": "unmeasured", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_kilo_enable_raw", "semanticKey": "node:function:enableRawMode", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "enableRawMode", "qualifiedName": "kilo.c::enableRawMode", "locator": "workspace://kilo.c#L218-L249" },
+    { "id": "cititem_kilo_init_editor", "semanticKey": "node:function:initEditor", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "initEditor", "qualifiedName": "kilo.c::initEditor", "locator": "workspace://kilo.c#L1277-L1289" },
+    { "id": "cititem_kilo_main", "semanticKey": "node:function:main", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "main", "qualifiedName": "kilo.c::main", "locator": "workspace://kilo.c#L1291-L1308" },
+    { "id": "cititem_kilo_defines_main", "semanticKey": "edge:defines:kilo:main", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "module", "name": "kilo", "locator": "workspace://kilo.c#L1-L1309" }, "to": { "kind": "function", "name": "main", "locator": "workspace://kilo.c#L1291-L1308" }, "locator": "workspace://kilo.c#L1291-L1308", "resolution": "exact" },
+    { "id": "cititem_kilo_call_enable", "semanticKey": "edge:calls:main:enableRawMode", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "main", "locator": "workspace://kilo.c#L1291-L1308" }, "to": { "kind": "function", "name": "enableRawMode", "locator": "workspace://kilo.c#L218-L249" }, "locator": "workspace://kilo.c#L1300-L1300", "resolution": "inferred" },
+    { "id": "cititem_kilo_import_stdio", "semanticKey": "edge:imports:kilo:stdio", "capability": "imports", "expectation": "present", "recordKind": "edge", "kind": "imports", "from": { "kind": "module", "name": "kilo", "locator": "workspace://kilo.c#L1-L1309" }, "to": { "kind": "module", "name": "stdio.h", "locator": "workspace://kilo.c#L43-L44" }, "locator": "workspace://kilo.c#L43-L44", "resolution": "unresolved" },
+    { "id": "cititem_kilo_import_stdio_not_stdlib", "semanticKey": "edge:imports:kilo:stdio-line:not-stdlib", "capability": "imports", "expectation": "absent", "recordKind": "edge", "kind": "imports", "from": { "kind": "module", "name": "kilo", "locator": "workspace://kilo.c#L1-L1309" }, "to": { "kind": "module", "name": "stdlib.h", "locator": "workspace://kilo.c#L42-L43" }, "locator": "workspace://kilo.c#L43-L44", "resolution": "unresolved" }
+  ],
+  "truthFingerprint": "sha256:c99af167a30abde5b482d84ac10977d91204cd2d472569e63dd273ef4ba1154c"
+}

@@ -2,11 +2,15 @@ import { createHash } from 'node:crypto';
 import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { stableStringify } from '../../protocol/src/index.mjs';
+import {
+  SOURCE_GRAPH_SAFE_LABEL_RE,
+  SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
+} from '../../protocol/src/source-graph-locator.mjs';
 import { inspectRepositoryIdentity } from '../../harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-  buildSourceGraphPreview
+  NATIVE_INDEX_LANGUAGES
 } from '../../source-graph/src/index.mjs';
 
 const REPORT_VERSION = 'memory-recall-map-1.1.0';
@@ -24,10 +28,15 @@ const DEFAULT_MAP_LIMIT = 20;
 const MAX_STALE_FACTS = 500;
 const MAX_PROPOSAL_ATTEMPTS = 10;
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
-const LOCATOR_SEGMENT = '(?!\\.{1,2}(?:/|#|$))[A-Za-z0-9._@+~,-]+';
-const SAFE_LOCATOR = new RegExp(`^workspace://${LOCATOR_SEGMENT}(?:/${LOCATOR_SEGMENT})*(?:#L[0-9]+-L[0-9]+)?$`, 'u');
-const LABEL_TOKEN = '[A-Za-z0-9_$@~./:#*+,-]+';
-const SAFE_LABEL = new RegExp(`^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)${LABEL_TOKEN}(?: (?:contains|defined_in|imports|exports|references|calls) ${LABEL_TOKEN})?$`, 'u');
+const SAFE_LOCATOR = SOURCE_GRAPH_WORKSPACE_LOCATOR_RE;
+const SAFE_LABEL = SOURCE_GRAPH_SAFE_LABEL_RE;
+const SAFE_GROUP_PREFIX = /^[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+){0,2}$/u;
+const GROUP_ID = /^sggroup_[a-f0-9]{24}$/u;
+const RELATION_ID = /^sgrelation_[a-f0-9]{24}$/u;
+const NODE_ID = /^sgnode_[a-f0-9]{32}$/u;
+const EDGE_ID = /^sgedge_[a-f0-9]{32}$/u;
+const PROCESS_ID = /^sgprocess_[a-f0-9]{24}$/u;
+const PROCESS_SINK_KIND = /^[a-z][a-z0-9_.-]{0,127}$/u;
 
 function safeRepositoryName(root) {
   const candidate = path.basename(root).slice(0, 120);
@@ -53,7 +62,10 @@ export async function buildRecallMap({
   depth = DEFAULT_MAP_DEPTH,
   limit = DEFAULT_MAP_LIMIT,
   clock = () => new Date().toISOString(),
-  sqliteLocator = SQLITE_LOCATOR
+  sqliteLocator = SQLITE_LOCATOR,
+  sourceGraphSnapshotService = null,
+  sourceGraphPreviewBuilder = null,
+  refreshSourceGraph = false
 } = {}) {
   const requestedRoot = normalizeRoot(root);
   const workspace = await canonicalizeWorkspaceRoot(requestedRoot);
@@ -73,13 +85,18 @@ export async function buildRecallMap({
   const requestedLimit = normalizeMapBoundedInteger(limit, DEFAULT_MAP_LIMIT, 1, MAX_MAP_REQUEST_LIMIT, 'recall_map_limit_invalid');
   const safeLimit = Math.min(requestedLimit, MAX_ARCHITECTURE_ITEMS);
   const sqlitePath = resolveSqlitePath(workspace.root, sqliteLocator);
-  const preview = await buildSourceGraphPreview({
+  if (typeof sourceGraphPreviewBuilder !== 'function') {
+    throw new Error('recall_map_source_graph_preview_required');
+  }
+  const preview = await sourceGraphPreviewBuilder({
     root: workspace.status === 'available' ? workspace.root : requestedRoot,
     workspaceId: safeWorkspaceId,
     changedLocators,
     query: safeQuery,
     depth: safeDepth,
     limit: safeLimit,
+    snapshotService: sourceGraphSnapshotService,
+    refresh: Boolean(refreshSourceGraph),
     clock: () => generatedAt
   });
   const architecture = summarizeArchitecture(preview, { limit: safeLimit });
@@ -127,6 +144,23 @@ export async function buildRecallMap({
   return Object.freeze({
     ...report,
     fingerprint: fingerprintReport(report)
+  });
+}
+
+export async function buildRecallMapMemorySummary({
+  root,
+  workspaceId = 'ws_local',
+  clock = () => new Date().toISOString(),
+  sqliteLocator = SQLITE_LOCATOR
+} = {}) {
+  const workspace = await canonicalizeWorkspaceRoot(normalizeRoot(root));
+  const safeWorkspaceId = normalizeWorkspaceId(workspaceId);
+  const generatedAt = normalizeTimestamp(clock());
+  return summarizeMemory({
+    workspace,
+    sqlitePath: resolveSqlitePath(workspace.root, sqliteLocator),
+    workspaceId: safeWorkspaceId,
+    generatedAt
   });
 }
 
@@ -262,26 +296,49 @@ function isInsideRoot(root, candidate) {
 
 function summarizeSupport(preview, memory) {
   const diagnostics = preview.graph?.diagnostics ?? [];
-  const unavailable = diagnostics.some((item) => item.code?.startsWith('source_graph_unavailable'));
+  const unavailable = preview.snapshot?.status === 'unavailable'
+    || diagnostics.some((item) => item.code?.startsWith('source_graph_unavailable'));
   const summary = preview.graph?.summary ?? {};
+  const native = String(preview.graph?.parserVersion ?? '').startsWith('memory-recall-native-');
+  const representedFileCount = boundedInteger(summary.coverage?.representedFileCount ?? summary.fileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
+  const omittedFileCount = boundedInteger(summary.coverage?.skippedFileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
+  const coverageStatus = unavailable
+    ? 'unavailable'
+    : preview.snapshot?.status === 'stale'
+      ? 'stale'
+      : summary.coverage?.status === 'complete' ? 'complete' : 'partial';
   return {
     sourceGraph: {
       status: unavailable ? 'unavailable' : 'implemented',
-      languages: ['javascript', 'typescript'],
+      languages: native ? NATIVE_INDEX_LANGUAGES : ['javascript', 'typescript'],
       coverage: {
-        status: unavailable ? 'unavailable' : 'partial',
-        analyzedFileCount: boundedInteger(summary.fileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-        maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
+        status: coverageStatus,
+        analyzedFileCount: representedFileCount,
+        maxFiles: native ? Math.max(1, representedFileCount + omittedFileCount) : DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
         maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
         diagnosticCount: boundedInteger(diagnostics.length, 0, 5000),
         reasonCodes: unavailable
           ? ['source_graph_unavailable']
-          : ['static_js_ts_only', 'bounded_file_scan']
-      }
+          : native ? ['native_persistent_index', 'bounded_index_read'] : ['static_js_ts_only', 'bounded_file_scan']
+      },
+      snapshot: summarizeSnapshot(preview.snapshot)
     },
     memory: {
       status: memory.status
     }
+  };
+}
+
+function summarizeSnapshot(snapshot) {
+  return {
+    status: ['fresh', 'stale', 'unavailable'].includes(snapshot?.status) ? snapshot.status : 'unavailable',
+    reuse: ['cold', 'cache', 'inflight', 'none'].includes(snapshot?.reuse) ? snapshot.reuse : 'none',
+    reason: snapshot?.reason ? safeCode(snapshot.reason, 'source_graph_snapshot_unavailable') : null,
+    validationMode: ['watcher', 'metadata-scan', 'none'].includes(snapshot?.validationMode) ? snapshot.validationMode : 'none',
+    builtAt: snapshot?.builtAt && !Number.isNaN(Date.parse(snapshot.builtAt)) ? normalizeTimestamp(snapshot.builtAt) : null,
+    buildDurationMs: Number.isFinite(snapshot?.buildDurationMs) && snapshot.buildDurationMs >= 0
+      ? Math.min(snapshot.buildDurationMs, 3_600_000)
+      : null
   };
 }
 
@@ -294,6 +351,9 @@ function summarizeArchitecture(preview, { limit = DEFAULT_MAP_LIMIT } = {}) {
   return {
     entryPoints: (summary.entryPoints ?? []).slice(0, safeLimit).map(summarizeNodeReference),
     hotspots: (summary.hotspots ?? []).slice(0, safeLimit).map(summarizeHotspot),
+    groups: (preview.orientation?.groups ?? []).slice(0, 12).map(summarizeOrientationGroup).filter(Boolean),
+    groupRelations: (preview.orientation?.relations ?? []).slice(0, 20).map(summarizeOrientationRelation).filter(Boolean),
+    processes: (preview.orientation?.processes ?? []).slice(0, 12).map(summarizeOrientationProcess).filter(Boolean),
     search: {
       status: unavailable ? 'unavailable' : 'available',
       queryFingerprint: safeFingerprint(preview.search?.queryFingerprint),
@@ -310,6 +370,86 @@ function summarizeArchitecture(preview, { limit = DEFAULT_MAP_LIMIT } = {}) {
       depth: boundedInteger(impact?.depth, 0, 5)
     },
     diagnostics: (graph.diagnostics ?? []).slice(0, MAX_DIAGNOSTICS).map(summarizeDiagnostic)
+  };
+}
+
+function summarizeOrientationGroup(group) {
+  if (!GROUP_ID.test(String(group?.id ?? '')) || !SAFE_GROUP_PREFIX.test(String(group?.prefix ?? ''))) return null;
+  return {
+    id: group.id,
+    prefix: group.prefix,
+    fileCount: boundedInteger(group.fileCount),
+    symbolCount: boundedInteger(group.symbolCount),
+    changedFileCount: boundedInteger(group.changedFileCount),
+    entryPoints: (group.entryPoints ?? []).slice(0, 2).map((entryPoint) => {
+      if (!NODE_ID.test(String(entryPoint?.nodeId ?? ''))) return null;
+      return {
+        nodeId: entryPoint.nodeId,
+        ...summarizeNodeReference(entryPoint)
+      };
+    }).filter(Boolean)
+  };
+}
+
+function summarizeOrientationRelation(relation) {
+  if (
+    !RELATION_ID.test(String(relation?.id ?? ''))
+    || !GROUP_ID.test(String(relation?.sourceGroupId ?? ''))
+    || !GROUP_ID.test(String(relation?.targetGroupId ?? ''))
+    || !SAFE_GROUP_PREFIX.test(String(relation?.sourcePrefix ?? ''))
+    || !SAFE_GROUP_PREFIX.test(String(relation?.targetPrefix ?? ''))
+  ) return null;
+  const edgeKindCounts = Object.fromEntries(
+    Object.entries(relation.edgeKindCounts ?? {})
+      .filter(([kind]) => ['imports', 'calls'].includes(kind))
+      .map(([kind, count]) => [kind, boundedInteger(count)])
+  );
+  return {
+    id: relation.id,
+    sourceGroupId: relation.sourceGroupId,
+    targetGroupId: relation.targetGroupId,
+    sourcePrefix: relation.sourcePrefix,
+    targetPrefix: relation.targetPrefix,
+    count: boundedInteger(relation.count),
+    edgeKindCounts
+  };
+}
+
+function summarizeOrientationProcess(process) {
+  const nodeIds = [...new Set(process?.nodeIds ?? [])].filter((id) => NODE_ID.test(String(id))).slice(0, 5);
+  const relationshipIds = [...new Set(process?.relationshipIds ?? [])].filter((id) => EDGE_ID.test(String(id))).slice(0, 5);
+  const entryPoint = summarizeProcessNode(process?.entryPoint);
+  const sink = summarizeProcessNode(process?.sink);
+  if (
+    !PROCESS_ID.test(String(process?.id ?? ''))
+    || !entryPoint
+    || !sink
+    || nodeIds.length < 2
+    || relationshipIds.length !== nodeIds.length
+    || nodeIds[0] !== entryPoint.nodeId
+    || nodeIds.at(-1) !== sink.nodeId
+    || !PROCESS_SINK_KIND.test(String(process?.sinkKind ?? ''))
+    || process?.algorithmVersion !== 'entry-path-v1'
+  ) return null;
+  return {
+    id: process.id,
+    label: safeLabel(process.label),
+    entryPoint,
+    sink,
+    sinkKind: process.sinkKind,
+    nodeIds,
+    relationshipIds,
+    confidence: boundedScore(process.confidence),
+    algorithmVersion: process.algorithmVersion,
+    truncated: process.truncated === true
+  };
+}
+
+function summarizeProcessNode(node) {
+  if (!NODE_ID.test(String(node?.nodeId ?? ''))) return null;
+  return {
+    nodeId: node.nodeId,
+    ...summarizeNodeReference(node)
   };
 }
 

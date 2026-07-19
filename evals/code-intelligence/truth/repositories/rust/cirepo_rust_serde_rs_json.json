@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_rust_serde_rs_json",
+  "language": "rust",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_serde_json_map",
+      "semanticKey": "node:struct:map.rs:Map",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Map",
+      "qualifiedName": "map.rs::Map",
+      "locator": "workspace://map.rs#L29-L31"
+    },
+    {
+      "id": "cititem_serde_json_map_new",
+      "semanticKey": "node:method:map.rs:Map:new",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "new",
+      "qualifiedName": "map.rs::Map::new",
+      "locator": "workspace://map.rs#L41-L45"
+    },
+    {
+      "id": "cititem_serde_json_map_clear",
+      "semanticKey": "node:method:map.rs:Map:clear",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "clear",
+      "qualifiedName": "map.rs::Map::clear",
+      "locator": "workspace://map.rs#L64-L66"
+    },
+    {
+      "id": "cititem_serde_json_map_get",
+      "semanticKey": "node:method:map.rs:Map:get",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "get",
+      "qualifiedName": "map.rs::Map::get",
+      "locator": "workspace://map.rs#L73-L79"
+    },
+    {
+      "id": "cititem_serde_json_construct_map_impl",
+      "semanticKey": "edge:constructs:map.rs:Map.new:MapImpl",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "method", "name": "new", "qualifiedName": "map.rs::Map::new", "locator": "workspace://map.rs#L41-L45" },
+      "to": { "kind": "class", "name": "MapImpl", "qualifiedName": "map.rs::MapImpl", "locator": "workspace://map.rs#L43-L43" },
+      "locator": "workspace://map.rs#L43-L43",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_call_clear",
+      "semanticKey": "edge:calls:map.rs:Map.clear:clear",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "clear", "qualifiedName": "map.rs::Map::clear", "locator": "workspace://map.rs#L64-L66" },
+      "to": { "kind": "function", "name": "clear", "qualifiedName": "map.rs::clear", "locator": "workspace://map.rs#L65-L65" },
+      "locator": "workspace://map.rs#L65-L65",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_import_core_ops",
+      "semanticKey": "edge:imports:value/index.rs:core-ops",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "value_index", "qualifiedName": "value/index.rs::value_index", "locator": "workspace://value/index.rs#L1-L259" },
+      "to": { "kind": "module", "name": "core::ops", "qualifiedName": "lexical/num.rs::core::ops", "locator": "workspace://lexical/num.rs#L5-L5" },
+      "locator": "workspace://value/index.rs#L6-L6",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_import_core_ops_not_fmt",
+      "semanticKey": "edge:imports:value/index.rs:core-ops-line:not-core-fmt",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "value_index", "qualifiedName": "value/index.rs::value_index", "locator": "workspace://value/index.rs#L1-L259" },
+      "to": { "kind": "module", "name": "core::fmt", "qualifiedName": "error.rs::core::fmt", "locator": "workspace://error.rs#L6-L6" },
+      "locator": "workspace://value/index.rs#L6-L6",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_serde_json_export_map",
+      "semanticKey": "edge:exports:map.rs:Map",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "map", "qualifiedName": "map.rs::map", "locator": "workspace://map.rs#L1-L1182" },
+      "to": { "kind": "struct", "name": "Map", "qualifiedName": "map.rs::Map", "locator": "workspace://map.rs#L29-L31" },
+      "locator": "workspace://map.rs#L29-L31",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_serde_json_private_is_escape_not_exported",
+      "semanticKey": "edge:exports:read.rs:is_escape:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "read", "qualifiedName": "read.rs::read", "locator": "workspace://read.rs#L1-L1090" },
+      "to": { "kind": "function", "name": "is_escape", "qualifiedName": "read.rs::is_escape", "locator": "workspace://read.rs#L836-L838" },
+      "locator": "workspace://read.rs#L836-L838",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:6dfa8297997f6ba368b803a856d459880cd643346e3ca96fabaa778da4949b0c"
+}

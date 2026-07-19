@@ -1,5 +1,9 @@
 #![recursion_limit = "256"]
 
+mod code_intelligence;
+mod index_protocol;
+mod repository_protocol;
+
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
 use oaf_ingest::{
@@ -24,7 +28,7 @@ use std::time::Instant;
 
 const PROVIDER: &str = "provider:native:memory:sqlite";
 const PROTOCOL_VERSION: &str = "2025-06-18";
-const SERVER_VERSION: &str = "1.1.0";
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SERVER_NAME: &str = "memory-recall";
 
 fn main() {
@@ -54,8 +58,26 @@ fn run() -> Result<()> {
         Some("architecture") => architecture_command(&args[1..]),
         Some("loop") => loop_command(&args[1..]),
         Some("impact") => impact_command(&args[1..]),
+        Some("code-intelligence") => code_intelligence_command(&args[1..]),
         Some(other) => bail!("unsupported command: {other}"),
         None => bail!("oaf rust requires a command"),
+    }
+}
+
+fn code_intelligence_command(args: &[String]) -> Result<()> {
+    match args {
+        [serve, stdio] if serve == "serve" && stdio == "--stdio" => {
+            code_intelligence::serve_stdio(SERVER_VERSION)
+        }
+        [index, stdio] if index == "index" && stdio == "--stdio" => {
+            index_protocol::serve_stdio(SERVER_VERSION)
+        }
+        [repositories, stdio] if repositories == "repositories" && stdio == "--stdio" => {
+            repository_protocol::serve_stdio(SERVER_VERSION)
+        }
+        _ => bail!(
+            "code-intelligence requires serve --stdio, index --stdio, or repositories --stdio"
+        ),
     }
 }
 

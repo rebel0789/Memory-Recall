@@ -42,6 +42,14 @@ function parseJson(value, fallback) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function isFts5Unavailable(error) {
+  return /no such module:\s*fts5/iu.test(String(error?.message ?? error));
+}
+
+function isFts5TableMissing(error) {
+  return /no such table:\s*memory_(?:fact_)?fts/iu.test(String(error?.message ?? error));
+}
+
 function contentHash(record) {
   return createHash('sha256').update(JSON.stringify({
     workspaceId: record.workspaceId,
@@ -429,9 +437,11 @@ export class SQLiteMemoryProvider {
   constructor({ filename = ':memory:', clock = nowIso, migrate = true, readOnly = false } = {}) {
     this.filename = filename;
     this.clock = clock;
+    this.fts5Available = false;
     if (filename !== ':memory:' && !readOnly) mkdirSync(path.dirname(path.resolve(filename)), { recursive: true, mode: 0o700 });
     this.database = readOnly ? new DatabaseSync(filename, { readOnly: true }) : new DatabaseSync(filename);
     if (migrate) this.#migrate();
+    else this.#detectFts5();
   }
 
   #migrate() {
@@ -491,14 +501,6 @@ export class SQLiteMemoryProvider {
       );
       CREATE INDEX IF NOT EXISTS idx_memory_proposal_queue_claim ON memory_proposal_queue(workspace_id, status, lease_until, enqueued_at);
       CREATE INDEX IF NOT EXISTS idx_memory_proposal_queue_errors ON memory_proposal_queue(workspace_id, status, updated_at DESC);
-      CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-        id UNINDEXED,
-        workspace_id UNINDEXED,
-        kind,
-        text,
-        tags,
-        tokenize='unicode61 remove_diacritics 2'
-      );
       CREATE TABLE IF NOT EXISTS memory_episodes (
         id TEXT PRIMARY KEY,
         workspace_id TEXT NOT NULL,
@@ -558,17 +560,8 @@ export class SQLiteMemoryProvider {
         FOREIGN KEY(target_entity_id) REFERENCES memory_entities(id),
         FOREIGN KEY(fact_id) REFERENCES memory_facts(id)
       );
-      CREATE VIRTUAL TABLE IF NOT EXISTS memory_fact_fts USING fts5(
-        id UNINDEXED,
-        workspace_id UNINDEXED,
-        scope UNINDEXED,
-        subject,
-        predicate,
-        object,
-        text,
-        tokenize='unicode61 remove_diacritics 2'
-      );
     `);
+    this.#initializeFts5();
     this.#ensureColumn('memory_records', 'source_trust', "TEXT NOT NULL DEFAULT 'unverified'");
     this.#ensureColumn('memory_records', 'decision', "TEXT NOT NULL DEFAULT 'allow'");
     this.#ensureColumn('memory_records', 'reasons_json', "TEXT NOT NULL DEFAULT '[]'");
@@ -581,6 +574,45 @@ export class SQLiteMemoryProvider {
     this.#migrateTemporalEntityIdentity();
     this.database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_entities_identity ON memory_entities(workspace_id, scope, name);');
     this.#rebuildTemporalFactFts();
+  }
+
+  #initializeFts5() {
+    try {
+      this.database.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+          id UNINDEXED,
+          workspace_id UNINDEXED,
+          kind,
+          text,
+          tags,
+          tokenize='unicode61 remove_diacritics 2'
+        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS memory_fact_fts USING fts5(
+          id UNINDEXED,
+          workspace_id UNINDEXED,
+          scope UNINDEXED,
+          subject,
+          predicate,
+          object,
+          text,
+          tokenize='unicode61 remove_diacritics 2'
+        );
+      `);
+      this.#detectFts5();
+    } catch (error) {
+      if (!isFts5Unavailable(error)) throw error;
+    }
+  }
+
+  #detectFts5() {
+    try {
+      this.database.prepare('SELECT COUNT(*) AS count FROM memory_fts').get();
+      this.database.prepare('SELECT COUNT(*) AS count FROM memory_fact_fts').get();
+      this.fts5Available = true;
+    } catch (error) {
+      if (isFts5Unavailable(error) || isFts5TableMissing(error)) return;
+      throw error;
+    }
   }
 
   #ensureColumn(table, column, definition) {
@@ -637,6 +669,7 @@ export class SQLiteMemoryProvider {
   }
 
   #rebuildTemporalFactFts() {
+    if (!this.fts5Available) return;
     const rows = this.database.prepare('SELECT id, workspace_id, scope, subject, predicate, object, text FROM memory_facts').all();
     this.database.prepare('DELETE FROM memory_fact_fts').run();
     const insert = this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -720,9 +753,11 @@ export class SQLiteMemoryProvider {
         verified_by=excluded.verified_by, activated_by=excluded.activated_by,
         lifecycle_json=excluded.lifecycle_json, metadata_json=excluded.metadata_json
     `).run(values);
-    this.database.prepare('DELETE FROM memory_fts WHERE workspace_id = ? AND id = ?').run(record.workspaceId, record.id);
-    this.database.prepare('INSERT INTO memory_fts(id, workspace_id, kind, text, tags) VALUES (?, ?, ?, ?, ?)')
-      .run(record.id, record.workspaceId, record.kind, record.text, record.tags.join(' '));
+    if (this.fts5Available) {
+      this.database.prepare('DELETE FROM memory_fts WHERE workspace_id = ? AND id = ?').run(record.workspaceId, record.id);
+      this.database.prepare('INSERT INTO memory_fts(id, workspace_id, kind, text, tags) VALUES (?, ?, ?, ?, ?)')
+        .run(record.id, record.workspaceId, record.kind, record.text, record.tags.join(' '));
+    }
   }
 
   async put(input) {
@@ -753,7 +788,7 @@ export class SQLiteMemoryProvider {
     const statusPlaceholders = allowedStatuses.map(() => '?').join(',');
     const expression = ftsExpression(query);
     let rows;
-    if (expression) {
+    if (expression && this.fts5Available) {
       rows = this.database.prepare(`
         SELECT m.*, bm25(memory_fts) AS rank
         FROM memory_fts
@@ -780,7 +815,7 @@ export class SQLiteMemoryProvider {
         LIMIT ?
       `).all(workspaceId, ...scopes, ...allowedStatuses, at, at, boundedLimit);
     }
-    return rows.map((row) => ({ ...rowToRecord(row), provider: PROVIDER_ID, retrieval: { method: expression ? 'fts5' : 'recent', score: expression ? 1 / (1 + Math.abs(Number(row.rank ?? 0))) : 0.1 } }));
+    return rows.map((row) => ({ ...rowToRecord(row), provider: PROVIDER_ID, retrieval: { method: expression && this.fts5Available ? 'fts5' : 'recent', score: expression && this.fts5Available ? 1 / (1 + Math.abs(Number(row.rank ?? 0))) : 0.1 } }));
   }
 
   async supersede({ workspaceId, previousId, replacement }) {
@@ -807,7 +842,7 @@ export class SQLiteMemoryProvider {
     try {
       const existing = this.database.prepare('SELECT id FROM memory_records WHERE workspace_id = ? AND id = ?').get(workspaceId, id);
       if (!existing) { this.database.exec('ROLLBACK'); return false; }
-      this.database.prepare('DELETE FROM memory_fts WHERE workspace_id = ? AND id = ?').run(workspaceId, id);
+      if (this.fts5Available) this.database.prepare('DELETE FROM memory_fts WHERE workspace_id = ? AND id = ?').run(workspaceId, id);
       this.database.prepare('DELETE FROM memory_records WHERE workspace_id = ? AND id = ?').run(workspaceId, id);
       this.database.exec('COMMIT');
       return true;
@@ -935,9 +970,11 @@ export class SQLiteMemoryProvider {
       updated_at: fact.updatedAt,
       metadata_json: JSON.stringify(fact.metadata)
     });
-    this.database.prepare('DELETE FROM memory_fact_fts WHERE workspace_id = ? AND id = ?').run(fact.workspaceId, fact.id);
-    this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(fact.id, fact.workspaceId, fact.scope, fact.subject, fact.predicate, fact.object, temporalFactFtsText(fact));
+    if (this.fts5Available) {
+      this.database.prepare('DELETE FROM memory_fact_fts WHERE workspace_id = ? AND id = ?').run(fact.workspaceId, fact.id);
+      this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(fact.id, fact.workspaceId, fact.scope, fact.subject, fact.predicate, fact.object, temporalFactFtsText(fact));
+    }
   }
 
   #temporalFactFromRow(row) {
@@ -1024,7 +1061,7 @@ export class SQLiteMemoryProvider {
     if (predicate) { conditions.push('m.predicate = ?'); parameters.push(predicate); }
     const expression = ftsExpression(query);
     let rows;
-    if (expression) {
+    if (expression && this.fts5Available) {
       rows = this.database.prepare(`
         SELECT m.*, bm25(memory_fact_fts) AS rank
         FROM memory_fact_fts
@@ -1035,6 +1072,12 @@ export class SQLiteMemoryProvider {
         LIMIT ?
       `).all(expression, ...parameters, boundedLimit);
     } else {
+      const lexicalTokens = tokenizeQuery(query);
+      if (lexicalTokens.length) {
+        const tokenMatch = '(LOWER(m.subject) LIKE ? OR LOWER(m.predicate) LIKE ? OR LOWER(m.object) LIKE ? OR LOWER(m.text) LIKE ?)';
+        conditions.push(`(${lexicalTokens.map(() => tokenMatch).join(' OR ')})`);
+        for (const token of lexicalTokens) parameters.push(`%${token}%`, `%${token}%`, `%${token}%`, `%${token}%`);
+      }
       rows = this.database.prepare(`
         SELECT m.*, 0 AS rank
         FROM memory_facts m
@@ -1091,7 +1134,7 @@ export class SQLiteMemoryProvider {
 
   #ftsTemporalMatches({ workspaceId, scope, query, at, limit }) {
     const expression = ftsExpression(query);
-    if (!expression) return new Map();
+    if (!expression || !this.fts5Available) return new Map();
     const rows = this.database.prepare(`
       SELECT m.id, bm25(memory_fact_fts) AS rank
       FROM memory_fact_fts
@@ -1122,7 +1165,7 @@ export class SQLiteMemoryProvider {
     const boundedLimit = Math.max(1, Math.min(100, Number(limit) || 10));
     const rows = this.#validTemporalFactRows({ workspaceId, scope: normalizedScope, at });
     const ftsScores = this.#ftsTemporalMatches({ workspaceId, scope: normalizedScope, query, at, limit: Math.max(boundedLimit, 25) });
-    const seedRows = rows.filter((row) => ftsScores.has(row.id));
+    const seedRows = rows.filter((row) => ftsScores.has(row.id) || temporalFactLexicalScore(row, query) > 0);
     const relatedIds = this.#relatedTemporalFactIds(rows, seedRows);
     const scored = rows
       .map((row) => {
@@ -1154,7 +1197,9 @@ export class SQLiteMemoryProvider {
       query,
       results,
       signals: {
-        fts5: { status: ftsScores.size ? 'used' : 'empty', matchCount: ftsScores.size },
+        fts5: this.fts5Available
+          ? { status: ftsScores.size ? 'used' : 'empty', matchCount: ftsScores.size }
+          : { status: 'unavailable', matchCount: 0 },
         semantic: { status: 'skipped', reason: 'local_embedder_unavailable' },
         graph: { status: seedRows.length ? 'used' : 'empty', relatedFactCount: relatedIds.size },
         temporal: { status: 'used', at }

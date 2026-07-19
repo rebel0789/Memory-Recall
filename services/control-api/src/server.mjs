@@ -7,13 +7,16 @@ import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
+import { RustCodeIntelligenceProvider } from '../../../providers/native/code-intelligence-rust/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildContextProfileDeliveryPayloadFromReport, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, buildRealisticContextProfileSavingsReport, detectGitChangedLocators, pinContextPackArtifacts, REALISTIC_SAVINGS_OBJECTIVE, REALISTIC_SAVINGS_STEP, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-  buildSourceGraphPreview
+  buildNativeIndexSourceGraphPreview,
+  buildUnavailableSourceGraphPreview,
+  nativeIndexReadyForAutomaticRead
 } from '../../../packages/source-graph/src/index.mjs';
 import { buildRecallMap } from '../../../packages/recall-map/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
@@ -67,6 +70,26 @@ const PUBLIC_MESSAGES = Object.freeze({
 
 function transportFingerprint(value) {
   return `sha256:${createHash('sha256').update(String(value ?? ''), 'utf8').digest('hex')}`;
+}
+
+function nativeIndexRecoveryCode(status) {
+  switch (status?.health?.status) {
+    case 'absent':
+      return 'source_index_build_required';
+    case 'stale':
+      return 'source_index_refresh_required';
+    case 'interrupted':
+    case 'corrupt':
+      return 'source_index_repair_required';
+    case 'migration-required':
+      return 'source_index_migration_required';
+    case 'wrong-repository':
+      return 'source_index_wrong_repository';
+    case 'unsupported-schema':
+      return 'source_index_schema_newer';
+    default:
+      return 'native_index_unavailable';
+  }
 }
 
 function promptTransportMetadata({ objective, step }) {
@@ -674,6 +697,8 @@ export function createControlApiServer({
   memoryProvider = null,
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
+  sourceGraphSnapshotService: _sourceGraphSnapshotService = null,
+  codeIntelligenceProvider = undefined,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   recallMapRateLimiter = createLoginRateLimiter({ clock: () => Date.now(), limit: 60 }),
@@ -694,6 +719,31 @@ export function createControlApiServer({
     decisionIdFactory: () => `poldet_${randomUUID()}`
   });
   const streams = new Set();
+  const nativeCodeIntelligenceProvider = codeIntelligenceProvider ?? new RustCodeIntelligenceProvider();
+  const buildControlSourceGraphPreview = async (options) => {
+    try {
+      const status = await nativeCodeIntelligenceProvider.indexStatus({
+        root: options.root,
+        workspaceId: options.workspaceId
+      });
+      if (nativeIndexReadyForAutomaticRead(status)) {
+        return await buildNativeIndexSourceGraphPreview({
+          ...options,
+          provider: nativeCodeIntelligenceProvider,
+          status
+        });
+      }
+      return buildUnavailableSourceGraphPreview({
+        ...options,
+        errorCode: nativeIndexRecoveryCode(status)
+      });
+    } catch (error) {
+      return buildUnavailableSourceGraphPreview({
+        ...options,
+        errorCode: error?.code ?? 'native_index_unavailable'
+      });
+    }
+  };
 
   const server = http.createServer(async (request, response) => {
     const started = Date.now();
@@ -708,7 +758,6 @@ export function createControlApiServer({
       sendError(response, mapError(error), correlationId, { logger, started, operationId: error.operationId ?? null });
     }
   });
-
   async function handleApi({ request, response, correlationId, started }) {
     enforceHost(request, allowedHosts);
     enforceUrlAndHeaderLimits(request, effectiveLimits);
@@ -813,6 +862,7 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.query.changed ? [context.query.changed] : [],
           query: context.query.query ?? '',
+          sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
           clock
         });
       case 'postRecallMap': {
@@ -831,6 +881,8 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.body.changedLocators,
           query: context.body.query ?? '',
+          sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
+          refreshSourceGraph: context.body.refresh === true,
           clock
         });
       }
@@ -923,16 +975,24 @@ export function createControlApiServer({
         return compileContext(context.body.request, context.body.records);
       case 'buildContextPack': {
         const targetHarness = context.body.targetHarness ?? 'generic';
+        const changedLocators = context.body.changedLocators ?? [];
         const pack = await buildContextPack({
           root: sourceGraphRoot,
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
-          changedLocators: context.body.changedLocators ?? [],
+          changedLocators,
           workspaceId: context.workspaceId,
           targetHarness,
           objective: context.body.objective,
           step: context.body.step,
           tokenBudget: context.body.tokenBudget ?? 4096,
+          sourceGraphPreview: await buildControlSourceGraphPreview({
+            root: sourceGraphRoot,
+            workspaceId: context.workspaceId,
+            query: `${context.body.objective} ${context.body.step}`,
+            changedLocators,
+            clock
+          }),
           clock
         });
         const transportPack = redactContextPackForApiTransport(pack);
@@ -950,16 +1010,24 @@ export function createControlApiServer({
       }
       case 'pinContextPack': {
         const targetHarness = context.body.targetHarness ?? 'generic';
+        const changedLocators = context.body.changedLocators ?? [];
         const pack = await buildContextPack({
           root: sourceGraphRoot,
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
-          changedLocators: context.body.changedLocators ?? [],
+          changedLocators,
           workspaceId: context.workspaceId,
           targetHarness,
           objective: context.body.objective,
           step: context.body.step,
           tokenBudget: context.body.tokenBudget ?? 4096,
+          sourceGraphPreview: await buildControlSourceGraphPreview({
+            root: sourceGraphRoot,
+            workspaceId: context.workspaceId,
+            query: `${context.body.objective} ${context.body.step}`,
+            changedLocators,
+            clock
+          }),
           clock
         });
         const transportPack = redactContextPackForApiTransport(pack);
@@ -1022,7 +1090,7 @@ export function createControlApiServer({
           clock
         });
       case 'previewContextGraph':
-        return buildSourceGraphPreview({
+        return buildControlSourceGraphPreview({
           root: sourceGraphRoot,
           workspaceId: context.workspaceId,
           query: context.body.query ?? '',
@@ -1040,6 +1108,7 @@ export function createControlApiServer({
           sampleLimit: context.body.sampleLimit ?? 12,
           maxFiles: context.body.maxFiles ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
           maxFileBytes: context.body.maxFileBytes ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+          refresh: context.body.refresh === true,
           clock
         });
       case 'planHarnessSetup':
@@ -1732,7 +1801,7 @@ async function serveStatic(response, rawPathname) {
     if (!info.isFile()) throw new Error('not file');
     const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8' };
     const content = await readFile(target);
-    response.writeHead(200, { ...securityHeaders(), 'content-type': types[path.extname(target)] ?? 'application/octet-stream', 'cache-control': path.extname(target) === '.html' ? 'no-cache' : 'public, max-age=300' });
+    response.writeHead(200, { ...securityHeaders(), 'content-type': types[path.extname(target)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
     response.end(content);
   } catch {
     const fallback = await readFile(path.join(webRoot, 'index.html'));
@@ -1776,7 +1845,8 @@ async function main() {
     sourceGraphRoot,
     harnessSetupHome: process.env.HOME ?? sourceGraphRoot,
     memoryDatabasePath: path.join(dataDir, 'memory.sqlite'),
-    mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl')
+    mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl'),
+    codeIntelligenceProvider: new RustCodeIntelligenceProvider()
   });
   api.server.listen(port, host, () => {
     console.log(`Memory Recall local workspace: http://${host}:${port}`);

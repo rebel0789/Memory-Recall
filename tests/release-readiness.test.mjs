@@ -30,6 +30,9 @@ test('uninstall guide reserves a dry-run boundary before any future local-state 
   const guide = await readFile('docs/usage/uninstall.md', 'utf8');
   assert.match(guide, /recall uninstall --dry-run/);
   assert.match(guide, /does not exist today|not available today/i);
+  assert.match(guide, /recall mcp uninstall --client codex --dry-run --format json/);
+  assert.match(guide, /removes only an exact entry installed by this package/);
+  assert.match(guide, /Drifted or unowned entries are never replaced or removed/);
 });
 
 test('release readiness artifacts are generated and checked in without drift', async () => {
@@ -102,6 +105,9 @@ test('repository manifest generator ignores Cargo target build output directorie
   const manifest = JSON.parse(readFileSync(path.join(root, 'REPOSITORY_MANIFEST.json'), 'utf8'));
   const paths = manifest.files.map((file) => file.path);
   assert.equal(paths.includes('README.md'), true);
+  assert.equal(paths.includes('BOOTSTRAP_REPORT.md'), false);
+  assert.equal(paths.includes('CLEANUP_REPORT.md'), false);
+  assert.equal(paths.includes('REPOSITORY_MAP.md'), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
 });
 
@@ -120,12 +126,24 @@ test('npm package contains the runtime contract without checkout-only test weigh
   assert.equal(paths.includes('README.md'), true);
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
+  assert.equal(paths.includes('scripts/rust-ingest-quality.mjs'), false);
+  assert.equal(paths.includes('scripts/rust-intelligence-quality.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-batch-d.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-batch-e.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-language-batch.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-phase2-tier1.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-million-node-index.mjs'), false);
+  assert.equal(paths.includes('scripts/pinned-repository-acquisition.mjs'), false);
+  assert.equal(paths.includes('evals/code-intelligence/capability-matrix.v1.json'), false);
+  assert.equal(paths.includes('docs/adr/0024-rust-sqlite-source-index.md'), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
+  assert.equal(paths.some((filePath) => /\.(?:node|dylib|so|dll|exe)$/u.test(filePath)), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('tests/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
-  assert.ok(pack.entryCount <= 830, `npm package has ${pack.entryCount} files; expected at most 830`);
-  assert.ok(pack.size <= 1_220_000, `npm package is ${pack.size} compressed bytes; expected at most 1,220,000`);
-  assert.ok(pack.unpackedSize <= 5_250_000, `npm package is ${pack.unpackedSize} unpacked bytes; expected at most 5,250,000`);
+  assert.ok(pack.entryCount <= 854, `npm package has ${pack.entryCount} files; expected at most 854`);
+  assert.ok(pack.size <= 1_290_000, `npm package is ${pack.size} compressed bytes; expected at most 1,290,000`);
+  assert.ok(pack.unpackedSize <= 5_700_000, `npm package is ${pack.unpackedSize} unpacked bytes; expected at most 5,700,000`);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {

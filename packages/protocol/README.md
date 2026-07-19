@@ -178,6 +178,80 @@ records, and provider configuration. The
 native provider's root-bounded exact-slice helper is for internal reconstruction
 tests only; it is not a protocol output or a candidate-source query result.
 
+## Code-intelligence graph schema
+
+`code-intelligence-graph.schema.json` defines the provider-neutral graph that
+the production native engine will emit. It fixes stable node, edge, language,
+resolution, evidence, generation, and freshness vocabularies while keeping
+responses bounded to 5,000 nodes, 10,000 edges, 64 coverage rows, and 1,000
+diagnostics. Closed records exclude raw source bodies, absolute paths, arbitrary
+metadata, provider identities, and parser-native object IDs.
+
+This contract is additive within protocol v1 and describes derived local state,
+not canonical memory. The existing `source-graph.schema.json` remains the
+JavaScript and TypeScript compatibility contract until the measured native
+migration is complete.
+
+`code-intelligence-engine-request.schema.json` and
+`code-intelligence-engine-response.schema.json` define the replaceable JSON
+Lines subprocess boundary between the Node product shell and the native engine.
+Requests are limited to a workspace-contained `graph.build` operation with a
+relative root, explicit deadline, bounded graph arguments, and an optional
+cancellation token. Success envelopes are validated twice: first against the
+engine response schema, then against `code-intelligence-graph.schema.json`.
+Failure envelopes contain stable codes and sanitized detail tokens only.
+
+The engine protocol carries no absolute root, source body, environment value,
+provider identity, raw parser error, network authority, write authority, or
+canonical-memory operation. Unknown major versions and additional fields fail
+closed. This boundary is additive within protocol v1; it does not switch the
+public source-graph provider by itself.
+
+`code-intelligence-language-truth.schema.json` and
+`code-intelligence-language-report.schema.json` define the reviewed evidence
+used to measure one language on one fixture or pinned repository scope. Truth
+records contain stable semantic keys, safe workspace locators, expected
+presence or absence, review coverage, and provenance. They do not contain raw
+source, absolute paths, repository contents, environment values, or engine
+output copied back as truth.
+
+The language evaluator reports exact numerators and denominators for declaration
+recall, relationship recall, and reviewed call precision. It also records
+duplicate canonical symbols, repository parse failures, graph-fingerprint
+determinism, per-capability item coverage, and explicit unmeasured or
+not-applicable states. Schema validation is followed by semantic auditing for
+duplicate truth IDs and semantic keys, source-class mismatches, unsupported
+`full` claims, and fingerprint drift. A zero-sized sample remains `null`; it is
+never presented as a passing percentage. Individual language reports cannot
+claim parity or leadership and do not change the public JavaScript engine.
+
+`code-intelligence-capability-matrix.schema.json` optionally carries
+`applicability` and `applicabilityRationale` on capability rows. The Tier 1
+semantic audit requires them even though the additive v1 schema keeps older
+matrix documents structurally valid. Evidence presence does not decide
+applicability. An applicable unsupported or unmeasured row remains non-green;
+only a language-semantic absence can use `not-applicable`.
+
+`code-intelligence-index-request.schema.json` and
+`code-intelligence-index-response.schema.json` define the Phase 3 SQLite source
+index boundary. Lifecycle operations are closed to build, refresh, explicit
+repair, status, doctor, and bounded query. Build and refresh carry explicit
+writer intent. Repair additionally requires the exact fingerprint emitted by a
+prior read-only doctor report. Status, doctor, and query cannot carry write or
+repair authority. The index
+locator is the fixed workspace-relative
+`workspace://.local/source-index/index.v1.sqlite` value, never a local path.
+Dependency, neighborhood, and impact queries may restrict traversal to 1..16
+unique canonical edge kinds. The filter is applied during every bounded index
+expansion, not after a broader graph has been read.
+
+Index responses expose only repository identity hashes, schema and engine
+versions, generation state, bounded counts, safe diagnostics, and locator-only
+query results. Read operations require zero local writes. Writer responses
+still require zero canonical-memory, network, and model writes. Raw source,
+absolute paths, raw SQL, raw database errors, and silent repair are outside the
+contract.
+
 ## Recall Map report schema
 
 `recall-map.schema.json` is the additive internal contract for the read-only

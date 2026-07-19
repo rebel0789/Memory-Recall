@@ -609,22 +609,39 @@ dependencies = [
 
 [[package]]
 name = "oaf"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",
  "getrandom 0.2.17",
  "hex",
+ "oaf-index",
  "oaf-ingest",
  "oaf-store",
  "regex",
+ "serde",
  "serde_json",
  "sha2",
+ "tempfile",
+]
+
+[[package]]
+name = "oaf-index"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "oaf-ingest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
 name = "oaf-ingest"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "hex",
@@ -661,7 +678,7 @@ dependencies = [
 
 [[package]]
 name = "oaf-store"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",

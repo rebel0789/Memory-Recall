@@ -7,7 +7,7 @@
   --color-muted:oklch(48% 0.018 255);
   --color-rule:oklch(86% 0.01 255);
   --color-rule-strong:oklch(72% 0.018 255);
-  --color-accent:oklch(52% 0.19 258);
+  --color-accent:oklch(50% 0.12 258);
   --color-accent-ink:oklch(98% 0.005 258);
   --color-success:oklch(55% 0.13 150);
   --color-warning:oklch(67% 0.14 78);
@@ -67,7 +67,7 @@
     --color-muted:oklch(68% 0.014 255);
     --color-rule:oklch(31% 0.014 255);
     --color-rule-strong:oklch(43% 0.018 255);
-    --color-accent:oklch(67% 0.16 258);
+    --color-accent:oklch(70% 0.1 258);
     --color-accent-ink:oklch(17% 0.008 255);
   }
 }

@@ -33,11 +33,11 @@
       "returnedTokens": 7000
     },
     {
-      "caseId": "ctxrec_ast_source_graph",
+      "caseId": "ctxrec_native_code_intelligence",
       "budget": 8000,
       "selectedFiles": [
-        "providers/native/context-candidate-ast-code/src/index.mjs",
-        "tests/ast-code-candidate-source.test.mjs"
+        "rust/oaf-index/src/lib.rs",
+        "tests/native-code-intelligence-14-languages.test.mjs"
       ],
       "returnedTokens": 7000
     },

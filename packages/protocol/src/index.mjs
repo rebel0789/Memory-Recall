@@ -38,6 +38,7 @@ export function createEvent({ type, workspaceId='ws_local', runId, actorId='syst
 export { validateJsonSchema, assertJsonSchema } from './schema-validator.mjs';
 export { canonicalStringify, stableStringify, sha256Hex } from './fingerprint.mjs';
 export {
+  isSafeSourceGraphDisplayLabel,
   normalizeSourceGraphWorkspaceLocator,
   SOURCE_GRAPH_SAFE_LABEL_PATTERN,
   SOURCE_GRAPH_SAFE_LABEL_RE,
@@ -45,3 +46,19 @@ export {
   SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN,
   SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
 } from './source-graph-locator.mjs';
+export {
+  CODE_INTELLIGENCE_CAPABILITIES,
+  CODE_INTELLIGENCE_TIER_1_LANGUAGES,
+  CODE_INTELLIGENCE_TIER_2_LANGUAGES,
+  auditCodeIntelligenceCapabilityMatrix
+} from './code-intelligence-contract.mjs';
+export {
+  auditCodeIntelligenceLanguageTruth,
+  evaluateCodeIntelligenceLanguage,
+  truthFingerprint
+} from './code-intelligence-evaluation.mjs';
+export {
+  CODE_INTELLIGENCE_INDEX_LOCATOR,
+  CODE_INTELLIGENCE_INDEX_OPERATIONS,
+  CODE_INTELLIGENCE_INDEX_QUERY_KINDS
+} from './code-intelligence-index-contract.mjs';

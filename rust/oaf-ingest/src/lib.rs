@@ -16,6 +16,7 @@ use tree_sitter::{Language, Node, Parser};
 pub const DEFAULT_MAX_MEMORY_BYTES: u64 = 350 * 1024 * 1024;
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 const PER_WORKER_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
+const INGEST_BASE_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct IngestOptions {
@@ -24,6 +25,7 @@ pub struct IngestOptions {
     pub max_file_bytes: u64,
     pub workers: usize,
     pub only_sources: Option<BTreeSet<String>>,
+    pub prefer_cpp_headers: bool,
 }
 
 impl IngestOptions {
@@ -34,15 +36,193 @@ impl IngestOptions {
             max_file_bytes: DEFAULT_MAX_FILE_BYTES,
             workers: 1,
             only_sources: None,
+            prefer_cpp_headers: false,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IngestFileHash {
     pub source: String,
     pub sha256: String,
     pub bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FileHashDiscoveryBounds {
+    pub max_candidate_files: usize,
+    pub max_hashed_bytes: u64,
+    pub selected_file_limit: Option<usize>,
+    pub deadline: Instant,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct IngestFileHashReport {
+    pub hashes: Vec<IngestFileHash>,
+    pub complete: bool,
+    pub reason_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct IngestFileRename {
+    pub from_source: String,
+    pub to_source: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct IngestFileHashDiff {
+    pub added: Vec<IngestFileHash>,
+    pub changed: Vec<IngestFileHash>,
+    pub deleted: Vec<String>,
+    pub renamed: Vec<IngestFileRename>,
+    pub unchanged_count: usize,
+}
+
+pub fn diff_file_hashes(
+    previous: &[IngestFileHash],
+    current: &[IngestFileHash],
+) -> Result<IngestFileHashDiff> {
+    let previous = unique_hashes_by_source(previous)?;
+    let current = unique_hashes_by_source(current)?;
+    let mut added = current
+        .iter()
+        .filter(|(source, _)| !previous.contains_key(*source))
+        .map(|(_, value)| (*value).clone())
+        .collect::<Vec<_>>();
+    let mut deleted = previous
+        .keys()
+        .filter(|source| !current.contains_key(*source))
+        .map(|source| (*source).clone())
+        .collect::<Vec<_>>();
+    let changed = current
+        .iter()
+        .filter(|(source, value)| {
+            previous
+                .get(*source)
+                .is_some_and(|old| old.sha256 != value.sha256 || old.bytes != value.bytes)
+        })
+        .map(|(_, value)| (*value).clone())
+        .collect::<Vec<_>>();
+    let unchanged_count = current
+        .iter()
+        .filter(|(source, value)| {
+            previous
+                .get(*source)
+                .is_some_and(|old| old.sha256 == value.sha256 && old.bytes == value.bytes)
+        })
+        .count();
+    let mut added_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    let mut deleted_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    for file in &added {
+        added_by_hash
+            .entry(&file.sha256)
+            .or_default()
+            .push(&file.source);
+    }
+    for source in &deleted {
+        deleted_by_hash
+            .entry(&previous[source].sha256)
+            .or_default()
+            .push(source);
+    }
+    let mut renamed = added_by_hash
+        .into_iter()
+        .filter_map(|(hash, destinations)| {
+            let sources = deleted_by_hash.get(hash)?;
+            (destinations.len() == 1 && sources.len() == 1).then(|| IngestFileRename {
+                from_source: sources[0].to_string(),
+                to_source: destinations[0].to_string(),
+            })
+        })
+        .collect::<Vec<_>>();
+    renamed.sort_by(|left, right| left.from_source.cmp(&right.from_source));
+    let renamed_from = renamed
+        .iter()
+        .map(|item| item.from_source.as_str())
+        .collect::<BTreeSet<_>>();
+    let renamed_to = renamed
+        .iter()
+        .map(|item| item.to_source.as_str())
+        .collect::<BTreeSet<_>>();
+    added.retain(|file| !renamed_to.contains(file.source.as_str()));
+    deleted.retain(|source| !renamed_from.contains(source.as_str()));
+    Ok(IngestFileHashDiff {
+        added,
+        changed,
+        deleted,
+        renamed,
+        unchanged_count,
+    })
+}
+
+fn unique_hashes_by_source(values: &[IngestFileHash]) -> Result<BTreeMap<String, &IngestFileHash>> {
+    let mut output = BTreeMap::new();
+    for value in values {
+        if value.source.is_empty()
+            || value.sha256.len() != 64
+            || !value.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || output.insert(value.source.clone(), value).is_some()
+        {
+            bail!("ingest_file_hash_diff_invalid");
+        }
+    }
+    Ok(output)
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
+pub struct CodeSpan {
+    pub start_line: u32,
+    pub start_column: u32,
+    pub end_line: u32,
+    pub end_column: u32,
+}
+
+impl CodeSpan {
+    fn from_node(node: Node<'_>) -> Self {
+        let start = node.start_position();
+        let end = node.end_position();
+        Self {
+            start_line: start.row as u32 + 1,
+            start_column: start.column as u32,
+            end_line: end.row as u32 + 1,
+            end_column: end.column as u32,
+        }
+    }
+}
+
+fn full_source_span(source: &[u8]) -> CodeSpan {
+    let content_end = source
+        .last()
+        .is_some_and(|byte| *byte == b'\n')
+        .then(|| source.len().saturating_sub(1))
+        .unwrap_or(source.len());
+    let content_end = source[..content_end]
+        .last()
+        .is_some_and(|byte| *byte == b'\r')
+        .then(|| content_end.saturating_sub(1))
+        .unwrap_or(content_end);
+    let content = &source[..content_end];
+    let end_line = content.iter().filter(|byte| **byte == b'\n').count() as u32 + 1;
+    let end_column = content
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(content.len(), |index| content.len() - index - 1) as u32;
+    CodeSpan {
+        start_line: 1,
+        start_column: 0,
+        end_line,
+        end_column,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct CodeFactRecord {
+    pub subject: String,
+    pub predicate: String,
+    pub object: String,
+    pub source: String,
+    pub note: String,
+    pub span: CodeSpan,
 }
 
 pub const CODE_MINHASH_K: usize = 64;
@@ -72,8 +252,11 @@ pub struct IngestReport {
     pub cgroup_memory_limit_bytes: Option<u64>,
     pub elapsed_ms: u128,
     pub skipped_files: Vec<SkippedFile>,
+    pub recovered_files: Vec<RecoveredFile>,
     #[serde(skip)]
     pub facts: Vec<BatchFact>,
+    #[serde(skip)]
+    pub code_facts: Vec<CodeFactRecord>,
     pub language_counts: BTreeMap<String, usize>,
 }
 
@@ -100,14 +283,30 @@ pub struct SkippedFile {
     pub bytes: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveredFile {
+    pub workspace_ref: String,
+    pub reason: String,
+    pub bytes: u64,
+}
+
 #[derive(Debug, Clone)]
 struct ParsedRepo {
     facts: BTreeSet<FactKey>,
+    deferred_definitions: Vec<DeferredDefinitionRef>,
     calls: Vec<CallRef>,
+    constructs: Vec<ConstructRef>,
     imports: Vec<ImportRef>,
+    re_exports: Vec<ImportRef>,
+    parts: Vec<ImportRef>,
+    exports: Vec<ExportRef>,
     routes: Vec<RouteRef>,
+    heritage: Vec<HeritageRef>,
+    frameworks: Vec<FrameworkRef>,
     definitions_by_name: BTreeMap<String, BTreeSet<String>>,
+    symbol_aliases: BTreeMap<(String, String), String>,
     package_entries: BTreeMap<String, String>,
+    dart_package_name: Option<String>,
     generated_call_count: usize,
     import_count: usize,
     definition_count: usize,
@@ -117,68 +316,115 @@ impl ParsedRepo {
     fn new() -> Self {
         Self {
             facts: BTreeSet::new(),
+            deferred_definitions: Vec::new(),
             calls: Vec::new(),
+            constructs: Vec::new(),
             imports: Vec::new(),
+            re_exports: Vec::new(),
+            parts: Vec::new(),
+            exports: Vec::new(),
             routes: Vec::new(),
+            heritage: Vec::new(),
+            frameworks: Vec::new(),
             definitions_by_name: BTreeMap::new(),
+            symbol_aliases: BTreeMap::new(),
             package_entries: BTreeMap::new(),
+            dart_package_name: None,
             generated_call_count: 0,
             import_count: 0,
             definition_count: 0,
         }
     }
 
-    fn add_entity(
+    fn add_entity_at(
         &mut self,
         subject: String,
         kind: &'static str,
         source: &str,
         note: &'static str,
+        span: CodeSpan,
     ) {
-        self.add_fact(subject, "IS_A", kind.to_string(), source, note);
+        self.add_fact_at(subject, "IS_A", kind.to_string(), source, note, span);
     }
 
-    fn add_definition(&mut self, owner: &str, symbol: &str, source: &str, note: &'static str) {
+    fn add_definition_at(
+        &mut self,
+        owner: &str,
+        symbol: &str,
+        source: &str,
+        note: &'static str,
+        span: CodeSpan,
+    ) {
         self.definition_count += 1;
-        self.add_fact(
+        self.add_fact_at(
             owner.to_string(),
             "DEFINES",
             symbol.to_string(),
             source,
             note,
+            span,
         );
     }
 
-    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str) {
+    fn add_deferred_definition_at(
+        &mut self,
+        owner_name: &str,
+        fallback_owner: &str,
+        symbol: &str,
+        source: &str,
+        note: &'static str,
+        span: CodeSpan,
+    ) {
+        self.definition_count += 1;
+        self.deferred_definitions.push(DeferredDefinitionRef {
+            owner_name: owner_name.to_string(),
+            fallback_owner: fallback_owner.to_string(),
+            symbol: symbol.to_string(),
+            source: source.to_string(),
+            note,
+            span,
+        });
+    }
+
+    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
         self.import_count += 1;
-        self.add_entity(
-            target.fallback.clone(),
-            "Module",
-            source,
-            "oaf.ingest:import-module",
-        );
-        self.add_fact(
-            owner.to_string(),
-            "IMPORTS",
-            target.fallback.clone(),
-            source,
-            "oaf.ingest:import",
-        );
         self.imports.push(ImportRef {
             owner: owner.to_string(),
             raw: target.raw,
             fallback: target.fallback,
             source: source.to_string(),
+            span,
         });
     }
 
-    fn add_fact(
+    fn add_re_export(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
+        self.re_exports.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+            span,
+        });
+    }
+
+    fn add_part(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
+        self.parts.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+            span,
+        });
+    }
+
+    fn add_fact_at(
         &mut self,
         subject: String,
         predicate: &'static str,
         object: String,
         source: &str,
         note: &'static str,
+        span: CodeSpan,
     ) {
         self.facts.insert(FactKey {
             subject,
@@ -186,6 +432,7 @@ impl ParsedRepo {
             object,
             source: source.to_string(),
             note: note.to_string(),
+            span,
         });
     }
 
@@ -196,12 +443,23 @@ impl ParsedRepo {
             .insert(subject.to_string());
     }
 
+    fn add_symbol_alias(&mut self, source: &str, alias: &str, target: &str) {
+        if let (Some(alias), Some(target)) =
+            (sanitize_symbol(alias), normalize_symbol_lookup_name(target))
+        {
+            self.symbol_aliases
+                .insert((source.to_string(), alias), target);
+        }
+    }
+
     fn add_call_with_hint(
         &mut self,
         caller: &str,
         callee_name: &str,
         typed_target: Option<TypedCallHint>,
+        allow_name_resolution: bool,
         source: &str,
+        span: CodeSpan,
     ) {
         if callee_name.is_empty()
             || matches!(
@@ -216,52 +474,167 @@ impl ParsedRepo {
             caller: caller.to_string(),
             callee_name: callee_name.to_string(),
             typed_target,
+            allow_name_resolution,
             source: source.to_string(),
+            span,
         });
     }
 
-    fn finish(mut self) -> Vec<BatchFact> {
+    fn finish(mut self) -> (Vec<BatchFact>, Vec<CodeFactRecord>) {
+        let deferred_definitions = std::mem::take(&mut self.deferred_definitions);
+        for definition in deferred_definitions {
+            let owner = self
+                .resolve_type_symbol_name_in_source(&definition.owner_name, &definition.source)
+                .or_else(|| self.resolve_type_symbol_name(&definition.owner_name))
+                .unwrap_or(definition.fallback_owner);
+            self.add_fact_at(
+                owner,
+                "DEFINES",
+                definition.symbol,
+                &definition.source,
+                definition.note,
+                definition.span,
+            );
+        }
         let imports = std::mem::take(&mut self.imports);
         for import in imports {
-            if let Some(target) = self.resolve_import_target(&import) {
-                if target != import.fallback {
-                    self.add_entity(
-                        target.clone(),
-                        "Module",
-                        &import.source,
-                        "oaf.ingest:resolved-import-module",
-                    );
-                    self.add_fact(
-                        import.owner,
-                        "IMPORTS",
-                        target,
-                        &import.source,
-                        "oaf.ingest:resolved-import",
-                    );
-                }
+            let resolved = self.resolve_import_target(&import);
+            let target = resolved.clone().unwrap_or_else(|| import.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &import.source,
+                    if resolved.is_some() {
+                        "oaf.ingest:resolved-import-module"
+                    } else {
+                        "oaf.ingest:import-module"
+                    },
+                    import.span,
+                );
             }
+            self.add_fact_at(
+                import.owner,
+                "IMPORTS",
+                target,
+                &import.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-import"
+                } else {
+                    "oaf.ingest:unresolved-import"
+                },
+                import.span,
+            );
+        }
+        let re_exports = std::mem::take(&mut self.re_exports);
+        for export in re_exports {
+            let resolved = self.resolve_import_target(&export);
+            let target = resolved.clone().unwrap_or_else(|| export.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &export.source,
+                    "oaf.ingest:re-export-module",
+                    export.span,
+                );
+            }
+            self.add_fact_at(
+                export.owner,
+                "RE_EXPORTS",
+                target,
+                &export.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-re-export"
+                } else {
+                    "oaf.ingest:unresolved-re-export"
+                },
+                export.span,
+            );
+        }
+        let exports = std::mem::take(&mut self.exports);
+        for export in exports {
+            let target = if self.has_entity_subject(&export.target) {
+                Some(export.target)
+            } else {
+                self.resolve_exact_symbol_name(&export.target)
+            };
+            let Some(target) = target else {
+                continue;
+            };
+            self.add_fact_at(
+                export.owner,
+                export.predicate,
+                target,
+                &export.source,
+                if export.predicate == "RE_EXPORTS" {
+                    "oaf.ingest:resolved-re-export"
+                } else {
+                    "oaf.ingest:resolved-export"
+                },
+                export.span,
+            );
+        }
+
+        let parts = std::mem::take(&mut self.parts);
+        for part in parts {
+            let target = self
+                .resolve_import_target(&part)
+                .unwrap_or(part.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &part.source,
+                    "oaf.ingest:dart-part-module",
+                    part.span,
+                );
+            }
+            self.add_fact_at(
+                target,
+                "PART_OF",
+                part.owner,
+                &part.source,
+                "oaf.ingest:dart-part",
+                part.span,
+            );
         }
 
         let routes = std::mem::take(&mut self.routes);
         for route in routes {
             let route_id = route_id(&route.method, &route.path);
-            self.add_entity(route_id.clone(), "Route", &route.source, "oaf.ingest:route");
-            self.add_fact(
+            self.add_entity_at(
+                route_id.clone(),
+                "Route",
+                &route.source,
+                "oaf.ingest:route",
+                route.span,
+            );
+            self.add_fact_at(
                 route_id.clone(),
                 "HAS_METHOD",
                 format!("method={}", route.method),
                 &route.source,
                 route.note,
+                route.span,
             );
-            self.add_fact(
+            self.add_fact_at(
                 route_id.clone(),
                 "HAS_PATH",
                 format!("path={}", route.path),
                 &route.source,
                 route.note,
+                route.span,
             );
             if let Some(handler) = self.resolve_route_handler(&route) {
-                self.add_fact(handler, "HANDLES", route_id, &route.source, route.note);
+                self.add_fact_at(
+                    handler,
+                    "HANDLES",
+                    route_id,
+                    &route.source,
+                    route.note,
+                    route.span,
+                );
             }
         }
 
@@ -269,55 +642,373 @@ impl ParsedRepo {
         for call in calls {
             let (target, note) = self.resolve_call(&call);
             if !self.has_definition_subject(&target) {
-                self.add_entity(
+                self.add_entity_at(
                     target.clone(),
                     symbol_kind(&target),
                     &call.source,
                     "oaf.ingest:call-target",
+                    call.span,
                 );
             }
-            self.add_fact(call.caller, "CALLS", target, &call.source, note);
+            self.add_fact_at(call.caller, "CALLS", target, &call.source, note, call.span);
         }
-        self.facts
-            .into_iter()
-            .map(FactKey::into_batch_fact)
-            .collect()
+        let constructs = std::mem::take(&mut self.constructs);
+        for construct in constructs {
+            let resolved = self
+                .resolve_type_symbol_name_in_source(&construct.type_name, &construct.source)
+                .or_else(|| self.resolve_type_symbol_name(&construct.type_name));
+            let target = resolved
+                .clone()
+                .unwrap_or_else(|| format!("external_class:{}", construct.type_name));
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Class",
+                    &construct.source,
+                    "oaf.ingest:construct-target",
+                    construct.span,
+                );
+            }
+            self.add_fact_at(
+                construct.caller,
+                "CONSTRUCTS",
+                target,
+                &construct.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-construct"
+                } else {
+                    "oaf.ingest:unresolved-construct"
+                },
+                construct.span,
+            );
+        }
+        let heritage = std::mem::take(&mut self.heritage);
+        for relation in heritage {
+            let subject = if relation.subject.contains(':') {
+                relation.subject
+            } else {
+                self.resolve_type_symbol_name_in_source(&relation.subject, &relation.source)
+                    .unwrap_or_else(|| format!("external_struct:{}", relation.subject))
+            };
+            let resolved = match relation.predicate {
+                "EXTENDS_TYPE" => {
+                    self.resolve_extended_type(&relation.target_name, &relation.source)
+                }
+                "MIXES_IN" => {
+                    self.resolve_mixin_symbol_name(&relation.target_name, &relation.source)
+                }
+                _ => self
+                    .resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
+                    .or_else(|| self.resolve_type_symbol_name(&relation.target_name)),
+            };
+            let predicate = if relation.predicate == "INHERITS" {
+                if subject.starts_with("interface:") {
+                    "EXTENDS"
+                } else if resolved.as_deref().is_some_and(|target| {
+                    matches!(
+                        target.split_once(':').map(|(kind, _)| kind),
+                        Some("interface" | "protocol" | "trait" | "mixin")
+                    )
+                }) {
+                    "IMPLEMENTS"
+                } else {
+                    "EXTENDS"
+                }
+            } else {
+                relation.predicate
+            };
+            let target = resolved.clone().unwrap_or_else(|| {
+                let kind = match predicate {
+                    "IMPLEMENTS" => "interface",
+                    "MIXES_IN" => "mixin",
+                    _ => "class",
+                };
+                format!("external_{kind}:{}", relation.target_name)
+            });
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    match predicate {
+                        "IMPLEMENTS" => "Interface",
+                        "MIXES_IN" => "Mixin",
+                        _ => "Class",
+                    },
+                    &relation.source,
+                    "oaf.ingest:heritage-target",
+                    relation.span,
+                );
+            }
+            self.add_fact_at(
+                subject,
+                predicate,
+                target,
+                &relation.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-heritage"
+                } else {
+                    "oaf.ingest:unresolved-heritage"
+                },
+                relation.span,
+            );
+        }
+        let frameworks = std::mem::take(&mut self.frameworks);
+        for framework in frameworks {
+            self.add_entity_at(
+                framework.component.clone(),
+                "FrameworkComponent",
+                &framework.source,
+                "oaf.ingest:framework-component",
+                framework.span,
+            );
+            self.add_fact_at(
+                framework.owner,
+                "DEPENDS_ON",
+                framework.component.clone(),
+                &framework.source,
+                "oaf.ingest:framework",
+                framework.span,
+            );
+            if let Some(handler) = framework
+                .handler_name
+                .as_deref()
+                .and_then(|name| self.resolve_exact_symbol_name(name))
+            {
+                self.add_fact_at(
+                    handler,
+                    "LISTENS",
+                    framework.component,
+                    &framework.source,
+                    "oaf.ingest:framework-handler",
+                    framework.span,
+                );
+            }
+        }
+        let code_facts = self
+            .facts
+            .iter()
+            .cloned()
+            .map(FactKey::into_code_fact)
+            .collect::<Vec<_>>();
+        let mut facts = BTreeMap::new();
+        for fact in self.facts {
+            let key = (
+                fact.subject.clone(),
+                fact.predicate.clone(),
+                fact.object.clone(),
+                fact.source.clone(),
+                fact.note.clone(),
+            );
+            facts.entry(key).or_insert_with(|| fact.into_batch_fact());
+        }
+        (facts.into_values().collect(), code_facts)
     }
 
     fn resolve_import_target(&self, import: &ImportRef) -> Option<String> {
+        if let Some(container) = self.resolve_container_subject(&import.raw) {
+            return Some(container);
+        }
         let source_rel = import
             .source
             .strip_prefix("workspace://")
             .unwrap_or(&import.source);
-        resolve_relative_import(source_rel, &import.raw)
-            .or_else(|| resolve_package_import(&self.package_entries, &import.raw))
-            .map(|stem| format!("module:{}", module_token(&stem)))
+        let mut candidates = Vec::new();
+        if let Some(stem) = resolve_relative_import(source_rel, &import.raw) {
+            candidates.push(stem);
+        } else if is_relative_source_reference(&import.raw) {
+            if let Some(stem) = resolve_relative_import(source_rel, &format!("./{}", import.raw)) {
+                candidates.push(stem);
+            }
+        }
+        let package_stem =
+            resolve_package_import(&self.package_entries, &import.raw).or_else(|| {
+                import
+                    .source
+                    .ends_with(".php")
+                    .then(|| import.raw.replace('\\', "."))
+                    .and_then(|raw| resolve_package_import(&self.package_entries, &raw))
+            });
+        if let Some(stem) = package_stem {
+            candidates.push(stem);
+        }
+        if let Some(stem) = self.local_dart_package_import_stem(import) {
+            candidates.push(stem);
+        }
+        candidates.extend(self.local_language_import_stems(import));
+        candidates.sort();
+        candidates.dedup();
+        if import.source.ends_with(".py") {
+            return candidates
+                .iter()
+                .find_map(|stem| self.resolve_exact_module_subject(stem));
+        }
+        candidates
+            .iter()
+            .find_map(|stem| self.resolve_existing_module_subject(stem))
+    }
+
+    fn resolve_exact_module_subject(&self, stem: &str) -> Option<String> {
+        let normalized = strip_known_extension(stem.trim().trim_start_matches("./"));
+        let subject = format!("module:{}", module_token(normalized));
+        self.has_entity_subject(&subject).then_some(subject)
+    }
+
+    fn resolve_container_subject(&self, raw: &str) -> Option<String> {
+        [format!("package:{raw}"), format!("namespace:{raw}")]
+            .into_iter()
+            .find(|subject| self.has_entity_subject(subject))
+    }
+
+    fn local_language_import_stems(&self, import: &ImportRef) -> Vec<String> {
+        if !import.source.ends_with(".rs") || !import.raw.starts_with("crate::") {
+            return Vec::new();
+        }
+        let tail = import.raw.trim_start_matches("crate::").replace("::", "/");
+        self.package_entries
+            .values()
+            .filter_map(|entry| {
+                let root = entry
+                    .strip_suffix("/lib")
+                    .or_else(|| entry.strip_suffix("lib"))?;
+                Some(format!("{}/{tail}", root.trim_end_matches('/')))
+            })
+            .collect()
+    }
+
+    fn local_dart_package_import_stem(&self, import: &ImportRef) -> Option<String> {
+        if !import.source.ends_with(".dart") {
+            return None;
+        }
+        let (package, path) = import.raw.strip_prefix("package:")?.split_once('/')?;
+        (self.dart_package_name.as_deref() == Some(package))
+            .then(|| strip_known_extension(path).to_string())
+    }
+
+    fn resolve_existing_module_subject(&self, stem: &str) -> Option<String> {
+        let normalized = strip_known_extension(stem.trim().trim_start_matches("./"));
+        let mut candidate = normalized.to_string();
+        loop {
+            let subject = format!("module:{}", module_token(&candidate));
+            if self.has_entity_subject(&subject) {
+                return Some(subject);
+            }
+            let Some((parent, _)) = candidate.rsplit_once('/') else {
+                break;
+            };
+            candidate = parent.to_string();
+        }
+
+        let directory = normalized.trim_matches('/');
+        let prefix = format!("workspace://{directory}/");
+        let modules = self
+            .facts
+            .iter()
+            .filter(|fact| {
+                fact.predicate == "IS_A"
+                    && fact.object == "Module"
+                    && fact.source.starts_with(&prefix)
+                    && fact.source[prefix.len()..].split('/').count() == 1
+            })
+            .map(|fact| fact.subject.clone())
+            .collect::<BTreeSet<_>>();
+        (modules.len() == 1).then(|| modules.iter().next().unwrap().clone())
     }
 
     fn resolve_route_handler(&self, route: &RouteRef) -> Option<String> {
         if let Some(subject) = route.handler_subject.as_deref() {
             return Some(subject.to_string());
         }
-        route
-            .handler_name
-            .as_deref()
-            .and_then(|name| self.resolve_exact_symbol_name(name))
+        route.handler_name.as_deref().and_then(|name| {
+            self.resolve_unambiguous_symbol_name_in_source(name, &route.source)
+                .or_else(|| self.resolve_exact_symbol_name(name))
+        })
     }
 
     fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
         if let Some(hint) = call.typed_target.as_ref() {
-            if let Some(target) = self.resolve_exact_symbol_name(&hint.target_name) {
+            if let Some(target) = self
+                .resolve_unambiguous_symbol_name_in_source(&hint.target_name, &call.source)
+                .or_else(|| self.resolve_unambiguous_symbol_name(&hint.target_name))
+            {
                 return (target, hint.note);
             }
         }
-        (
-            self.resolve_call_target(&call.callee_name),
-            "oaf.ingest:call",
-        )
+        if let Some(target) = self.resolve_scoped_call_target(call) {
+            return (target, "oaf.ingest:resolved-scoped-call");
+        }
+        match call
+            .allow_name_resolution
+            .then(|| self.resolve_known_call_target(&call.callee_name))
+            .flatten()
+        {
+            Some(target) => (target, "oaf.ingest:resolved-call"),
+            None => (
+                format!(
+                    "external_function:{}",
+                    sanitize_symbol(&call.callee_name).unwrap_or_else(|| "unknown".to_string())
+                ),
+                "oaf.ingest:unresolved-call",
+            ),
+        }
+    }
+
+    fn resolve_scoped_call_target(&self, call: &CallRef) -> Option<String> {
+        if !call.allow_name_resolution {
+            return None;
+        }
+        let direct_name = sanitize_symbol(&call.callee_name)?;
+        let name = self.lookup_symbol_name_in_source(&call.callee_name, &call.source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|candidate| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "DEFINES"
+                        && fact.subject == call.caller
+                        && fact.object == candidate.as_str()
+                        && fact.source == call.source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        let enclosing_owners = self
+            .facts
+            .iter()
+            .filter(|fact| {
+                fact.predicate == "DEFINES"
+                    && fact.object == call.caller
+                    && fact.source == call.source
+            })
+            .map(|fact| fact.subject.as_str())
+            .collect::<BTreeSet<_>>();
+        if enclosing_owners.len() == 1 {
+            let enclosing_owner = enclosing_owners.iter().next().unwrap();
+            let siblings = subjects
+                .iter()
+                .filter(|candidate| {
+                    self.facts.iter().any(|fact| {
+                        fact.predicate == "DEFINES"
+                            && fact.subject == *enclosing_owner
+                            && fact.object == candidate.as_str()
+                            && fact.source == call.source
+                    })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if siblings.len() == 1 {
+                return Some(siblings[0].clone());
+            }
+        }
+        if name != direct_name && subjects.len() == 1 {
+            return subjects.iter().next().cloned();
+        }
+        None
     }
 
     fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name(name)?;
         let subjects = self.definitions_by_name.get(&name)?;
         if subjects.len() == 1 {
             return subjects.iter().next().cloned();
@@ -328,17 +1019,134 @@ impl ParsedRepo {
             .cloned()
     }
 
-    fn resolve_call_target(&self, callee_name: &str) -> String {
-        let name = sanitize_symbol(callee_name).unwrap_or_else(|| "unknown".to_string());
+    fn resolve_unambiguous_symbol_name(&self, name: &str) -> Option<String> {
+        let name = self.lookup_symbol_name(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        (subjects.len() == 1).then(|| subjects.iter().next().unwrap().clone())
+    }
+
+    fn resolve_unambiguous_symbol_name_in_source(
+        &self,
+        name: &str,
+        source: &str,
+    ) -> Option<String> {
+        let name = self.lookup_symbol_name_in_source(name, source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|subject| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "IS_A"
+                        && fact.subject == subject.as_str()
+                        && fact.source == source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        (subjects.len() == 1).then(|| subjects.iter().next().unwrap().clone())
+    }
+
+    fn resolve_type_symbol_name(&self, name: &str) -> Option<String> {
+        let name = self.lookup_symbol_name(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let types = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject))
+            .cloned()
+            .collect::<Vec<_>>();
+        (types.len() == 1).then(|| types[0].clone())
+    }
+
+    fn resolve_type_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
+        let name = self.lookup_symbol_name_in_source(name, source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|subject| {
+                is_type_subject(subject)
+                    && self.facts.iter().any(|fact| {
+                        fact.predicate == "IS_A"
+                            && fact.subject == subject.as_str()
+                            && fact.source == source
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        let types = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject))
+            .cloned()
+            .collect::<Vec<_>>();
+        (types.len() == 1).then(|| types[0].clone())
+    }
+
+    fn resolve_extended_type(&self, name: &str, source: &str) -> Option<String> {
+        let name = self.lookup_symbol_name_in_source(name, source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let candidates = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject) && !subject.starts_with("extension:"))
+            .cloned()
+            .collect::<Vec<_>>();
+        let local = candidates
+            .iter()
+            .filter(|subject| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "IS_A"
+                        && fact.subject == subject.as_str()
+                        && fact.source == source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        (candidates.len() == 1).then(|| candidates[0].clone())
+    }
+
+    fn resolve_mixin_symbol_name(&self, name: &str, source: &str) -> Option<String> {
+        let name = self.lookup_symbol_name_in_source(name, source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let candidates = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject) || subject.starts_with("namespace:"))
+            .cloned()
+            .collect::<Vec<_>>();
+        (candidates.len() == 1).then(|| candidates[0].clone())
+    }
+
+    fn lookup_symbol_name(&self, name: &str) -> Option<String> {
+        sanitize_symbol(name)
+    }
+
+    fn lookup_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
+        let alias = sanitize_symbol(name)?;
+        self.symbol_aliases
+            .get(&(source.to_string(), alias))
+            .cloned()
+            .or_else(|| sanitize_symbol(name))
+    }
+
+    fn resolve_known_call_target(&self, callee_name: &str) -> Option<String> {
+        let name = self.lookup_symbol_name(callee_name)?;
         match self.definitions_by_name.get(&name) {
-            Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned().unwrap(),
-            Some(subjects) => subjects
-                .iter()
-                .find(|subject| subject.starts_with("function:"))
-                .cloned()
-                .or_else(|| subjects.iter().next().cloned())
-                .unwrap_or_else(|| format!("function:{name}")),
-            None => format!("function:{name}"),
+            Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned(),
+            Some(subjects) => {
+                let functions = subjects
+                    .iter()
+                    .filter(|subject| subject.starts_with("function:"))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                (functions.len() == 1).then(|| functions[0].clone())
+            }
+            None => None,
         }
     }
 
@@ -348,17 +1156,31 @@ impl ParsedRepo {
             .any(|subjects| subjects.contains(subject))
     }
 
+    fn has_entity_subject(&self, subject: &str) -> bool {
+        self.facts
+            .iter()
+            .any(|fact| fact.predicate == "IS_A" && fact.subject == subject)
+    }
+
     fn merge(&mut self, other: ParsedRepo) {
         self.facts.extend(other.facts);
+        self.deferred_definitions.extend(other.deferred_definitions);
         self.calls.extend(other.calls);
+        self.constructs.extend(other.constructs);
         self.imports.extend(other.imports);
+        self.re_exports.extend(other.re_exports);
+        self.parts.extend(other.parts);
+        self.exports.extend(other.exports);
         self.routes.extend(other.routes);
+        self.heritage.extend(other.heritage);
+        self.frameworks.extend(other.frameworks);
         for (name, subjects) in other.definitions_by_name {
             self.definitions_by_name
                 .entry(name)
                 .or_default()
                 .extend(subjects);
         }
+        self.symbol_aliases.extend(other.symbol_aliases);
         self.package_entries.extend(other.package_entries);
         self.generated_call_count += other.generated_call_count;
         self.import_count += other.import_count;
@@ -378,6 +1200,26 @@ struct ImportRef {
     raw: String,
     fallback: String,
     source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct ExportRef {
+    owner: String,
+    predicate: &'static str,
+    target: String,
+    source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct DeferredDefinitionRef {
+    owner_name: String,
+    fallback_owner: String,
+    symbol: String,
+    source: String,
+    note: &'static str,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -388,6 +1230,7 @@ struct RouteRef {
     handler_name: Option<String>,
     source: String,
     note: &'static str,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -395,7 +1238,35 @@ struct CallRef {
     caller: String,
     callee_name: String,
     typed_target: Option<TypedCallHint>,
+    allow_name_resolution: bool,
     source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct ConstructRef {
+    caller: String,
+    type_name: String,
+    source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct HeritageRef {
+    subject: String,
+    predicate: &'static str,
+    target_name: String,
+    source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct FrameworkRef {
+    owner: String,
+    component: String,
+    handler_name: Option<String>,
+    source: String,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -411,9 +1282,21 @@ struct FactKey {
     object: String,
     source: String,
     note: String,
+    span: CodeSpan,
 }
 
 impl FactKey {
+    fn into_code_fact(self) -> CodeFactRecord {
+        CodeFactRecord {
+            subject: self.subject,
+            predicate: self.predicate,
+            object: self.object,
+            source: self.source,
+            note: self.note,
+            span: self.span,
+        }
+    }
+
     fn into_batch_fact(self) -> BatchFact {
         BatchFact {
             subject: self.subject,
@@ -517,10 +1400,117 @@ struct WalkContext {
     module: String,
     source: String,
     lang: LangKind,
+    container_name: Option<String>,
     class_name: Option<String>,
+    owner_subject: Option<String>,
+    route_prefix: Option<String>,
     impl_name: Option<String>,
     caller: Option<String>,
     type_bindings: BTreeMap<String, String>,
+    suppress_calls: bool,
+}
+
+#[derive(Debug, Clone)]
+struct DeclaredContainer {
+    name: String,
+    subject: String,
+    kind: &'static str,
+    span: CodeSpan,
+}
+
+fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<DeclaredContainer> {
+    let expected = match lang {
+        LangKind::Go => &["package_clause"][..],
+        LangKind::Java => &["package_declaration"][..],
+        LangKind::Kotlin => &["package_header"][..],
+        LangKind::CSharp => &["namespace_declaration", "file_scoped_namespace_declaration"][..],
+        LangKind::Php => &["namespace_definition"][..],
+        LangKind::Dart => &["library_name"][..],
+        _ => return None,
+    };
+    let node = first_descendant_matching(root, &|candidate| expected.contains(&candidate.kind()))?;
+    let raw_name = node
+        .child_by_field_name("name")
+        .map(|child| node_text(child, source))
+        .or_else(|| {
+            (0..node.named_child_count())
+                .filter_map(|index| node.named_child(index))
+                .find(|child| {
+                    matches!(
+                        child.kind(),
+                        "identifier"
+                            | "package_identifier"
+                            | "scoped_identifier"
+                            | "qualified_identifier"
+                            | "qualified_name"
+                            | "dotted_identifier_list"
+                    )
+                })
+                .map(|child| node_text(child, source))
+        })?;
+    let name = normalize_container_name(raw_name)?;
+    let (prefix, kind) = match lang {
+        LangKind::CSharp | LangKind::Php => ("namespace", "Namespace"),
+        LangKind::Dart => ("library", "Library"),
+        _ => ("package", "Package"),
+    };
+    Some(DeclaredContainer {
+        subject: format!("{prefix}:{name}"),
+        name,
+        kind,
+        span: CodeSpan::from_node(node),
+    })
+}
+
+fn first_descendant_matching<'tree>(
+    node: Node<'tree>,
+    predicate: &impl Fn(Node<'tree>) -> bool,
+) -> Option<Node<'tree>> {
+    for index in 0..node.named_child_count() {
+        let child = node.named_child(index)?;
+        if predicate(child) {
+            return Some(child);
+        }
+        if let Some(found) = first_descendant_matching(child, predicate) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn first_ancestor_matching<'tree>(
+    mut node: Node<'tree>,
+    predicate: &impl Fn(Node<'tree>) -> bool,
+) -> Option<Node<'tree>> {
+    while let Some(parent) = node.parent() {
+        if predicate(parent) {
+            return Some(parent);
+        }
+        node = parent;
+    }
+    None
+}
+
+fn normalize_container_name(value: &str) -> Option<String> {
+    let normalized = value.replace('\\', ".");
+    let name = normalized
+        .trim()
+        .trim_start_matches("package ")
+        .trim_start_matches("namespace ")
+        .trim_end_matches([';', '{'])
+        .trim();
+    if name.is_empty()
+        || name.len() > 160
+        || name.split('.').any(|segment| {
+            segment.is_empty()
+                || !segment
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '$'))
+        })
+    {
+        return None;
+    }
+    Some(name.to_string())
 }
 
 pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
@@ -538,34 +1528,48 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         options.max_memory_bytes,
         cgroup_memory_limit_bytes,
     );
-    let package_entries = scan_package_entries(&root)?;
-    let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
-    let results = parse_jobs(jobs, effective_worker_count)?;
     let mut parsed = ParsedRepo::new();
+    parsed.dart_package_name = dart_package_name(&root);
+    let package_entries = scan_package_entries(&root, options, &mut parsed)?;
+    let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
     parsed.package_entries = package_entries;
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
     let mut language_counts = BTreeMap::new();
-
-    for result in results {
-        parsed_bytes += result.bytes_read;
-        if let Some(skipped) = result.skipped {
-            skipped_files.push(skipped);
-            continue;
+    let mut recovered_files = Vec::new();
+    if effective_worker_count == 1 {
+        let mut parser = Parser::new();
+        for job in jobs {
+            merge_file_parse(
+                parse_file_job(&mut parser, job)?,
+                &mut parsed,
+                &mut parsed_file_count,
+                &mut parsed_bytes,
+                &mut language_counts,
+                &mut skipped_files,
+                &mut recovered_files,
+            );
         }
-        if let Some(file_parsed) = result.parsed {
-            parsed.merge(file_parsed);
-            parsed_file_count += 1;
-            *language_counts
-                .entry(result.lang.group().to_string())
-                .or_insert(0) += 1;
+    } else {
+        for result in parse_jobs(jobs, effective_worker_count)? {
+            merge_file_parse(
+                result,
+                &mut parsed,
+                &mut parsed_file_count,
+                &mut parsed_bytes,
+                &mut language_counts,
+                &mut skipped_files,
+                &mut recovered_files,
+            );
         }
     }
+
+    augment_build_targets(&root, &mut parsed)?;
 
     let generated_call_count = parsed.generated_call_count;
     let import_count = parsed.import_count;
     let definition_count = parsed.definition_count;
-    let facts = parsed.finish();
+    let (facts, code_facts) = parsed.finish();
     Ok(IngestReport {
         scanned_file_count,
         parsed_file_count,
@@ -580,9 +1584,365 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         cgroup_memory_limit_bytes,
         elapsed_ms: started.elapsed().as_millis(),
         skipped_files,
+        recovered_files,
         facts,
+        code_facts,
         language_counts,
     })
+}
+
+fn dart_package_name(root: &Path) -> Option<String> {
+    if root.file_name().is_some_and(|name| name == "lib") {
+        let name = root.parent()?.file_name()?.to_str()?;
+        return valid_dart_package_name(name).then(|| name.to_string());
+    }
+    let source = fs::read_to_string(root.join("pubspec.yaml")).ok()?;
+    source.lines().find_map(|line| {
+        let value = line.strip_prefix("name:")?.trim();
+        valid_dart_package_name(value).then(|| value.to_string())
+    })
+}
+
+fn valid_dart_package_name(value: &str) -> bool {
+    value
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_lowercase())
+        && value
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')
+}
+
+fn augment_build_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+    for entry in builder.build().filter_map(Result::ok) {
+        let path = entry.path();
+        if !is_build_configuration(path) {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > DEFAULT_MAX_FILE_BYTES {
+            continue;
+        }
+        let relative = workspace_rel(root, path)?;
+        let source_ref = format!("workspace://{relative}");
+        let source = fs::read_to_string(path)
+            .with_context(|| format!("read build configuration {relative}"))?;
+        if path.file_name().and_then(|name| name.to_str()) == Some("CMakeLists.txt") {
+            let variables = cmake_source_variables(path, &source)?;
+            for (command, arguments, line) in cmake_target_calls(&source) {
+                let tokens = expand_source_variables(
+                    arguments.split_whitespace().map(str::to_string).collect(),
+                    &variables,
+                    0,
+                );
+                let Some(target_name) = tokens.first().and_then(|token| sanitize_symbol(token))
+                else {
+                    continue;
+                };
+                add_build_target(
+                    parsed,
+                    &relative,
+                    &source_ref,
+                    &target_name,
+                    &tokens[1..],
+                    line,
+                    command.eq_ignore_ascii_case("add_executable"),
+                    "cmake",
+                );
+            }
+        } else {
+            let variables = makefile_variables(&source);
+            for (target_name, sources, line) in makefile_target_calls(&source, &variables) {
+                add_build_target(
+                    parsed,
+                    &relative,
+                    &source_ref,
+                    &target_name,
+                    &sources,
+                    line,
+                    true,
+                    "makefile",
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn add_build_target(
+    parsed: &mut ParsedRepo,
+    config: &str,
+    source_ref: &str,
+    target_name: &str,
+    tokens: &[String],
+    line: u32,
+    executable: bool,
+    resolver: &str,
+) {
+    let sources = tokens
+        .iter()
+        .map(|token| token.trim_matches(['"', '\'']))
+        .filter(|token| {
+            !matches!(
+                *token,
+                "STATIC" | "SHARED" | "MODULE" | "OBJECT" | "EXCLUDE_FROM_ALL"
+            )
+        })
+        .filter(|token| {
+            matches!(
+                language_for_path(Path::new(token)),
+                Some(LangKind::C | LangKind::Cpp)
+            )
+        })
+        .collect::<Vec<_>>();
+    let modules = sources
+        .iter()
+        .filter_map(|source| {
+            let resolved = resolve_config_relative(config, source);
+            parsed.resolve_existing_module_subject(&resolved)
+        })
+        .collect::<BTreeSet<_>>();
+    if modules.is_empty() {
+        return;
+    }
+    let target = format!("build_target:{target_name}");
+    let span = CodeSpan {
+        start_line: line,
+        start_column: 0,
+        end_line: line,
+        end_column: 1,
+    };
+    let cpp = sources
+        .iter()
+        .any(|source| language_for_path(Path::new(source)) == Some(LangKind::Cpp));
+    let note = match (resolver, cpp) {
+        ("cmake", true) => "oaf.ingest:cmake-cpp",
+        ("cmake", false) => "oaf.ingest:cmake-c",
+        ("makefile", true) => "oaf.ingest:makefile-cpp",
+        _ => "oaf.ingest:makefile-c",
+    };
+    parsed.add_entity_at(target.clone(), "BuildTarget", source_ref, note, span);
+    for module in modules {
+        parsed.add_fact_at(target.clone(), "DEPENDS_ON", module, source_ref, note, span);
+    }
+    if executable && parsed.has_entity_subject("function:main") {
+        parsed.add_fact_at(
+            "function:main".to_string(),
+            "ENTRY_POINT",
+            target,
+            source_ref,
+            note,
+            span,
+        );
+    }
+}
+
+fn cmake_source_variables(path: &Path, source: &str) -> Result<BTreeMap<String, Vec<String>>> {
+    let mut variables = BTreeMap::<String, Vec<String>>::new();
+    let Some(directory) = path.parent() else {
+        return Ok(variables);
+    };
+    let mut siblings = fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| is_makefile(path))
+        .collect::<Vec<_>>();
+    siblings.sort();
+    for sibling in siblings {
+        let metadata = fs::metadata(&sibling)?;
+        if metadata.len() <= DEFAULT_MAX_FILE_BYTES {
+            let contents = fs::read_to_string(&sibling)?;
+            variables.extend(makefile_variables(&contents));
+        }
+    }
+    for (command, arguments, _) in cmake_variable_calls(source) {
+        let mut tokens = arguments.split_whitespace();
+        if command.eq_ignore_ascii_case("set") {
+            let Some(name) = tokens.next().and_then(sanitize_symbol) else {
+                continue;
+            };
+            variables.insert(name, tokens.map(str::to_string).collect());
+        } else {
+            if tokens.next() != Some("APPEND") {
+                continue;
+            }
+            let Some(name) = tokens.next().and_then(sanitize_symbol) else {
+                continue;
+            };
+            variables
+                .entry(name)
+                .or_default()
+                .extend(tokens.map(str::to_string));
+        }
+    }
+    Ok(variables)
+}
+
+fn makefile_variables(source: &str) -> BTreeMap<String, Vec<String>> {
+    let mut variables = BTreeMap::<String, Vec<String>>::new();
+    for (line, _) in logical_makefile_lines(source) {
+        let Some((left, right)) = line.split_once('=') else {
+            continue;
+        };
+        let append = left.trim_end().ends_with('+');
+        let name = left.trim().trim_end_matches([':', '+', '?']).trim();
+        if sanitize_symbol(name).as_deref() != Some(name) {
+            continue;
+        }
+        let values = right.split_whitespace().map(str::to_string);
+        if append {
+            variables
+                .entry(name.to_string())
+                .or_default()
+                .extend(values);
+        } else {
+            variables.insert(name.to_string(), values.collect());
+        }
+    }
+    variables
+}
+
+fn makefile_target_calls(
+    source: &str,
+    variables: &BTreeMap<String, Vec<String>>,
+) -> Vec<(String, Vec<String>, u32)> {
+    logical_makefile_lines(source)
+        .into_iter()
+        .filter_map(|(line, line_number)| {
+            if line.contains('=') || line.starts_with('.') || line.starts_with('\t') {
+                return None;
+            }
+            let (target, dependencies) = line.split_once(':')?;
+            let target = sanitize_symbol(target.trim())?;
+            let sources = expand_source_variables(
+                dependencies
+                    .split_whitespace()
+                    .map(str::to_string)
+                    .collect(),
+                variables,
+                0,
+            );
+            Some((target, sources, line_number))
+        })
+        .collect()
+}
+
+fn logical_makefile_lines(source: &str) -> Vec<(String, u32)> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut start_line = 1u32;
+    for (index, raw) in source.lines().enumerate() {
+        let line_number = index as u32 + 1;
+        let content = raw.split('#').next().unwrap_or("").trim_end();
+        if current.is_empty() {
+            start_line = line_number;
+        }
+        current.push_str(content.trim_end_matches('\\'));
+        current.push(' ');
+        if !content.ends_with('\\') {
+            let logical = current.trim().to_string();
+            if !logical.is_empty() {
+                lines.push((logical, start_line));
+            }
+            current.clear();
+        }
+    }
+    lines
+}
+
+fn expand_source_variables(
+    tokens: Vec<String>,
+    variables: &BTreeMap<String, Vec<String>>,
+    depth: usize,
+) -> Vec<String> {
+    if depth >= 4 {
+        return tokens;
+    }
+    tokens
+        .into_iter()
+        .flat_map(|token| {
+            variable_reference(&token)
+                .and_then(|name| variables.get(name))
+                .map(|values| expand_source_variables(values.clone(), variables, depth + 1))
+                .unwrap_or_else(|| vec![token])
+        })
+        .collect()
+}
+
+fn variable_reference(token: &str) -> Option<&str> {
+    token
+        .strip_prefix("${")
+        .and_then(|value| value.strip_suffix('}'))
+        .or_else(|| {
+            token
+                .strip_prefix("$(")
+                .and_then(|value| value.strip_suffix(')'))
+        })
+}
+
+fn cmake_target_calls(source: &str) -> Vec<(&str, &str, u32)> {
+    cmake_calls(source, &["add_executable", "add_library"])
+}
+
+fn cmake_variable_calls(source: &str) -> Vec<(&str, &str, u32)> {
+    cmake_calls(source, &["set", "list"])
+}
+
+fn cmake_calls<'a>(
+    source: &'a str,
+    commands: &[&'static str],
+) -> Vec<(&'static str, &'a str, u32)> {
+    let mut out = Vec::new();
+    for &command in commands {
+        let mut offset = 0usize;
+        while let Some(found) = source[offset..].find(command) {
+            let start = offset + found;
+            if start > 0
+                && (source.as_bytes()[start - 1].is_ascii_alphanumeric()
+                    || source.as_bytes()[start - 1] == b'_')
+            {
+                offset = start + command.len();
+                continue;
+            }
+            let tail = &source[start + command.len()..];
+            let open = tail.len() - tail.trim_start().len();
+            if !tail[open..].starts_with('(') {
+                offset = start + command.len();
+                continue;
+            }
+            let Some(arguments) = parenthesized_segments(&tail[open..]).into_iter().next() else {
+                break;
+            };
+            let line = source[..start]
+                .bytes()
+                .filter(|byte| *byte == b'\n')
+                .count() as u32
+                + 1;
+            out.push((command, arguments, line));
+            offset = start + command.len() + open + arguments.len() + 2;
+        }
+    }
+    out.sort_by_key(|(_, _, line)| *line);
+    out
+}
+
+fn resolve_config_relative(config: &str, source: &str) -> String {
+    let directory = config.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let joined = if directory.is_empty() {
+        source.to_string()
+    } else {
+        format!("{directory}/{source}")
+    };
+    strip_known_extension(&joined).to_string()
 }
 
 pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHash>> {
@@ -598,7 +1958,178 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
             bytes: bytes.len() as u64,
         });
     }
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "hash discovery root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let mut builder = WalkBuilder::new(&root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+    for entry in builder.build().filter_map(Result::ok) {
+        let path = entry.path();
+        if !is_build_configuration(path) && !is_python_project_configuration(path) {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > options.max_file_bytes {
+            continue;
+        }
+        let relative = workspace_rel(&root, path)?;
+        let source = format!("workspace://{relative}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|selected| !selected.contains(&source))
+        {
+            continue;
+        }
+        let bytes = fs::read(path).with_context(|| format!("read {source}"))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        hashes.push(IngestFileHash {
+            source,
+            sha256: hex::encode(hasher.finalize()),
+            bytes: bytes.len() as u64,
+        });
+    }
+    hashes.sort_by(|left, right| left.source.cmp(&right.source));
+    hashes.dedup_by(|left, right| left.source == right.source);
     Ok(hashes)
+}
+
+pub fn discover_file_hashes_bounded(
+    options: &IngestOptions,
+    bounds: &FileHashDiscoveryBounds,
+    include_source: impl Fn(&str) -> bool,
+) -> Result<IngestFileHashReport> {
+    if bounds.max_candidate_files == 0 || bounds.max_hashed_bytes == 0 {
+        bail!("ingest_file_hash_discovery_bounds_invalid");
+    }
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "hash discovery root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let mut builder = WalkBuilder::new(&root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::<(String, PathBuf, u64)>::new();
+    let mut reason_codes = BTreeSet::new();
+    for entry in builder.build() {
+        if Instant::now() >= bounds.deadline {
+            reason_codes.insert("source_index_freshness_deadline_exceeded".to_string());
+            break;
+        }
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_walk_failed".to_string());
+                break;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let is_configuration =
+            is_build_configuration(path) || is_python_project_configuration(path);
+        if !is_configuration && language_for_path_with_options(path, options).is_none() {
+            continue;
+        }
+        let relative = match workspace_rel(&root, path) {
+            Ok(relative) => relative,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_path_failed".to_string());
+                break;
+            }
+        };
+        let source = format!("workspace://{relative}");
+        if !include_source(&source)
+            || options
+                .only_sources
+                .as_ref()
+                .is_some_and(|selected| !selected.contains(&source))
+        {
+            continue;
+        }
+        let metadata = match fs::metadata(path) {
+            Ok(metadata) => metadata,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_stat_failed".to_string());
+                break;
+            }
+        };
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            continue;
+        }
+        let canonical = match path.canonicalize() {
+            Ok(canonical) if canonical.starts_with(&root) => canonical,
+            _ => {
+                reason_codes.insert("source_index_freshness_path_failed".to_string());
+                break;
+            }
+        };
+        if candidates.len() >= bounds.max_candidate_files {
+            reason_codes.insert("source_index_freshness_candidate_cap".to_string());
+            break;
+        }
+        candidates.push((source, canonical, bytes));
+    }
+
+    candidates.sort_by(|left, right| left.0.cmp(&right.0));
+    candidates.dedup_by(|left, right| left.0 == right.0);
+    if let Some(limit) = bounds.selected_file_limit {
+        candidates.truncate(limit);
+    }
+
+    let mut hashes = Vec::with_capacity(candidates.len());
+    let mut hashed_bytes = 0u64;
+    if reason_codes.is_empty() {
+        for (source, path, bytes) in candidates {
+            if Instant::now() >= bounds.deadline {
+                reason_codes.insert("source_index_freshness_deadline_exceeded".to_string());
+                break;
+            }
+            if hashed_bytes.saturating_add(bytes) > bounds.max_hashed_bytes {
+                reason_codes.insert("source_index_freshness_byte_cap".to_string());
+                break;
+            }
+            let content = match fs::read(path) {
+                Ok(content) => content,
+                Err(_) => {
+                    reason_codes.insert("source_index_freshness_read_failed".to_string());
+                    break;
+                }
+            };
+            hashed_bytes = hashed_bytes.saturating_add(content.len() as u64);
+            hashes.push(IngestFileHash {
+                source,
+                sha256: hex::encode(Sha256::digest(&content)),
+                bytes: content.len() as u64,
+            });
+        }
+    }
+    let complete = reason_codes.is_empty();
+    Ok(IngestFileHashReport {
+        hashes,
+        complete,
+        reason_codes: reason_codes.into_iter().collect(),
+    })
 }
 
 pub fn extract_code_fingerprints(options: &IngestOptions) -> Result<Vec<CodeFingerprint>> {
@@ -675,7 +2206,8 @@ pub fn report_quality_fields(report: &IngestReport) -> Value {
         "cgroupMemoryLimitBytes": report.cgroup_memory_limit_bytes,
         "elapsedMs": report.elapsed_ms,
         "languageCounts": report.language_counts,
-        "skippedFiles": report.skipped_files
+        "skippedFiles": report.skipped_files,
+        "recoveredFiles": report.recovered_files
     })
 }
 
@@ -696,6 +2228,7 @@ struct FileParse {
     bytes_read: u64,
     parsed: Option<ParsedRepo>,
     skipped: Option<SkippedFile>,
+    recovered: Option<RecoveredFile>,
 }
 
 fn discover_jobs(
@@ -730,7 +2263,7 @@ fn discover_jobs(
         if !path.is_file() {
             continue;
         }
-        let Some(lang) = language_for_path(path) else {
+        let Some(lang) = language_for_path_with_options(path, options) else {
             continue;
         };
         scanned_file_count += 1;
@@ -1437,7 +2970,11 @@ fn push_doc_fact(
     });
 }
 
-fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
+fn scan_package_entries(
+    root: &Path,
+    options: &IngestOptions,
+    parsed: &mut ParsedRepo,
+) -> Result<BTreeMap<String, String>> {
     let mut entries = BTreeMap::new();
     let mut builder = WalkBuilder::new(root);
     builder
@@ -1469,15 +3006,86 @@ fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
         }
         let rel = workspace_rel(root, path)?;
         let source = fs::read_to_string(path).with_context(|| format!("read manifest {rel}"))?;
-        parse_manifest_entries(name, &rel, &source, &mut entries);
+        if let Some(project) = parse_manifest_entries(name, &rel, &source, &mut entries) {
+            let source_ref = format!("workspace://{rel}");
+            if configuration_source_selected(path, &source_ref, options)? {
+                add_python_configuration(
+                    parsed,
+                    &project.package_key,
+                    &source_ref,
+                    "oaf.ingest:python-project-configuration",
+                    project.span,
+                );
+            }
+        }
+    }
+    if root.join("__init__.py").is_file() {
+        if let Some(package_key) = root
+            .file_name()
+            .and_then(|value| value.to_str())
+            .and_then(normalize_python_package_key)
+        {
+            insert_package_entry(&mut entries, &package_key, ".");
+            let marker = root.join("__init__.py");
+            let source_ref = "workspace://__init__.py";
+            if configuration_source_selected(&marker, source_ref, options)? {
+                let source = fs::read(&marker)
+                    .context("read scoped Python package marker __init__.py")?;
+                add_python_configuration(
+                    parsed,
+                    &package_key,
+                    source_ref,
+                    "oaf.ingest:python-package-root-configuration",
+                    full_source_span(&source),
+                );
+            }
+        }
     }
     Ok(entries)
+}
+
+fn configuration_source_selected(
+    path: &Path,
+    source: &str,
+    options: &IngestOptions,
+) -> Result<bool> {
+    if options
+        .only_sources
+        .as_ref()
+        .is_some_and(|selected| !selected.contains(source))
+    {
+        return Ok(false);
+    }
+    Ok(fs::metadata(path)
+        .with_context(|| format!("stat {source}"))?
+        .len()
+        <= options.max_file_bytes)
+}
+
+fn add_python_configuration(
+    parsed: &mut ParsedRepo,
+    package_key: &str,
+    source: &str,
+    note: &'static str,
+    span: CodeSpan,
+) {
+    let subject = format!("configuration_resource:{package_key}");
+    let package = format!("package:{package_key}");
+    parsed.add_entity_at(package.clone(), "Package", source, note, span);
+    parsed.add_entity_at(
+        subject.clone(),
+        "ConfigurationResource",
+        source,
+        note,
+        span,
+    );
+    parsed.add_fact_at(subject, "DEPENDS_ON", package, source, note, span);
 }
 
 fn is_manifest_name(name: &str) -> bool {
     matches!(
         name,
-        "package.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
+        "package.json" | "tsconfig.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
     )
 }
 
@@ -1486,13 +3094,49 @@ fn parse_manifest_entries(
     rel: &str,
     source: &str,
     entries: &mut BTreeMap<String, String>,
-) {
+) -> Option<PythonProjectEntry> {
     match name {
         "package.json" => parse_package_json_entries(rel, source, entries),
+        "tsconfig.json" => parse_tsconfig_entries(rel, source, entries),
         "Cargo.toml" => parse_cargo_toml_entries(rel, source, entries),
-        "pyproject.toml" => parse_pyproject_toml_entries(rel, source, entries),
+        "pyproject.toml" => return parse_pyproject_toml_entries(rel, source, entries),
         "go.mod" => parse_go_mod_entries(rel, source, entries),
         _ => {}
+    }
+    None
+}
+
+fn parse_tsconfig_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Ok(root) = serde_json::from_str::<Value>(source) else {
+        return;
+    };
+    let Some(compiler_options) = root.get("compilerOptions") else {
+        return;
+    };
+    let base_url = compiler_options
+        .get("baseUrl")
+        .and_then(Value::as_str)
+        .unwrap_or(".")
+        .trim_matches('/');
+    let Some(paths) = compiler_options.get("paths").and_then(Value::as_object) else {
+        return;
+    };
+    let config_dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    for (pattern, targets) in paths {
+        let Some(target) = targets
+            .as_array()
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let target = target.trim().trim_end_matches('*').trim_end_matches('/');
+        let parts = [config_dir, base_url, target]
+            .into_iter()
+            .filter(|part| !part.is_empty() && *part != ".")
+            .collect::<Vec<_>>();
+        let stem = strip_known_extension(&parts.join("/")).to_string();
+        insert_package_entry(entries, pattern, &stem);
     }
 }
 
@@ -1540,15 +3184,27 @@ fn parse_cargo_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<Stri
     insert_package_entry(entries, &name.replace('-', "_"), &stem);
 }
 
-fn parse_pyproject_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
-    let Some(name) = toml_section_name(source, "[project]") else {
-        return;
-    };
-    let normalized = name.replace('-', "_");
+#[derive(Debug, Clone)]
+struct PythonProjectEntry {
+    package_key: String,
+    span: CodeSpan,
+}
+
+fn parse_pyproject_toml_entries(
+    rel: &str,
+    source: &str,
+    entries: &mut BTreeMap<String, String>,
+) -> Option<PythonProjectEntry> {
+    let (name, span) = toml_section_name_with_span(source, "[project]")?;
+    let normalized = normalize_python_package_key(&name)?;
     let Some(stem) = manifest_entry_stem(rel, &format!("src/{normalized}")) else {
-        return;
+        return None;
     };
     insert_package_entry(entries, &normalized, &stem);
+    Some(PythonProjectEntry {
+        package_key: normalized,
+        span,
+    })
 }
 
 fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
@@ -1558,7 +3214,7 @@ fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, 
     else {
         return;
     };
-    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or(".");
     insert_package_entry(
         entries,
         module_path.split_whitespace().next().unwrap_or(""),
@@ -1567,8 +3223,12 @@ fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, 
 }
 
 fn toml_section_name(source: &str, section: &str) -> Option<String> {
+    toml_section_name_with_span(source, section).map(|(name, _)| name)
+}
+
+fn toml_section_name_with_span(source: &str, section: &str) -> Option<(String, CodeSpan)> {
     let mut in_section = false;
-    for line in source.lines() {
+    for (index, line) in source.lines().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with('[') {
             in_section = trimmed == section;
@@ -1583,9 +3243,53 @@ fn toml_section_name(source: &str, section: &str) -> Option<String> {
         else {
             continue;
         };
-        return quoted_value(value.trim()).map(str::to_string);
+        let name = quoted_value(value.trim())?.to_string();
+        let line_number = index as u32 + 1;
+        return Some((
+            name,
+            CodeSpan {
+                start_line: line_number,
+                start_column: 0,
+                end_line: line_number,
+                end_column: line.len() as u32,
+            },
+        ));
     }
     None
+}
+
+fn normalize_python_package_key(value: &str) -> Option<String> {
+    let mut normalized = String::new();
+    let mut separator = false;
+    for character in value.trim().chars() {
+        if character.is_ascii_alphanumeric() {
+            normalized.push(character.to_ascii_lowercase());
+            separator = false;
+        } else if matches!(character, '-' | '_' | '.') {
+            if normalized.is_empty() {
+                if character != '_' {
+                    return None;
+                }
+                normalized.push('_');
+            } else if !separator {
+                normalized.push('_');
+            }
+            separator = true;
+        } else {
+            return None;
+        }
+    }
+    while normalized.ends_with('_') {
+        normalized.pop();
+    }
+    let mut characters = normalized.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
+        .then_some(())?;
+    characters
+        .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        .then_some(normalized)
 }
 
 fn quoted_value(value: &str) -> Option<&str> {
@@ -1620,7 +3324,11 @@ fn insert_package_entry(entries: &mut BTreeMap<String, String>, name: &str, stem
 
 fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>> {
     if worker_count <= 1 {
-        return jobs.into_iter().map(parse_file_job).collect();
+        let mut parser = Parser::new();
+        return jobs
+            .into_iter()
+            .map(|job| parse_file_job(&mut parser, job))
+            .collect();
     }
 
     let total_jobs = jobs.len();
@@ -1639,14 +3347,17 @@ fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>>
         let queue = Arc::clone(&queue);
         let next_job = Arc::clone(&next_job);
         let tx = tx.clone();
-        handles.push(thread::spawn(move || loop {
-            let index = next_job.fetch_add(1, Ordering::Relaxed);
-            if index >= queue.len() {
-                break;
-            }
-            let job = queue[index].clone();
-            if tx.send(parse_file_job(job)).is_err() {
-                break;
+        handles.push(thread::spawn(move || {
+            let mut parser = Parser::new();
+            loop {
+                let index = next_job.fetch_add(1, Ordering::Relaxed);
+                if index >= queue.len() {
+                    break;
+                }
+                let job = queue[index].clone();
+                if tx.send(parse_file_job(&mut parser, job)).is_err() {
+                    break;
+                }
             }
         }));
     }
@@ -1676,49 +3387,100 @@ fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>>
     Ok(parsed)
 }
 
-fn parse_file_job(job: FileJob) -> Result<FileParse> {
+fn merge_file_parse(
+    result: FileParse,
+    parsed: &mut ParsedRepo,
+    parsed_file_count: &mut usize,
+    parsed_bytes: &mut u64,
+    language_counts: &mut BTreeMap<String, usize>,
+    skipped_files: &mut Vec<SkippedFile>,
+    recovered_files: &mut Vec<RecoveredFile>,
+) {
+    *parsed_bytes += result.bytes_read;
+    if let Some(recovered) = result.recovered {
+        recovered_files.push(recovered);
+    }
+    if let Some(skipped) = result.skipped {
+        skipped_files.push(skipped);
+        return;
+    }
+    if let Some(file_parsed) = result.parsed {
+        parsed.merge(file_parsed);
+        *parsed_file_count += 1;
+        *language_counts.entry(result.lang.group().to_string()).or_insert(0) += 1;
+    }
+}
+
+fn parse_file_job(parser: &mut Parser, job: FileJob) -> Result<FileParse> {
     let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
     let bytes_read = bytes.len() as u64;
-    let mut parser = Parser::new();
     parser
         .set_language(&job.lang.language())
         .with_context(|| format!("load parser for {}", job.source))?;
     let tree = parser
         .parse(&bytes, None)
         .with_context(|| format!("parse {}", job.source))?;
-    if tree.root_node().has_error() {
-        return Ok(FileParse {
-            index: job.index,
-            lang: job.lang,
-            bytes_read,
-            parsed: None,
-            skipped: Some(SkippedFile {
-                workspace_ref: job.source,
-                reason: "tree-sitter parse error".to_string(),
-                bytes: job.bytes,
-            }),
-        });
-    }
+    let recovered = tree.root_node().has_error().then(|| RecoveredFile {
+        workspace_ref: job.source.clone(),
+        reason: "tree-sitter recovered syntax error".to_string(),
+        bytes: job.bytes,
+    });
 
     let mut parsed = ParsedRepo::new();
     let file_id = format!("file:{}", path_token(&job.rel));
     let module = format!("module:{}", module_token(&job.rel));
-    parsed.add_entity(file_id.clone(), "File", &job.source, "oaf.ingest:file");
-    parsed.add_entity(module.clone(), "Module", &job.source, "oaf.ingest:module");
-    parsed.add_definition(
+    let file_span = CodeSpan::from_node(tree.root_node());
+    parsed.add_entity_at(
+        file_id.clone(),
+        "File",
+        &job.source,
+        "oaf.ingest:file",
+        file_span,
+    );
+    parsed.add_entity_at(
+        module.clone(),
+        "Module",
+        &job.source,
+        "oaf.ingest:module",
+        file_span,
+    );
+    parsed.add_definition_at(
         &file_id,
         &module,
         &job.source,
         "oaf.ingest:file-defines-module",
+        file_span,
     );
+    let container = declared_container(tree.root_node(), &bytes, job.lang);
+    if let Some(container) = container.as_ref() {
+        parsed.add_entity_at(
+            container.subject.clone(),
+            container.kind,
+            &job.source,
+            "oaf.ingest:container",
+            container.span,
+        );
+        parsed.add_definition_at(
+            &module,
+            &container.subject,
+            &job.source,
+            "oaf.ingest:define-container",
+            container.span,
+        );
+        parsed.add_symbol_name(&container.name, &container.subject);
+    }
     let context = WalkContext {
         module,
         source: job.source,
         lang: job.lang,
+        container_name: container.as_ref().map(|value| value.name.clone()),
         class_name: None,
+        owner_subject: container.map(|value| value.subject),
+        route_prefix: None,
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
+        suppress_calls: false,
     };
     walk_node(tree.root_node(), &bytes, &context, &mut parsed);
     Ok(FileParse {
@@ -1727,6 +3489,7 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
         bytes_read,
         parsed: Some(parsed),
         skipped: None,
+        recovered,
     })
 }
 
@@ -1739,18 +3502,20 @@ fn extract_file_fingerprints(job: FileJob) -> Result<Vec<CodeFingerprint>> {
     let tree = parser
         .parse(&bytes, None)
         .with_context(|| format!("parse {}", job.source))?;
-    if tree.root_node().has_error() {
-        return Ok(Vec::new());
-    }
     let module = format!("module:{}", module_token(&job.rel));
+    let container = declared_container(tree.root_node(), &bytes, job.lang);
     let context = WalkContext {
         module,
         source: job.source,
         lang: job.lang,
+        container_name: container.as_ref().map(|value| value.name.clone()),
         class_name: None,
+        owner_subject: container.map(|value| value.subject),
+        route_prefix: None,
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
+        suppress_calls: false,
     };
     let mut out = Vec::new();
     walk_fingerprint_nodes(tree.root_node(), &bytes, &context, &mut out);
@@ -1764,8 +3529,11 @@ fn walk_fingerprint_nodes(
     out: &mut Vec<CodeFingerprint>,
 ) {
     let mut next = context.clone();
-    if let Some(class_name) = class_name(node, source, context.lang) {
-        next.class_name = Some(class_name);
+    apply_scoped_namespace(node, source, context, &mut next, None);
+    if let Some((name, subject, _, _)) = type_declaration(node, source, context.lang) {
+        let (name, subject) = qualified_type_identity(name, subject, context);
+        next.class_name = Some(name);
+        next.owner_subject = Some(subject);
     }
     if context.lang == LangKind::Rust && node.kind() == "impl_item" {
         next.impl_name = rust_impl_name(node, source);
@@ -1870,7 +3638,10 @@ fn effective_worker_count(
     let memory_limit = cgroup_memory_limit_bytes
         .map(|limit| limit.min(max_memory_bytes))
         .unwrap_or(max_memory_bytes);
-    let memory_workers = (memory_limit / PER_WORKER_MEMORY_BYTES).max(1) as usize;
+    let memory_workers = (memory_limit
+        .saturating_sub(INGEST_BASE_MEMORY_BYTES)
+        / PER_WORKER_MEMORY_BYTES)
+        .max(1) as usize;
     requested.max(1).min(available).min(memory_workers).max(1)
 }
 
@@ -1890,6 +3661,58 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
+    let mut suppress_child_calls = false;
+    if node.kind() == "variable_declarator"
+        && matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        )
+    {
+        if let Some((alias, target)) = commonjs_require_member_binding(node, source, context) {
+            parsed.add_symbol_alias(&context.source, &alias, &target);
+        }
+    }
+    if context.lang == LangKind::Go && node.kind() == "composite_literal" {
+        if let (Some(caller), Some(type_name)) = (
+            context.caller.as_deref(),
+            node.child_by_field_name("type")
+                .and_then(|type_node| heritage_target_name(type_node, source)),
+        ) {
+            parsed.constructs.push(ConstructRef {
+                caller: caller.to_string(),
+                type_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+    }
+    if matches!(node.kind(), "new_expression" | "object_creation_expression") {
+        if let Some(caller) = context.caller.as_deref() {
+            if let Some(type_name) = constructor_callee(node, source) {
+                parsed.constructs.push(ConstructRef {
+                    caller: caller.to_string(),
+                    type_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+    }
+    if context.lang == LangKind::Ruby && node.kind() == "call" {
+        if let (Some(caller), Some(type_name)) = (
+            context.caller.as_deref(),
+            ruby_constructor_type(node, source),
+        ) {
+            parsed.constructs.push(ConstructRef {
+                caller: caller.to_string(),
+                type_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+            suppress_child_calls = true;
+        }
+    }
+
     if matches!(
         node.kind(),
         "call_expression"
@@ -1904,78 +3727,519 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             | "invocation_expression"
             | "message_expression"
             | "command"
-    ) {
-        if let Some(route) = route_registration(node, source, context) {
-            parsed.routes.push(route);
+    ) && !is_transparent_kotlin_dsl_call(node, source, context.lang)
+    {
+        if matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        ) && callee_name(node, source).as_deref() == Some("require")
+        {
+            for raw in quoted_literals(node_text(node, source)) {
+                if let Some(target) = import_target_from_raw(&raw) {
+                    parsed.add_import(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
         }
-        if let Some(caller) = context.caller.as_deref() {
-            if let Some(callee) = callee_name(node, source) {
-                if !is_declaration_signature_call(node, context.lang, caller, &callee) {
-                    let typed_target = typed_call_target(node, source, context);
-                    parsed.add_call_with_hint(caller, &callee, typed_target, &context.source);
+        let ruby_import = (context.lang == LangKind::Ruby)
+            .then(|| callee_name(node, source))
+            .flatten()
+            .filter(|name| matches!(name.as_str(), "require" | "require_relative"));
+        if let Some(import_call) = ruby_import {
+            for raw in quoted_literals(node_text(node, source)) {
+                let raw = if import_call == "require_relative" {
+                    format!("./{raw}")
+                } else {
+                    raw
+                };
+                if let Some(target) = full_import_target_from_raw(&raw) {
+                    parsed.add_import(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+        }
+        if let Some(framework) = node_http_server(node, source, context) {
+            parsed.frameworks.push(framework);
+        }
+        let is_flutter_entry = context.lang == LangKind::Dart
+            && context.caller.as_deref() == Some("function:main")
+            && callee_name(node, source).as_deref() == Some("runApp");
+        if is_flutter_entry {
+            let component = "framework:flutter_application".to_string();
+            let span = CodeSpan::from_node(node);
+            parsed.add_entity_at(
+                component.clone(),
+                "FrameworkComponent",
+                &context.source,
+                "oaf.ingest:flutter-entry",
+                span,
+            );
+            parsed.add_fact_at(
+                "function:main".to_string(),
+                "ENTRY_POINT",
+                component,
+                &context.source,
+                "oaf.ingest:flutter-entry",
+                span,
+            );
+        }
+        let route = route_registration(node, source, context);
+        let is_route_registration = route.is_some();
+        if let Some(route) = route {
+            parsed.routes.push(route);
+            suppress_child_calls = true;
+        }
+        let ruby_mixin_target = (context.lang == LangKind::Ruby && context.class_name.is_some())
+            .then(|| ruby_mixin_target(node_text(node, source)))
+            .flatten();
+        let ruby_mixin = ruby_mixin_target.is_some();
+        if let Some(target_name) = ruby_mixin_target {
+            if let Some(subject) = context.owner_subject.as_deref() {
+                parsed.heritage.push(HeritageRef {
+                    subject: subject.to_string(),
+                    predicate: "MIXES_IN",
+                    target_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+        if !suppress_child_calls
+            && !is_route_registration
+            && !is_flutter_entry
+            && !ruby_mixin
+            && !context.suppress_calls
+        {
+            if let Some(caller) = context.caller.as_deref() {
+                if let Some(callee) = callee_name(node, source) {
+                    if !is_declaration_signature_call(node, context.lang, caller, &callee) {
+                        if let Some(type_name) = rust_associated_constructor(node, source, context)
+                        {
+                            parsed.constructs.push(ConstructRef {
+                                caller: caller.to_string(),
+                                type_name,
+                                source: context.source.clone(),
+                                span: CodeSpan::from_node(node),
+                            });
+                        } else if matches!(
+                            context.lang,
+                            LangKind::Python
+                                | LangKind::Kotlin
+                                | LangKind::Cpp
+                                | LangKind::Swift
+                                | LangKind::Dart
+                        ) && looks_like_type_name(&callee)
+                            && (context.lang != LangKind::Cpp || !looks_like_macro_name(&callee))
+                        {
+                            parsed.constructs.push(ConstructRef {
+                                caller: caller.to_string(),
+                                type_name: callee,
+                                source: context.source.clone(),
+                                span: CodeSpan::from_node(node),
+                            });
+                        } else {
+                            let typed_target = typed_call_target(node, source, context);
+                            let member_access = (node.kind() == "method_invocation"
+                                && node.child_by_field_name("object").is_some())
+                                || node
+                                    .child_by_field_name("function")
+                                    .or_else(|| node.named_child(0))
+                                    .is_some_and(|function| {
+                                        receiver_method(node_text(function, source)).is_some()
+                                    });
+                            parsed.add_call_with_hint(
+                                caller,
+                                &callee,
+                                typed_target,
+                                !member_access,
+                                &context.source,
+                                CodeSpan::from_node(node),
+                            );
+                        }
+                    }
                 }
             }
         }
     }
 
-    if is_import_node(node.kind()) {
+    if is_import_node(node.kind())
+        && !(context.lang == LangKind::Php
+            && node.kind() == "use_declaration"
+            && context.class_name.is_some())
+    {
+        if context.lang == LangKind::Php {
+            if let Some((alias, target)) = php_use_alias(node_text(node, source)) {
+                parsed.add_symbol_alias(&context.source, &alias, &target);
+            }
+        }
+        let rust_re_export = context.lang == LangKind::Rust
+            && node.kind() == "use_declaration"
+            && rust_unrestricted_public(node, source);
+        let rust_re_export_symbol = rust_re_export
+            .then(|| rust_public_use_symbol(node_text(node, source)))
+            .flatten();
         for target in import_targets(node, source, context.lang) {
-            parsed.add_import(&context.module, target, &context.source);
+            let owner = if context.lang == LangKind::Dart {
+                context.owner_subject.as_deref().unwrap_or(&context.module)
+            } else {
+                &context.module
+            };
+            if rust_re_export {
+                if let Some(symbol) = rust_re_export_symbol.as_ref() {
+                    parsed.exports.push(ExportRef {
+                        owner: owner.to_string(),
+                        predicate: "RE_EXPORTS",
+                        target: symbol.clone(),
+                        source: context.source.clone(),
+                        span: CodeSpan::from_node(node),
+                    });
+                } else {
+                    parsed.add_re_export(
+                        owner,
+                        target.clone(),
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+            parsed.add_import(owner, target, &context.source, CodeSpan::from_node(node));
         }
     }
 
+    if context.lang == LangKind::Php
+        && node.kind() == "use_declaration"
+        && context.class_name.is_some()
+    {
+        if let Some(subject) = context.owner_subject.as_deref() {
+            for target_name in php_trait_use_targets(node_text(node, source)) {
+                parsed.heritage.push(HeritageRef {
+                    subject: subject.to_string(),
+                    predicate: "MIXES_IN",
+                    target_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+    }
+
+    if context.lang == LangKind::Dart && node.kind() == "library_export" {
+        for raw in quoted_literals(node_text(node, source)) {
+            if let Some(target) = full_import_target_from_raw(&raw) {
+                let owner = context.owner_subject.as_deref().unwrap_or(&context.module);
+                parsed.add_re_export(owner, target, &context.source, CodeSpan::from_node(node));
+            }
+        }
+    }
+
+    if context.lang == LangKind::Dart && node.kind() == "part_directive" {
+        for raw in quoted_literals(node_text(node, source)) {
+            if let Some(target) = import_target_from_raw(&raw) {
+                parsed.add_part(
+                    &context.module,
+                    target,
+                    &context.source,
+                    CodeSpan::from_node(node),
+                );
+            }
+        }
+    }
+
+    if node.kind() == "export_statement" {
+        if let Some(source_node) = node.child_by_field_name("source") {
+            for raw in quoted_literals(node_text(source_node, source)) {
+                if let Some(target) = import_target_from_raw(&raw) {
+                    parsed.add_re_export(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+        } else {
+            for target in exported_subjects(node, source, context) {
+                parsed.exports.push(ExportRef {
+                    owner: context.module.clone(),
+                    predicate: "EXPORTS",
+                    target,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+    }
+    if let Some(target) = commonjs_assignment_export(node, source, context.lang) {
+        parsed.exports.push(ExportRef {
+            owner: context.module.clone(),
+            predicate: "EXPORTS",
+            target,
+            source: context.source.clone(),
+            span: CodeSpan::from_node(node),
+        });
+    }
+
     let mut next = context.clone();
-    if let Some(class_name) = class_name(node, source, context.lang) {
-        let class_id = format!("class:{class_name}");
-        parsed.add_entity(
-            class_id.clone(),
-            "Class",
+    if suppress_child_calls {
+        next.suppress_calls = true;
+    }
+    apply_scoped_namespace(node, source, context, &mut next, Some(parsed));
+    if let Some((simple_type_name, type_id, type_kind, establishes_owner)) =
+        type_declaration(node, source, context.lang)
+    {
+        let (type_name, type_id) =
+            qualified_type_identity(simple_type_name.clone(), type_id, context);
+        let definition_owner = context
+            .caller
+            .as_deref()
+            .or(if context.lang == LangKind::Go {
+                None
+            } else {
+                context.owner_subject.as_deref()
+            })
+            .unwrap_or(&context.module);
+        parsed.add_entity_at(
+            type_id.clone(),
+            type_kind,
             &context.source,
-            "oaf.ingest:class",
+            "oaf.ingest:type",
+            CodeSpan::from_node(node),
         );
-        parsed.add_definition(
-            &context.module,
-            &class_id,
+        parsed.add_definition_at(
+            definition_owner,
+            &type_id,
             &context.source,
-            "oaf.ingest:define-class",
+            "oaf.ingest:define-type",
+            CodeSpan::from_node(node),
         );
-        parsed.add_symbol_name(&class_name, &class_id);
-        next.class_name = Some(class_name);
+        parsed.add_symbol_name(&simple_type_name, &type_id);
+        if type_name != simple_type_name {
+            parsed.add_symbol_name(&type_name, &type_id);
+        }
+        if context.lang == LangKind::Go
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && go_exported_identifier(&simple_type_name)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context
+                    .owner_subject
+                    .clone()
+                    .unwrap_or_else(|| context.module.clone()),
+                predicate: "EXPORTS",
+                target: type_id.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if context.lang == LangKind::Rust
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && context.impl_name.is_none()
+            && rust_unrestricted_public(node, source)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                predicate: "EXPORTS",
+                target: type_id.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if let Some(container_name) = context.container_name.as_deref() {
+            let relative = context
+                .source
+                .strip_prefix("workspace://")
+                .unwrap_or(&context.source);
+            parsed.package_entries.insert(
+                format!("{container_name}.{simple_type_name}"),
+                strip_known_extension(relative).to_string(),
+            );
+        }
+        for (predicate, target_name) in heritage_targets(node, source, context.lang) {
+            parsed.heritage.push(HeritageRef {
+                subject: type_id.clone(),
+                predicate,
+                target_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if establishes_owner {
+            next.class_name = Some(type_name);
+            next.owner_subject = Some(type_id);
+            next.type_bindings
+                .extend(batch_c_type_bindings(node, source, context.lang));
+            if matches!(context.lang, LangKind::Java | LangKind::CSharp) {
+                next.route_prefix = controller_route_prefix(node_text(node, source), context.lang);
+            }
+            if matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            ) {
+                let controller_text = node
+                    .parent()
+                    .filter(|parent| parent.kind() == "export_statement")
+                    .map(|parent| node_text(parent, source))
+                    .unwrap_or_else(|| node_text(node, source));
+                next.route_prefix = nest_controller_prefix(controller_text);
+            }
+        }
     }
 
     if context.lang == LangKind::Rust && node.kind() == "impl_item" {
         next.impl_name = rust_impl_name(node, source);
+        if let (Some(type_node), Some(trait_node)) = (
+            node.child_by_field_name("type"),
+            node.child_by_field_name("trait"),
+        ) {
+            if let (Some(type_name), Some(trait_name)) = (
+                heritage_target_name(type_node, source),
+                heritage_target_name(trait_node, source),
+            ) {
+                parsed.heritage.push(HeritageRef {
+                    subject: type_name,
+                    predicate: "IMPLEMENTS",
+                    target_name: trait_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
     }
 
     if let Some((name, subject, kind)) = callable_definition(node, source, context) {
-        parsed.add_entity(
+        let fallback_owner = context
+            .caller
+            .as_deref()
+            .or(if context.lang == LangKind::Go {
+                None
+            } else {
+                context.owner_subject.as_deref()
+            })
+            .unwrap_or(&context.module);
+        parsed.add_entity_at(
             subject.clone(),
             kind,
             &context.source,
             "oaf.ingest:callable",
+            CodeSpan::from_node(node),
         );
-        parsed.add_definition(
-            &context.module,
-            &subject,
-            &context.source,
-            "oaf.ingest:define-callable",
-        );
-        if let Some(class_name) = context.class_name.as_deref() {
-            parsed.add_definition(
-                &format!("class:{class_name}"),
+        let receiver_owner = if context.lang == LangKind::Go && subject.starts_with("method:") {
+            go_receiver_name(node_text(node, source))
+        } else if context.lang == LangKind::Rust && subject.starts_with("method:") {
+            context.impl_name.clone()
+        } else if context.lang == LangKind::Cpp && subject.starts_with("method:") {
+            cpp_callable_owner(node, source, context)
+                .and_then(|owner| owner.rsplit('.').next().map(str::to_string))
+        } else {
+            None
+        };
+        if let Some(owner_name) = receiver_owner {
+            parsed.add_deferred_definition_at(
+                &owner_name,
+                fallback_owner,
                 &subject,
                 &context.source,
-                "oaf.ingest:class-defines-method",
+                "oaf.ingest:define-callable",
+                CodeSpan::from_node(node),
+            );
+        } else {
+            parsed.add_definition_at(
+                fallback_owner,
+                &subject,
+                &context.source,
+                "oaf.ingest:define-callable",
+                CodeSpan::from_node(node),
             );
         }
         parsed.add_symbol_name(&name, &subject);
-        if subject.starts_with("method:") {
-            if let Some((_, bare)) = name.rsplit_once('_') {
-                parsed.add_symbol_name(bare, &subject);
+        if let Some((_, method)) = javascript_member_assigned_function(node, source) {
+            parsed.add_symbol_name(&method, &subject);
+        }
+        if let Some(bare) =
+            callable_node_name(node, source, context).and_then(|value| sanitize_symbol(&value))
+        {
+            if bare != name {
+                parsed.add_symbol_name(&bare, &subject);
             }
+            if subject.starts_with("method:") {
+                if let Some(owner) = context.class_name.as_deref() {
+                    let simple_owner = owner.rsplit('.').next().unwrap_or(owner);
+                    parsed.add_symbol_name(&format!("{simple_owner}_{bare}"), &subject);
+                }
+            }
+        }
+        for alias in batch_c_callable_aliases(&subject) {
+            parsed.add_symbol_name(&alias, &subject);
+        }
+        if context.lang == LangKind::Go
+            && matches!(node.kind(), "function_declaration" | "method_declaration")
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && callable_node_name(node, source, context)
+                .and_then(|name| sanitize_symbol(&name))
+                .is_some_and(|name| go_exported_identifier(&name))
+        {
+            parsed.exports.push(ExportRef {
+                owner: context
+                    .owner_subject
+                    .clone()
+                    .unwrap_or_else(|| context.module.clone()),
+                predicate: "EXPORTS",
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if context.lang == LangKind::Rust
+            && node.kind() == "function_item"
+            && context.caller.is_none()
+            && context.class_name.is_none()
+            && context.impl_name.is_none()
+            && rust_unrestricted_public(node, source)
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                predicate: "EXPORTS",
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if let Some(receiver) = extension_receiver_type(node, source, context.lang) {
+            if let Some(callable) =
+                callable_node_name(node, source, context).and_then(|value| sanitize_symbol(&value))
+            {
+                parsed.add_symbol_name(&format!("{receiver}_{callable}"), &subject);
+            }
+        }
+        if node.kind() == "assignment_expression"
+            && matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            )
+            && commonjs_exported_function(node, source, context).is_some()
+        {
+            parsed.exports.push(ExportRef {
+                owner: context.module.clone(),
+                predicate: "EXPORTS",
+                target: subject.clone(),
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
         }
         next.caller = Some(subject);
         next.type_bindings = local_type_bindings(node, source, context);
+        next.suppress_calls = false;
         if let Some(route) = callable_route(node, source, context, &next.caller.clone().unwrap()) {
             parsed.routes.push(route);
         }
@@ -1988,6 +4252,156 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     }
 }
 
+fn commonjs_exported_function(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<String> {
+    let left = node.child_by_field_name("left")?;
+    let right = node.child_by_field_name("right")?;
+    if !matches!(right.kind(), "function_expression" | "function") {
+        return None;
+    }
+    let export_name = node_text(left, source)
+        .strip_prefix("exports.")
+        .or_else(|| node_text(left, source).strip_prefix("module.exports."))
+        .and_then(sanitize_symbol)?;
+    let function_name = right
+        .child_by_field_name("name")
+        .map(|name| node_text(name, source))
+        .and_then(sanitize_symbol)?;
+    if function_name != export_name {
+        return None;
+    }
+    let module_name = context.module.strip_prefix("module:")?;
+    Some(format!("{module_name}.{export_name}"))
+}
+
+fn commonjs_assignment_export(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
+    if node.kind() != "assignment_expression"
+        || !matches!(lang, LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx)
+        || node
+            .child_by_field_name("left")
+            .is_none_or(|left| node_text(left, source) != "module.exports")
+    {
+        return None;
+    }
+    let right = node.child_by_field_name("right")?;
+    if right.kind() != "identifier" {
+        return None;
+    }
+    sanitize_symbol(node_text(right, source))
+}
+
+fn javascript_member_assigned_function(node: Node<'_>, source: &[u8]) -> Option<(String, String)> {
+    let left = node.child_by_field_name("left")?;
+    let right = node.child_by_field_name("right")?;
+    if !matches!(
+        right.kind(),
+        "function_expression" | "function" | "arrow_function"
+    ) {
+        return None;
+    }
+    let left = node_text(left, source);
+    if left.starts_with("exports.") || left.starts_with("module.exports.") {
+        return None;
+    }
+    let (receiver, method) = receiver_method(left)?;
+    Some((format!("{receiver}_{method}"), method))
+}
+
+fn commonjs_require_member_binding(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<(String, String)> {
+    let alias = node
+        .child_by_field_name("name")
+        .map(|name| node_text(name, source))
+        .and_then(sanitize_symbol)?;
+    let value = node.child_by_field_name("value")?;
+    if value.kind() != "member_expression" {
+        return None;
+    }
+    let require_call = value.child_by_field_name("object")?;
+    if require_call.kind() != "call_expression"
+        || callee_name(require_call, source).as_deref() != Some("require")
+    {
+        return None;
+    }
+    let raw = quoted_literals(node_text(require_call, source))
+        .into_iter()
+        .next()?;
+    if !raw.starts_with('.') {
+        return None;
+    }
+    let member = value
+        .child_by_field_name("property")
+        .map(|property| node_text(property, source))
+        .and_then(sanitize_symbol)?;
+    let source_rel = context
+        .source
+        .strip_prefix("workspace://")
+        .unwrap_or(&context.source);
+    let target_module = resolve_relative_import(source_rel, &raw)?;
+    Some((
+        alias,
+        format!("{}.{}", module_token(&target_module), member),
+    ))
+}
+
+fn apply_scoped_namespace(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    next: &mut WalkContext,
+    mut parsed: Option<&mut ParsedRepo>,
+) {
+    let scoped_namespace = matches!(
+        (context.lang, node.kind()),
+        (LangKind::Cpp, "namespace_definition") | (LangKind::Ruby, "module")
+    );
+    if !scoped_namespace {
+        return;
+    }
+    let Some(simple_name) = node
+        .child_by_field_name("name")
+        .map(|child| node_text(child, source))
+        .and_then(sanitize_symbol)
+    else {
+        return;
+    };
+    let name = context
+        .container_name
+        .as_deref()
+        .map(|parent| format!("{parent}.{simple_name}"))
+        .unwrap_or(simple_name);
+    let subject = format!("namespace:{name}");
+    if let Some(parsed) = parsed.as_mut() {
+        let owner = context.owner_subject.as_deref().unwrap_or(&context.module);
+        parsed.add_entity_at(
+            subject.clone(),
+            "Namespace",
+            &context.source,
+            "oaf.ingest:namespace",
+            CodeSpan::from_node(node),
+        );
+        parsed.add_definition_at(
+            owner,
+            &subject,
+            &context.source,
+            "oaf.ingest:define-namespace",
+            CodeSpan::from_node(node),
+        );
+        parsed.add_symbol_name(&name, &subject);
+        if let Some(simple) = name.rsplit('.').next() {
+            parsed.add_symbol_name(simple, &subject);
+        }
+    }
+    next.container_name = Some(name);
+    next.owner_subject = Some(subject);
+}
+
 fn is_declaration_signature_call(
     node: Node<'_>,
     lang: LangKind,
@@ -1997,6 +4411,23 @@ fn is_declaration_signature_call(
     lang == LangKind::Julia
         && node.kind() == "call_expression"
         && caller.strip_prefix("function:") == Some(callee)
+}
+
+fn is_type_subject(subject: &str) -> bool {
+    matches!(
+        subject.split_once(':').map(|(kind, _)| kind),
+        Some(
+            "class"
+                | "interface"
+                | "struct"
+                | "enum"
+                | "trait"
+                | "protocol"
+                | "mixin"
+                | "extension"
+                | "type_alias"
+        )
+    )
 }
 
 fn callable_definition(
@@ -2013,9 +4444,66 @@ fn callable_definition(
         | "function_definition"
         | "function_item"
         | "create_function"
-        | "method" => {
+        | "method"
+        | "singleton_method"
+        | "field_declaration" => {
+            if context.lang == LangKind::Ruby && kind == "method" && node.named_child_count() == 0 {
+                return None;
+            }
+            if kind == "field_declaration"
+                && (context.lang != LangKind::Cpp
+                    || !descendant_has_kind(node, "function_declarator"))
+            {
+                return None;
+            }
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
+            if context.caller.is_none()
+                && matches!(
+                    context.lang,
+                    LangKind::Java
+                        | LangKind::Kotlin
+                        | LangKind::CSharp
+                        | LangKind::Cpp
+                        | LangKind::Swift
+                        | LangKind::Dart
+                )
+            {
+                let signature = callable_parameter_signature(node, source, context.lang);
+                let callable = if context.lang == LangKind::Cpp
+                    && context
+                        .class_name
+                        .as_deref()
+                        .is_some_and(|owner| owner.rsplit('.').next() == Some(sanitized.as_str()))
+                {
+                    "new"
+                } else {
+                    &sanitized
+                };
+                if let Some(owner) =
+                    cpp_callable_owner(node, source, context).or_else(|| context.class_name.clone())
+                {
+                    let qualified = format!("{owner}.{callable}{signature}");
+                    return Some((qualified.clone(), format!("method:{qualified}"), "Method"));
+                }
+                if let Some(container) = context.container_name.as_deref() {
+                    let qualified = format!("{container}.{callable}{signature}");
+                    return Some((
+                        qualified.clone(),
+                        format!("function:{qualified}"),
+                        "Function",
+                    ));
+                }
+            }
+            if let Some(caller) = context.caller.as_deref() {
+                let owner = caller.split_once(':').map_or(caller, |(_, value)| value);
+                let nested_name = format!("{owner}_{sanitized}");
+                return Some((
+                    nested_name.clone(),
+                    format!("function:{nested_name}"),
+                    "Function",
+                ));
+            }
             if context.lang == LangKind::Rust && context.impl_name.is_some() {
                 let impl_name = context.impl_name.as_deref().unwrap();
                 let method_name = format!("{impl_name}_{sanitized}");
@@ -2030,6 +4518,7 @@ fn callable_definition(
                     context.lang,
                     LangKind::Python
                         | LangKind::Cpp
+                        | LangKind::Php
                         | LangKind::Ruby
                         | LangKind::Swift
                         | LangKind::Kotlin
@@ -2046,6 +4535,16 @@ fn callable_definition(
                     "Method",
                 ));
             }
+            if matches!(context.lang, LangKind::Php | LangKind::Ruby) {
+                if let Some(container) = context.container_name.as_deref() {
+                    let qualified = format!("{container}.{sanitized}");
+                    return Some((
+                        qualified.clone(),
+                        format!("function:{qualified}"),
+                        "Function",
+                    ));
+                }
+            }
             Some((
                 sanitized.clone(),
                 format!("function:{sanitized}"),
@@ -2055,6 +4554,15 @@ fn callable_definition(
         "method_definition" | "method_declaration" => {
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
+            if matches!(
+                context.lang,
+                LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Dart
+            ) {
+                let owner = context.class_name.as_deref()?;
+                let signature = callable_parameter_signature(node, source, context.lang);
+                let qualified = format!("{owner}.{sanitized}{signature}");
+                return Some((qualified.clone(), format!("method:{qualified}"), "Method"));
+            }
             let receiver = if context.lang == LangKind::Go {
                 go_receiver_name(node_text(node, source))
             } else {
@@ -2067,6 +4575,34 @@ fn callable_definition(
                 format!("method:{method_name}"),
                 "Method",
             ))
+        }
+        "constructor_declaration" | "compact_constructor_declaration" | "secondary_constructor"
+            if matches!(
+                context.lang,
+                LangKind::Java | LangKind::Kotlin | LangKind::CSharp
+            ) =>
+        {
+            let owner = context.class_name.as_deref()?;
+            let signature = callable_parameter_signature(node, source, context.lang);
+            let qualified = format!("{owner}.new{signature}");
+            Some((qualified.clone(), format!("method:{qualified}"), "Method"))
+        }
+        "assignment_expression"
+            if matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            ) =>
+        {
+            if let Some(qualified) = commonjs_exported_function(node, source, context) {
+                Some((
+                    qualified.clone(),
+                    format!("function:{qualified}"),
+                    "Function",
+                ))
+            } else {
+                let (qualified, _) = javascript_member_assigned_function(node, source)?;
+                Some((qualified.clone(), format!("method:{qualified}"), "Method"))
+            }
         }
         "variable_declarator" => {
             let value = node.child_by_field_name("value")?;
@@ -2100,40 +4636,615 @@ fn callable_definition(
     }
 }
 
-fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
-    match node.kind() {
+fn callable_parameter_signature(node: Node<'_>, source: &[u8], lang: LangKind) -> String {
+    let parameters = node.child_by_field_name("parameters").or_else(|| {
+        first_descendant_matching(node, &|child| {
+            matches!(
+                child.kind(),
+                "formal_parameters"
+                    | "function_value_parameters"
+                    | "parameter_list"
+                    | "formal_parameter_list"
+            )
+        })
+    });
+    let mut types = Vec::new();
+    if let Some(parameters) = parameters {
+        collect_parameter_types(parameters, source, lang, &mut types);
+    } else {
+        for index in 0..node.named_child_count() {
+            if let Some(child) = node.named_child(index) {
+                if matches!(child.kind(), "parameter" | "formal_parameter") {
+                    collect_parameter_types(child, source, lang, &mut types);
+                }
+            }
+        }
+    }
+    format!("({})", types.join(","))
+}
+
+fn collect_parameter_types(node: Node<'_>, source: &[u8], lang: LangKind, out: &mut Vec<String>) {
+    if matches!(
+        node.kind(),
+        "formal_parameter"
+            | "spread_parameter"
+            | "receiver_parameter"
+            | "parameter"
+            | "parameter_declaration"
+            | "simple_parameter"
+            | "variadic_parameter"
+            | "property_promotion_parameter"
+    ) {
+        let type_name = node
+            .child_by_field_name("type")
+            .map(|child| node_text(child, source))
+            .and_then(signature_type_name)
+            .or_else(|| {
+                (lang == LangKind::Dart)
+                    .then(|| {
+                        (0..node.named_child_count())
+                            .filter_map(|index| node.named_child(index))
+                            .find(|child| child.kind() == "type")
+                            .map(|child| node_text(child, source))
+                    })
+                    .flatten()
+                    .and_then(signature_type_name)
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
+                    .then(|| {
+                        node_text(node, source)
+                            .split_once(':')
+                            .map(|(_, value)| value)
+                    })
+                    .flatten()
+                    .and_then(signature_type_name)
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+        out.push(type_name);
+        return;
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            collect_parameter_types(child, source, lang, out);
+        }
+    }
+}
+
+fn cpp_callable_owner(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
+    if context.lang != LangKind::Cpp || node.kind() != "function_definition" {
+        return None;
+    }
+    let declarator = node.child_by_field_name("declarator")?;
+    let name = declarator
+        .child_by_field_name("declarator")
+        .unwrap_or(declarator);
+    let (owner, _) = node_text(name, source).rsplit_once("::")?;
+    let owner = last_identifier(owner).and_then(|value| sanitize_symbol(&value))?;
+    Some(
+        context
+            .container_name
+            .as_deref()
+            .map(|container| format!("{container}.{owner}"))
+            .unwrap_or(owner),
+    )
+}
+
+fn signature_type_name(value: &str) -> Option<String> {
+    let value = value
+        .split('=')
+        .next()
+        .unwrap_or(value)
+        .trim()
+        .trim_end_matches(['?', '&']);
+    last_identifier(value).and_then(|name| sanitize_symbol(&name))
+}
+
+fn batch_c_callable_aliases(subject: &str) -> Vec<String> {
+    let Some((_, identity)) = subject.split_once(':') else {
+        return Vec::new();
+    };
+    let base = identity
+        .split_once('(')
+        .map_or(identity, |(value, _)| value);
+    let Some((owner, callable)) = base.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let simple_owner = owner.rsplit('.').next().unwrap_or(owner);
+    vec![format!("{simple_owner}_{callable}")]
+}
+
+fn extension_receiver_type(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
+    match lang {
+        LangKind::Kotlin if node.kind() == "function_declaration" => {
+            let name = node.child_by_field_name("name")?;
+            let prefix = std::str::from_utf8(&source[node.start_byte()..name.start_byte()]).ok()?;
+            let receiver = prefix.trim_end().strip_suffix('.')?.trim_end();
+            let receiver = receiver.split_whitespace().last()?;
+            let receiver = receiver.split('<').next().unwrap_or(receiver);
+            last_identifier(receiver).and_then(|value| sanitize_symbol(&value))
+        }
+        LangKind::CSharp if node.kind() == "method_declaration" => {
+            let parameters = node.child_by_field_name("parameters")?;
+            let parameter = (0..parameters.named_child_count())
+                .filter_map(|index| parameters.named_child(index))
+                .find(|child| {
+                    child.kind() == "parameter"
+                        && node_text(*child, source)
+                            .split_whitespace()
+                            .next()
+                            .is_some_and(|token| token == "this")
+                })?;
+            parameter
+                .child_by_field_name("type")
+                .map(|child| node_text(child, source))
+                .and_then(signature_type_name)
+        }
+        LangKind::Dart if node.kind() == "method_declaration" => {
+            let extension =
+                first_ancestor_matching(node, &|parent| parent.kind() == "extension_declaration")?;
+            extension
+                .child_by_field_name("class")
+                .map(|child| node_text(child, source))
+                .and_then(signature_type_name)
+        }
+        _ => None,
+    }
+}
+
+fn type_declaration(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Option<(String, String, &'static str, bool)> {
+    let (prefix, kind, establishes_owner) = match node.kind() {
+        "interface_declaration" | "interface_definition" => ("interface", "Interface", true),
+        "trait_declaration" => ("trait", "Trait", true),
+        "type_alias_declaration" => ("type_alias", "TypeAlias", false),
+        "mixin_declaration" => ("mixin", "Mixin", true),
+        "extension_declaration" => ("extension", "Extension", true),
+        "record_declaration" => ("class", "Class", true),
+        "enum_declaration" | "enum_item" => ("enum", "Enum", true),
+        "struct_item" | "struct_specifier" => ("struct", "Struct", true),
+        "trait_item" | "trait_definition" => ("trait", "Trait", true),
+        "protocol_declaration" => ("protocol", "Protocol", true),
+        "class_declaration" if lang == LangKind::Kotlin => {
+            let header = node_text(node, source).split('{').next().unwrap_or("");
+            if header.split_whitespace().any(|token| token == "interface") {
+                ("interface", "Interface", true)
+            } else {
+                ("class", "Class", true)
+            }
+        }
+        "class_declaration" if lang == LangKind::Swift => {
+            let header = node_text(node, source).split('{').next().unwrap_or("");
+            let keywords = header
+                .split(|character: char| !character.is_ascii_alphabetic())
+                .filter(|token| !token.is_empty())
+                .collect::<BTreeSet<_>>();
+            if keywords.contains("extension") {
+                ("extension", "Extension", true)
+            } else if keywords.contains("struct") {
+                ("struct", "Struct", true)
+            } else if keywords.contains("enum") {
+                ("enum", "Enum", true)
+            } else {
+                ("class", "Class", true)
+            }
+        }
+        "class_declaration"
+            if lang == LangKind::Dart
+                && node_text(node, source)
+                    .split('{')
+                    .next()
+                    .is_some_and(|header| header.contains("interface class")) =>
+        {
+            ("interface", "Interface", true)
+        }
         "class_declaration"
         | "class"
         | "abstract_class_declaration"
         | "class_definition"
         | "class_implementation"
         | "class_interface"
-        | "object_definition"
-        | "trait_definition" => node_name(node, source).and_then(|name| sanitize_symbol(&name)),
-        "struct_definition" if lang == LangKind::Julia => {
-            descendant_identifier_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
+        | "object_definition" => ("class", "Class", true),
+        "struct_definition" if lang == LangKind::Julia => ("struct", "Struct", true),
         "variable_declaration" if lang == LangKind::Zig => {
             if !node_text(node, source).contains("struct") {
                 return None;
             }
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+            ("struct", "Struct", true)
         }
-        "class_specifier" if lang == LangKind::Cpp => {
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
-        "struct_item" | "enum_item" | "trait_item" if lang == LangKind::Rust => {
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
+        "class_specifier" if lang == LangKind::Cpp => ("class", "Class", true),
         "type_spec" if lang == LangKind::Go => {
-            let text = node_text(node, source);
-            if !text.contains("struct") && !text.contains("interface") {
-                return None;
+            let declared_type = node.child_by_field_name("type").or_else(|| {
+                (0..node.named_child_count())
+                    .filter_map(|index| node.named_child(index))
+                    .find(|child| matches!(child.kind(), "struct_type" | "interface_type"))
+            })?;
+            match declared_type.kind() {
+                "struct_type" => ("struct", "Struct", true),
+                "interface_type" => ("interface", "Interface", true),
+                _ => return None,
             }
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
-        _ => None,
+        _ => return None,
+    };
+    let raw_name = if node.kind() == "struct_definition" && lang == LangKind::Julia {
+        descendant_identifier_name(node, source)
+    } else {
+        node_name(node, source)
+    }?;
+    let name = sanitize_symbol(&raw_name)?;
+    Some((
+        name.clone(),
+        format!("{prefix}:{name}"),
+        kind,
+        establishes_owner,
+    ))
+}
+
+fn declaration_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    node.child_by_field_name("name")
+        .map(|child| node_text(child, source))
+        .and_then(last_identifier)
+        .and_then(|name| sanitize_symbol(&name))
+}
+
+fn qualified_type_identity(
+    name: String,
+    subject: String,
+    context: &WalkContext,
+) -> (String, String) {
+    if !matches!(
+        context.lang,
+        LangKind::Java
+            | LangKind::Kotlin
+            | LangKind::CSharp
+            | LangKind::Cpp
+            | LangKind::Php
+            | LangKind::Ruby
+            | LangKind::Dart
+    ) {
+        return (name, subject);
     }
+    let Some(container) = context.container_name.as_deref() else {
+        return (name, subject);
+    };
+    let Some((kind, _)) = subject.split_once(':') else {
+        return (name, subject);
+    };
+    let qualified = format!("{container}.{name}");
+    (qualified.clone(), format!("{kind}:{qualified}"))
+}
+
+fn exported_subjects(node: Node<'_>, source: &[u8], context: &WalkContext) -> Vec<String> {
+    let mut subjects = Vec::new();
+    for index in 0..node.named_child_count() {
+        let Some(child) = node.named_child(index) else {
+            continue;
+        };
+        if let Some((_, subject, _)) = callable_definition(child, source, context) {
+            subjects.push(subject);
+            continue;
+        }
+        if let Some((_, subject, _, _)) = type_declaration(child, source, context.lang) {
+            subjects.push(subject);
+            continue;
+        }
+        if child.kind() == "export_clause" {
+            for child_index in 0..child.named_child_count() {
+                if let Some(name) = child
+                    .named_child(child_index)
+                    .and_then(|item| descendant_identifier_name(item, source))
+                    .and_then(|value| sanitize_symbol(&value))
+                {
+                    subjects.push(name);
+                }
+            }
+        }
+    }
+    subjects.sort();
+    subjects.dedup();
+    subjects
+}
+
+fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'static str, String)> {
+    if lang == LangKind::Python {
+        let Some(superclasses) = node.child_by_field_name("superclasses") else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for index in 0..superclasses.named_child_count() {
+            if let Some(base) = superclasses.named_child(index) {
+                if let Some(name) = heritage_target_name(base, source) {
+                    out.push(("EXTENDS", name));
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        return out;
+    }
+    if matches!(lang, LangKind::Java | LangKind::Kotlin | LangKind::CSharp) {
+        return batch_c_heritage_targets(node, source, lang);
+    }
+    if matches!(lang, LangKind::Cpp | LangKind::Swift | LangKind::Dart) {
+        return batch_d_heritage_targets(node, source, lang);
+    }
+    if matches!(lang, LangKind::Php | LangKind::Ruby) {
+        return batch_e_heritage_targets(node, source, lang);
+    }
+    if matches!(
+        lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        let mut clauses = Vec::new();
+        for index in 0..node.named_child_count() {
+            let Some(child) = node.named_child(index) else {
+                continue;
+            };
+            if child.kind() == "class_heritage" {
+                for clause_index in 0..child.named_child_count() {
+                    if let Some(clause) = child.named_child(clause_index) {
+                        clauses.push(clause);
+                    }
+                }
+            } else if matches!(
+                child.kind(),
+                "extends_clause" | "extends_type_clause" | "implements_clause"
+            ) {
+                clauses.push(child);
+            }
+        }
+
+        let mut out = Vec::new();
+        for clause in clauses {
+            let predicate = if clause.kind() == "implements_clause" {
+                "IMPLEMENTS"
+            } else {
+                "EXTENDS"
+            };
+            if clause.kind() == "extends_clause" {
+                if let Some(target) = clause.child_by_field_name("value") {
+                    if let Some(name) = heritage_target_name(target, source) {
+                        out.push((predicate, name));
+                    }
+                }
+                continue;
+            }
+            for index in 0..clause.named_child_count() {
+                if let Some(target) = clause.named_child(index) {
+                    if let Some(name) = heritage_target_name(target, source) {
+                        out.push((predicate, name));
+                    }
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        return out;
+    }
+
+    heritage_targets_from_text(node_text(node, source))
+}
+
+fn batch_e_heritage_targets(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Vec<(&'static str, String)> {
+    if lang == LangKind::Php {
+        return heritage_targets_from_text(node_text(node, source));
+    }
+    let header = node_text(node, source).lines().next().unwrap_or("");
+    let Some((_, superclass)) = header.split_once('<') else {
+        return Vec::new();
+    };
+    last_identifier(superclass)
+        .and_then(|name| sanitize_symbol(&name))
+        .map(|name| vec![("EXTENDS", name)])
+        .unwrap_or_default()
+}
+
+fn batch_d_heritage_targets(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    match lang {
+        LangKind::Cpp => {
+            for index in 0..node.named_child_count() {
+                if let Some(child) = node.named_child(index) {
+                    if child.kind() == "base_class_clause" {
+                        for base_index in 0..child.named_child_count() {
+                            let Some(base) = child.named_child(base_index) else {
+                                continue;
+                            };
+                            if let Some(name) = cpp_base_specifier_name(base, source) {
+                                out.push(("INHERITS", name));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        LangKind::Swift => {
+            if node_text(node, source)
+                .trim_start()
+                .starts_with("extension ")
+            {
+                if let Some(name) = declaration_name(node, source) {
+                    out.push(("EXTENDS_TYPE", name));
+                }
+            } else {
+                for index in 0..node.named_child_count() {
+                    if let Some(child) = node.named_child(index) {
+                        if child.kind() == "inheritance_specifier" {
+                            collect_heritage_names(child, source, "INHERITS", &mut out);
+                        }
+                    }
+                }
+            }
+        }
+        LangKind::Dart if node.kind() == "extension_declaration" => {
+            if let Some(target) = node
+                .child_by_field_name("class")
+                .and_then(|child| heritage_target_name(child, source))
+            {
+                out.push(("EXTENDS_TYPE", target));
+            }
+        }
+        LangKind::Dart => {
+            if let Some(superclass) = node.child_by_field_name("superclass") {
+                let mut direct_superclass_found = false;
+                for index in 0..superclass.named_child_count() {
+                    let Some(child) = superclass.named_child(index) else {
+                        continue;
+                    };
+                    if child.kind() == "mixins" {
+                        collect_heritage_names(child, source, "MIXES_IN", &mut out);
+                    } else if !direct_superclass_found {
+                        if let Some(name) = heritage_target_name(child, source) {
+                            out.push(("EXTENDS", name));
+                            direct_superclass_found = true;
+                        }
+                    }
+                }
+            }
+            if let Some(interfaces) = node.child_by_field_name("interfaces") {
+                collect_heritage_names(interfaces, source, "IMPLEMENTS", &mut out);
+            }
+        }
+        _ => {}
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn cpp_base_specifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let target = match node.kind() {
+        "template_type" | "qualified_identifier" => node.child_by_field_name("name")?,
+        "type_identifier" => node,
+        _ => return None,
+    };
+    if target.kind() == "template_type" {
+        return target
+            .child_by_field_name("name")
+            .and_then(|name| heritage_target_name(name, source));
+    }
+    heritage_target_name(target, source)
+}
+
+fn batch_c_heritage_targets(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    if lang == LangKind::Java {
+        if let Some(superclass) = node.child_by_field_name("superclass") {
+            if let Some(name) = heritage_target_name(superclass, source) {
+                out.push(("EXTENDS", name));
+            }
+        }
+        if let Some(interfaces) = node.child_by_field_name("interfaces") {
+            collect_heritage_names(interfaces, source, "IMPLEMENTS", &mut out);
+        }
+        for index in 0..node.named_child_count() {
+            let Some(child) = node.named_child(index) else {
+                continue;
+            };
+            if child.kind() == "extends_interfaces" {
+                collect_heritage_names(child, source, "EXTENDS", &mut out);
+            }
+        }
+    } else {
+        for index in 0..node.named_child_count() {
+            let Some(child) = node.named_child(index) else {
+                continue;
+            };
+            if matches!(child.kind(), "delegation_specifiers" | "base_list") {
+                collect_heritage_names(child, source, "INHERITS", &mut out);
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn collect_heritage_names(
+    node: Node<'_>,
+    source: &[u8],
+    predicate: &'static str,
+    out: &mut Vec<(&'static str, String)>,
+) {
+    if matches!(
+        node.kind(),
+        "type_identifier"
+            | "identifier"
+            | "user_type"
+            | "generic_name"
+            | "qualified_name"
+            | "scoped_type_identifier"
+    ) {
+        if let Some(name) = heritage_target_name(node, source) {
+            out.push((predicate, name));
+        }
+        return;
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            collect_heritage_names(child, source, predicate, out);
+        }
+    }
+}
+
+fn heritage_target_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let target = if node.kind() == "generic_type" {
+        node.child_by_field_name("type")
+            .or_else(|| node.child_by_field_name("name"))
+            .or_else(|| node.named_child(0))
+            .unwrap_or(node)
+    } else if node.kind() == "subscript" {
+        node.child_by_field_name("value").unwrap_or(node)
+    } else if node.kind() == "call_expression" {
+        node.child_by_field_name("function").unwrap_or(node)
+    } else {
+        node
+    };
+    last_identifier(node_text(target, source)).and_then(|name| sanitize_symbol(&name))
+}
+
+fn heritage_targets_from_text(text: &str) -> Vec<(&'static str, String)> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut out = Vec::new();
+    for (keyword, predicate) in [("extends", "EXTENDS"), ("implements", "IMPLEMENTS")] {
+        let Some((_, tail)) = header.split_once(keyword) else {
+            continue;
+        };
+        let tail = tail
+            .split("implements")
+            .next()
+            .unwrap_or(tail)
+            .split("extends")
+            .next()
+            .unwrap_or(tail);
+        for raw in tail.split(',') {
+            let candidate = raw
+                .split_whitespace()
+                .next()
+                .and_then(last_identifier)
+                .and_then(|name| sanitize_symbol(&name));
+            if let Some(name) = candidate {
+                out.push((predicate, name));
+            }
+        }
+    }
+    out
 }
 
 fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2165,11 +5276,15 @@ fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
     if matches!(
         context.lang,
         LangKind::C | LangKind::Cpp | LangKind::ObjectiveC
-    ) && node.kind() == "function_definition"
+    ) && matches!(node.kind(), "function_definition" | "field_declaration")
     {
-        return node
-            .child_by_field_name("declarator")
-            .and_then(|child| descendant_identifier_name(child, source))
+        return first_descendant_matching(node, &|child| child.kind() == "function_declarator")
+            .and_then(|declarator| {
+                let name = declarator
+                    .child_by_field_name("declarator")
+                    .unwrap_or(declarator);
+                last_identifier(node_text(name, source))
+            })
             .or_else(|| node_name(node, source));
     }
     if context.lang == LangKind::Sql && node.kind() == "create_function" {
@@ -2235,21 +5350,98 @@ fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if node.kind() == "method_invocation" {
+        return node
+            .child_by_field_name("name")
+            .map(|child| node_text(child, source))
+            .and_then(sanitize_symbol);
+    }
     if matches!(
         node.kind(),
         "member_call_expression"
             | "nullsafe_member_call_expression"
             | "scoped_call_expression"
-            | "method_invocation"
             | "message_expression"
     ) {
+        if let Some(name) = node
+            .child_by_field_name("name")
+            .or_else(|| node.child_by_field_name("method"))
+        {
+            return sanitize_symbol(node_text(name, source));
+        }
         return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
+    }
+    if node.kind() == "call" {
+        if let Some(method) = node
+            .child_by_field_name("method")
+            .or_else(|| node.child_by_field_name("name"))
+        {
+            return sanitize_symbol(node_text(method, source));
+        }
     }
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
     let text = node_text(function, source);
     last_identifier(text).and_then(|name| sanitize_symbol(&name))
+}
+
+fn is_transparent_kotlin_dsl_call(node: Node<'_>, source: &[u8], lang: LangKind) -> bool {
+    if lang != LangKind::Kotlin || node.kind() != "call_expression" {
+        return false;
+    }
+    let first = node.named_child(0);
+    let wraps_trailing_lambda_call = first.is_some_and(|child| child.kind() == "call_expression")
+        && (1..node.named_child_count()).any(|index| {
+            node.named_child(index)
+                .is_some_and(|child| child.kind() == "annotated_lambda")
+        });
+    wraps_trailing_lambda_call || callee_name(node, source).as_deref() == Some("routing")
+}
+
+fn constructor_callee(node: Node<'_>, source: &[u8]) -> Option<String> {
+    node.child_by_field_name("constructor")
+        .or_else(|| node.child_by_field_name("type"))
+        .or_else(|| node.named_child(0))
+        .map(|child| node_text(child, source))
+        .and_then(last_identifier)
+        .and_then(|name| sanitize_symbol(&name))
+}
+
+fn ruby_constructor_type(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let receiver = node.child_by_field_name("receiver")?;
+    let method = node
+        .child_by_field_name("method")
+        .or_else(|| node.child_by_field_name("name"))?;
+    if node_text(method, source) != "new" {
+        return None;
+    }
+    let type_name =
+        last_identifier(node_text(receiver, source)).and_then(|name| sanitize_symbol(&name))?;
+    looks_like_type_name(&type_name).then_some(type_name)
+}
+
+fn rust_associated_constructor(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<String> {
+    if context.lang != LangKind::Rust {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = node_text(function, source).rsplit_once("::")?;
+    if method.trim() != "new" {
+        return None;
+    }
+    let receiver = last_identifier(receiver).and_then(|name| sanitize_symbol(&name))?;
+    if receiver == "Self" {
+        context.impl_name.clone()
+    } else {
+        Some(receiver)
+    }
 }
 
 fn typed_call_target(
@@ -2260,21 +5452,68 @@ fn typed_call_target(
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
-    let function_text = if node.kind() == "method_invocation" {
-        node_text(node, source)
+    let function_text = node_text(function, source);
+    let receiver_and_method = if node.kind() == "call" && context.lang == LangKind::Ruby {
+        node.child_by_field_name("receiver")
+            .zip(
+                node.child_by_field_name("method")
+                    .or_else(|| node.child_by_field_name("name")),
+            )
+            .and_then(|(receiver, method)| {
+                Some((
+                    sanitize_symbol(node_text(receiver, source))?,
+                    sanitize_symbol(node_text(method, source))?,
+                ))
+            })
+    } else if matches!(
+        node.kind(),
+        "method_invocation" | "member_call_expression" | "nullsafe_member_call_expression"
+    ) {
+        node.child_by_field_name("object")
+            .zip(node.child_by_field_name("name"))
+            .and_then(|(receiver, method)| {
+                Some((
+                    sanitize_symbol(node_text(receiver, source))?,
+                    sanitize_symbol(node_text(method, source))?,
+                ))
+            })
     } else {
-        node_text(function, source)
+        receiver_method(function_text)
     };
-    let (receiver_type, method) = if let Some((receiver, method)) = receiver_method(function_text) {
-        (context.type_bindings.get(&receiver)?.clone(), method)
+    let (receiver_type, method) = if let Some((receiver, method)) = receiver_and_method {
+        let receiver_key = receiver.trim_start_matches('$');
+        let receiver_type = if matches!(receiver_key, "this" | "self") {
+            context.class_name.clone().or_else(|| {
+                (context.lang == LangKind::Rust)
+                    .then(|| context.impl_name.clone())
+                    .flatten()
+            })?
+        } else if let Some(bound) = context
+            .type_bindings
+            .get(&receiver)
+            .or_else(|| context.type_bindings.get(receiver_key))
+        {
+            bound.clone()
+        } else if looks_like_type_name(receiver_key) {
+            receiver_key.to_string()
+        } else if matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        ) {
+            receiver_key.to_string()
+        } else {
+            return None;
+        };
+        (receiver_type, method)
     } else if let Some(class_name) = context.class_name.as_ref() {
         let method = sanitize_symbol(function_text)?;
         (class_name.clone(), method)
     } else {
         return None;
     };
+    let receiver_alias = receiver_type.rsplit('.').next().unwrap_or(&receiver_type);
     Some(TypedCallHint {
-        target_name: format!("{receiver_type}_{method}"),
+        target_name: format!("{receiver_alias}_{method}"),
         note: typed_call_note(context.lang)?,
     })
 }
@@ -2282,10 +5521,18 @@ fn typed_call_target(
 fn typed_call_note(lang: LangKind) -> Option<&'static str> {
     match lang {
         LangKind::Python => Some("oaf.ingest:typed-call-python"),
+        LangKind::Go => Some("oaf.ingest:typed-call-go"),
+        LangKind::Rust => Some("oaf.ingest:typed-call-rust"),
         LangKind::Java => Some("oaf.ingest:typed-call-java"),
         LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
+        LangKind::Cpp => Some("oaf.ingest:typed-call-cpp"),
         LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
         LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
+        LangKind::Dart => Some("oaf.ingest:typed-call-dart"),
+        LangKind::Php => Some("oaf.ingest:typed-call-php"),
+        LangKind::Ruby => Some("oaf.ingest:typed-call-ruby"),
+        LangKind::JavaScript => Some("oaf.ingest:typed-call-javascript"),
+        LangKind::TypeScript | LangKind::Tsx => Some("oaf.ingest:typed-call-typescript"),
         _ => None,
     }
 }
@@ -2295,20 +5542,235 @@ fn local_type_bindings(
     source: &[u8],
     context: &WalkContext,
 ) -> BTreeMap<String, String> {
+    let mut bindings = context.type_bindings.clone();
     if context.lang == LangKind::Python {
-        let mut bindings = python_type_bindings(node, source);
+        bindings.extend(python_type_bindings(node, source));
         if let Some(class_name) = context.class_name.as_deref() {
             bindings.insert("self".to_string(), class_name.to_string());
         }
         return bindings;
     }
+    if context.lang == LangKind::Go {
+        bindings.extend(go_type_bindings(node_text(node, source)));
+        return bindings;
+    }
+    if context.lang == LangKind::Rust {
+        bindings.extend(rust_type_bindings(node_text(node, source)));
+        if let Some(type_name) = context.impl_name.as_deref() {
+            bindings.insert("self".to_string(), type_name.to_string());
+        }
+        return bindings;
+    }
     if matches!(
         context.lang,
-        LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Kotlin
+        LangKind::Java
+            | LangKind::Kotlin
+            | LangKind::CSharp
+            | LangKind::Cpp
+            | LangKind::Swift
+            | LangKind::Dart
+            | LangKind::Php
     ) {
-        return constructor_type_bindings(node_text(node, source));
+        bindings.extend(batch_c_type_bindings(node, source, context.lang));
+        if context.lang == LangKind::Php {
+            bindings.extend(php_type_bindings(node_text(node, source)));
+        }
+        bindings.extend(constructor_type_bindings(node_text(node, source)));
+        if let Some(type_name) = context.class_name.as_deref() {
+            bindings.insert("this".to_string(), type_name.to_string());
+            bindings.insert("self".to_string(), type_name.to_string());
+        }
+        return bindings;
     }
-    BTreeMap::new()
+    if context.lang == LangKind::Ruby {
+        bindings.extend(ruby_constructor_type_bindings(node_text(node, source)));
+        if let Some(type_name) = context.class_name.as_deref() {
+            bindings.insert("self".to_string(), type_name.to_string());
+        }
+        return bindings;
+    }
+    if matches!(
+        context.lang,
+        LangKind::JavaScript
+            | LangKind::TypeScript
+            | LangKind::Tsx
+            | LangKind::Java
+            | LangKind::CSharp
+            | LangKind::Swift
+            | LangKind::Kotlin
+    ) {
+        bindings.extend(constructor_type_bindings(node_text(node, source)));
+    }
+    bindings
+}
+
+fn batch_c_type_bindings(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    collect_batch_c_type_bindings(node, source, lang, &mut bindings);
+    bindings
+}
+
+fn collect_batch_c_type_bindings(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+    bindings: &mut BTreeMap<String, String>,
+) {
+    if matches!(
+        node.kind(),
+        "formal_parameter"
+            | "spread_parameter"
+            | "receiver_parameter"
+            | "parameter"
+            | "parameter_declaration"
+            | "simple_parameter"
+            | "variadic_parameter"
+            | "property_promotion_parameter"
+    ) {
+        let text = node_text(node, source);
+        let name = node
+            .child_by_field_name("name")
+            .map(|child| node_text(child, source).to_string())
+            .or_else(|| {
+                node.child_by_field_name("declarator")
+                    .map(|child| node_text(child, source).to_string())
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
+                    .then(|| {
+                        text.split_once(':')
+                            .map(|(value, _)| value.trim().to_string())
+                    })
+                    .flatten()
+            })
+            .and_then(|value| last_identifier(&value))
+            .and_then(|value| sanitize_symbol(&value));
+        let type_name = node
+            .child_by_field_name("type")
+            .map(|child| node_text(child, source))
+            .and_then(signature_type_name)
+            .or_else(|| {
+                (lang == LangKind::Dart)
+                    .then(|| {
+                        (0..node.named_child_count())
+                            .filter_map(|index| node.named_child(index))
+                            .find(|child| child.kind() == "type")
+                            .map(|child| node_text(child, source))
+                    })
+                    .flatten()
+                    .and_then(signature_type_name)
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
+                    .then(|| text.split_once(':').map(|(_, value)| value))
+                    .flatten()
+                    .and_then(signature_type_name)
+            });
+        if let (Some(name), Some(type_name)) = (name, type_name) {
+            bindings.insert(name, type_name);
+        }
+        return;
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            collect_batch_c_type_bindings(child, source, lang, bindings);
+        }
+    }
+}
+
+fn go_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut bindings = BTreeMap::new();
+    for parameters in parenthesized_segments(header) {
+        for parameter in parameters.split(',') {
+            let parts = parameter.split_whitespace().collect::<Vec<_>>();
+            if parts.len() < 2 {
+                continue;
+            }
+            let Some(type_name) =
+                last_identifier(parts.last().unwrap()).and_then(|name| sanitize_symbol(&name))
+            else {
+                continue;
+            };
+            for name in &parts[..parts.len() - 1] {
+                if let Some(name) = sanitize_symbol(name.trim_matches(['(', ')', '*', '&'])) {
+                    bindings.insert(name, type_name.clone());
+                }
+            }
+        }
+    }
+    bindings
+}
+
+fn rust_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut bindings = BTreeMap::new();
+    let Some(parameters) = parenthesized_segments(header).into_iter().next() else {
+        return bindings;
+    };
+    for parameter in parameters.split(',') {
+        let Some((name, type_name)) = parameter.split_once(':') else {
+            continue;
+        };
+        let Some(name) = sanitize_symbol(name.trim()) else {
+            continue;
+        };
+        let Some(type_name) = last_identifier(type_name).and_then(|value| sanitize_symbol(&value))
+        else {
+            continue;
+        };
+        bindings.insert(name, type_name);
+    }
+    bindings
+}
+
+fn php_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    let Some(parameters) = parenthesized_segments(text).into_iter().next() else {
+        return bindings;
+    };
+    for parameter in parameters.split(',') {
+        let parts = parameter.split_whitespace().collect::<Vec<_>>();
+        if parts.len() < 2 {
+            continue;
+        }
+        let Some(name) = sanitize_symbol(parts.last().unwrap()) else {
+            continue;
+        };
+        let Some(type_name) =
+            last_identifier(parts[parts.len() - 2]).and_then(|value| sanitize_symbol(&value))
+        else {
+            continue;
+        };
+        bindings.insert(name, type_name);
+    }
+    bindings
+}
+
+fn parenthesized_segments(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut start = None;
+    for (index, ch) in text.char_indices() {
+        if ch == '(' {
+            if depth == 0 {
+                start = Some(index + ch.len_utf8());
+            }
+            depth += 1;
+        } else if ch == ')' && depth > 0 {
+            depth -= 1;
+            if depth == 0 {
+                if let Some(start) = start.take() {
+                    out.push(&text[start..index]);
+                }
+            }
+        }
+    }
+    out
 }
 
 fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
@@ -2338,6 +5800,29 @@ fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
     bindings
 }
 
+fn ruby_constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in text.lines() {
+        let Some((lhs, rhs)) = line.split_once('=') else {
+            continue;
+        };
+        let Some(variable) = last_identifier(lhs).and_then(|name| sanitize_symbol(&name)) else {
+            continue;
+        };
+        let Some((receiver, _)) = rhs.trim().split_once(".new") else {
+            continue;
+        };
+        let Some(type_name) = last_identifier(receiver).and_then(|name| sanitize_symbol(&name))
+        else {
+            continue;
+        };
+        if looks_like_type_name(&type_name) {
+            bindings.insert(variable, type_name);
+        }
+    }
+    bindings
+}
+
 fn starts_with_binding_keyword(lhs: &str) -> bool {
     lhs.split_whitespace()
         .next()
@@ -2353,14 +5838,290 @@ fn looks_like_type_name(name: &str) -> bool {
     name.chars().next().is_some_and(char::is_uppercase)
 }
 
+fn looks_like_macro_name(name: &str) -> bool {
+    name.chars()
+        .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
+}
+
 fn receiver_method(value: &str) -> Option<(String, String)> {
-    let (receiver, method) = value.trim().rsplit_once('.')?;
+    let value = value.trim();
+    let (index, separator) = ["->", "::", "."]
+        .into_iter()
+        .filter_map(|separator| value.rfind(separator).map(|index| (index, separator)))
+        .max_by_key(|(index, _)| *index)?;
+    let receiver = &value[..index];
+    let method = &value[index + separator.len()..];
     let receiver = sanitize_symbol(receiver)?;
     let method = sanitize_symbol(method)?;
     Some((receiver, method))
 }
 
 fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<RouteRef> {
+    let text = node_text(node, source);
+    if context.lang == LangKind::Ruby {
+        let method = callee_name(node, source).and_then(|name| http_method(&name))?;
+        let path = first_quoted_route_path(text)?;
+        let rails = context.source.ends_with("config/routes.rb") || text.contains("to:");
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: (!rails).then(|| context.module.clone()),
+            handler_name: rails.then(|| ruby_rails_handler_name(text)).flatten(),
+            source: context.source.clone(),
+            note: if rails {
+                "oaf.ingest:route-rails"
+            } else {
+                "oaf.ingest:route-sinatra"
+            },
+            span: CodeSpan::from_node(node),
+        });
+    }
+    if context.lang == LangKind::Php && node.kind() == "scoped_call_expression" {
+        let function = text.split_once('(').map_or(text, |(head, _)| head);
+        let (receiver, method) = receiver_method(function)?;
+        if receiver != "Route" {
+            return None;
+        }
+        return Some(RouteRef {
+            method: http_method(&method)?,
+            path: first_quoted_route_path(text)?,
+            handler_subject: None,
+            handler_name: Some(php_route_handler_name(text)?),
+            source: context.source.clone(),
+            note: "oaf.ingest:route-laravel",
+            span: CodeSpan::from_node(node),
+        });
+    }
+    if context.lang == LangKind::Python {
+        if let Some(route) = django_route_registration(node, source, context) {
+            return Some(route);
+        }
+    }
+    if context.lang == LangKind::Kotlin {
+        let method = callee_name(node, source).and_then(|name| http_method(&name))?;
+        return Some(RouteRef {
+            method,
+            path: first_quoted_route_path(text)?,
+            handler_subject: context.caller.clone(),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-ktor",
+            span: CodeSpan::from_node(node),
+        });
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let function_text = node_text(function, source);
+    let (receiver, method) = receiver_method(function_text)?;
+    let (method, handler_name, note) = match context.lang {
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx => {
+            let direct = javascript_route_receiver(&receiver);
+            let route_receiver = direct
+                .then_some(receiver.clone())
+                .or_else(|| javascript_route_chain_receiver(node, source))?;
+            let handler = if direct {
+                route_handler_name(text)?
+            } else {
+                call_argument_handler_name(node, source)?
+            };
+            (
+                http_method(&method)?,
+                handler,
+                if route_receiver == "fastify" {
+                    "oaf.ingest:route-fastify"
+                } else {
+                    "oaf.ingest:route-javascript"
+                },
+            )
+        }
+        LangKind::Go => {
+            if receiver == "http" && method == "HandleFunc" {
+                let (method, path) = go_http_route_pattern(text)?;
+                return Some(RouteRef {
+                    method,
+                    path,
+                    handler_subject: None,
+                    handler_name: Some(route_handler_name(text)?),
+                    source: context.source.clone(),
+                    note: "oaf.ingest:route-go-net-http",
+                    span: CodeSpan::from_node(node),
+                });
+            }
+            if !matches!(
+                receiver.as_str(),
+                "router" | "r" | "engine" | "group" | "e" | "g" | "mux"
+            ) {
+                return None;
+            }
+            (
+                http_method(&method)?,
+                route_handler_name(text)?,
+                "oaf.ingest:route-go",
+            )
+        }
+        LangKind::Rust if method == "route" => {
+            let (method, handler) = rust_route_handler(text)?;
+            (method, handler, "oaf.ingest:route-rust")
+        }
+        LangKind::CSharp if method.starts_with("Map") => (
+            http_method(method.trim_start_matches("Map"))?,
+            route_handler_name(text)?,
+            "oaf.ingest:route-aspnet-minimal",
+        ),
+        LangKind::Swift if matches!(receiver.as_str(), "app" | "router" | "routes") => (
+            http_method(&method)?,
+            context.caller.clone()?,
+            "oaf.ingest:route-vapor",
+        ),
+        LangKind::Dart if receiver == "router" => (
+            http_method(&method)?,
+            context.caller.clone()?,
+            "oaf.ingest:route-shelf",
+        ),
+        _ => return None,
+    };
+    let path = if context.lang == LangKind::Swift {
+        vapor_route_path(node, source)?
+    } else {
+        first_quoted_route_path(text)?
+    };
+    Some(RouteRef {
+        method,
+        path,
+        handler_subject: matches!(context.lang, LangKind::Swift | LangKind::Dart)
+            .then_some(handler_name.clone()),
+        handler_name: (!matches!(context.lang, LangKind::Swift | LangKind::Dart))
+            .then_some(handler_name),
+        source: context.source.clone(),
+        note,
+        span: CodeSpan::from_node(node),
+    })
+}
+
+fn javascript_route_receiver(receiver: &str) -> bool {
+    matches!(receiver, "app" | "router" | "fastify" | "server")
+}
+
+fn django_route_registration(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<RouteRef> {
+    let callee = callee_name(node, source)?;
+    if !matches!(callee.as_str(), "path" | "re_path") {
+        return None;
+    }
+    let arguments = node.child_by_field_name("arguments")?;
+    let mut cursor = arguments.walk();
+    let mut positional = arguments
+        .named_children(&mut cursor)
+        .filter(|argument| argument.kind() != "keyword_argument");
+    let pattern = positional.next()?;
+    let handler = positional.next()?;
+    if handler.kind() == "call" && callee_name(handler, source).as_deref() == Some("include") {
+        return None;
+    }
+    let path = quoted_literals(node_text(pattern, source))
+        .into_iter()
+        .next()
+        .map(|path| ensure_route_path(&path))?;
+    let handler_name = django_route_handler_name(handler, source)?;
+    Some(RouteRef {
+        method: "ANY".to_string(),
+        path,
+        handler_subject: None,
+        handler_name: Some(handler_name),
+        source: context.source.clone(),
+        note: "oaf.ingest:route-django",
+        span: CodeSpan::from_node(node),
+    })
+}
+
+fn django_route_handler_name(handler: Node<'_>, source: &[u8]) -> Option<String> {
+    if handler.kind() == "call" {
+        let function = handler.child_by_field_name("function")?;
+        let function_text = node_text(function, source);
+        let receiver = function_text.strip_suffix(".as_view")?;
+        return last_identifier(receiver).and_then(|name| sanitize_symbol(&name));
+    }
+    last_identifier(node_text(handler, source)).and_then(|name| sanitize_symbol(&name))
+}
+
+fn javascript_route_chain_receiver(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let mut function = node.child_by_field_name("function")?;
+    loop {
+        let object = function.child_by_field_name("object")?;
+        if object.kind() != "call_expression" {
+            return None;
+        }
+        let inner_function = object.child_by_field_name("function")?;
+        let (receiver, method) = receiver_method(node_text(inner_function, source))?;
+        if method == "route" && javascript_route_receiver(&receiver) {
+            return Some(receiver);
+        }
+        function = inner_function;
+    }
+}
+
+fn call_argument_handler_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let arguments = node.child_by_field_name("arguments")?;
+    let candidate = arguments.named_child(arguments.named_child_count().checked_sub(1)?)?;
+    if matches!(
+        candidate.kind(),
+        "arrow_function" | "function" | "function_expression"
+    ) {
+        return None;
+    }
+    sanitize_symbol(node_text(candidate, source))
+}
+
+fn vapor_route_path(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let arguments = first_descendant_matching(node, &|child| child.kind() == "value_arguments")?;
+    let segments = (0..arguments.named_child_count())
+        .filter_map(|index| arguments.named_child(index))
+        .filter_map(|argument| {
+            quoted_literals(node_text(argument, source))
+                .into_iter()
+                .next()
+        })
+        .take(8)
+        .collect::<Vec<_>>();
+    if segments.is_empty() {
+        return None;
+    }
+    Some(canon_route_path(&format!("/{}", segments.join("/"))))
+}
+
+fn rust_route_handler(text: &str) -> Option<(String, String)> {
+    for method in ["get", "post", "put", "patch", "delete", "options", "head"] {
+        let marker = format!("{method}(");
+        let Some((_, tail)) = text.split_once(&marker) else {
+            continue;
+        };
+        let handler = tail
+            .split_once(".to(")
+            .map(|(_, value)| value)
+            .unwrap_or(tail);
+        let handler = handler
+            .split_once(')')
+            .map(|(value, _)| value)
+            .unwrap_or(handler);
+        let handler = last_identifier(handler).and_then(|name| sanitize_symbol(&name))?;
+        return Some((method.to_ascii_uppercase(), handler));
+    }
+    None
+}
+
+fn go_http_route_pattern(text: &str) -> Option<(String, String)> {
+    let pattern = quoted_literals(text).into_iter().next()?;
+    if let Some((method, path)) = pattern.split_once(' ') {
+        return Some((http_method(method)?, canon_route_path(path)));
+    }
+    Some(("ANY".to_string(), canon_route_path(&pattern)))
+}
+
+fn node_http_server(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<FrameworkRef> {
     if !matches!(
         context.lang,
         LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
@@ -2371,20 +6132,15 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
     let (receiver, method) = receiver_method(node_text(function, source))?;
-    if !matches!(receiver.as_str(), "app" | "router") {
+    if receiver != "http" || method != "createServer" {
         return None;
     }
-    let method = http_method(&method)?;
-    let text = node_text(node, source);
-    let path = first_quoted_route_path(text)?;
-    let handler_name = route_handler_name(text)?;
-    Some(RouteRef {
-        method,
-        path,
-        handler_subject: None,
-        handler_name: Some(handler_name),
+    Some(FrameworkRef {
+        owner: context.module.clone(),
+        component: "framework:node_http_server".to_string(),
+        handler_name: route_handler_name(node_text(node, source)),
         source: context.source.clone(),
-        note: "oaf.ingest:route-express",
+        span: CodeSpan::from_node(node),
     })
 }
 
@@ -2394,6 +6150,108 @@ fn callable_route(
     context: &WalkContext,
     handler_subject: &str,
 ) -> Option<RouteRef> {
+    if context.lang == LangKind::Java {
+        let (method, method_path) = annotation_http_route(
+            node_text(node, source),
+            &[
+                ("@GetMapping", "GET"),
+                ("@PostMapping", "POST"),
+                ("@PutMapping", "PUT"),
+                ("@PatchMapping", "PATCH"),
+                ("@DeleteMapping", "DELETE"),
+            ],
+        )?;
+        let prefix = context.route_prefix.as_deref().unwrap_or("/");
+        return Some(RouteRef {
+            method,
+            path: join_route_paths(prefix, &method_path),
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-spring",
+            span: CodeSpan::from_node(node),
+        });
+    }
+    if context.lang == LangKind::CSharp {
+        let (method, method_path) = annotation_http_route(
+            node_text(node, source),
+            &[
+                ("HttpGet", "GET"),
+                ("HttpPost", "POST"),
+                ("HttpPut", "PUT"),
+                ("HttpPatch", "PATCH"),
+                ("HttpDelete", "DELETE"),
+            ],
+        )?;
+        let prefix = context.route_prefix.as_deref().unwrap_or("/");
+        return Some(RouteRef {
+            method,
+            path: join_route_paths(prefix, &method_path),
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-aspnet-controller",
+            span: CodeSpan::from_node(node),
+        });
+    }
+    if matches!(
+        context.lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        let name = callable_node_name(node, source, context)?;
+        let (method, path, note) = if let (Some(method), Some(path)) =
+            (http_method(&name), next_server_route_path(&context.source))
+        {
+            (method, path, "oaf.ingest:route-nextjs")
+        } else {
+            let (method, method_path) = nest_method_route(node, source)?;
+            let prefix = context.route_prefix.as_deref().unwrap_or("/");
+            (
+                method,
+                join_route_paths(prefix, &method_path),
+                "oaf.ingest:route-nestjs",
+            )
+        };
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note,
+            span: decorator_aware_span(node, source),
+        });
+    }
+    if context.lang == LangKind::Rust {
+        let attribute = preceding_rust_attribute(node, source)?;
+        let name = attribute.trim_start_matches("#[").split_once('(')?.0;
+        return Some(RouteRef {
+            method: http_method(name)?,
+            path: first_quoted_route_path(attribute)?,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-rocket",
+            span: preceding_line_span(node),
+        });
+    }
+    if context.lang == LangKind::Php {
+        let attribute = php_route_attribute(node, source)?;
+        let path = first_quoted_route_path(&attribute)?;
+        let method = quoted_literals(&attribute)
+            .into_iter()
+            .skip(1)
+            .find_map(|value| http_method(&value))?;
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-symfony",
+            span: CodeSpan::from_node(node),
+        });
+    }
     if context.lang != LangKind::Python {
         return None;
     }
@@ -2401,38 +6259,268 @@ fn callable_route(
     if parent.kind() != "decorated_definition" {
         return None;
     }
-    for line in node_text(parent, source).lines() {
-        let line = line.trim();
-        if !line.starts_with('@') {
+    for index in 0..parent.named_child_count() {
+        let Some(decorator) = parent.named_child(index) else {
+            continue;
+        };
+        if decorator.kind() != "decorator" {
             continue;
         }
-        if let Some((method, path)) = python_route_decorator(line) {
+        if let Some((method, path, note)) =
+            python_route_decorator(node_text(decorator, source), source)
+        {
             return Some(RouteRef {
                 method,
                 path,
                 handler_subject: Some(handler_subject.to_string()),
                 handler_name: None,
                 source: context.source.clone(),
-                note: "oaf.ingest:route-flask",
+                note,
+                span: CodeSpan::from_node(parent),
             });
         }
     }
     None
 }
 
-fn python_route_decorator(line: &str) -> Option<(String, String)> {
-    let before_paren = line.split_once('(')?.0;
-    let method = before_paren
-        .rsplit_once('.')
-        .and_then(|(_, method)| http_method(method))
-        .or_else(|| before_paren.ends_with(".route").then(|| "GET".to_string()))?;
-    let path = first_quoted_route_path(line)?;
-    let method = if before_paren.ends_with(".route") {
-        route_methods_argument(line).unwrap_or(method)
-    } else {
-        method
+fn php_route_handler_name(text: &str) -> Option<String> {
+    let (controller, _) = text.split_once("::class")?;
+    let controller = last_identifier(controller).and_then(|name| sanitize_symbol(&name))?;
+    let method = quoted_literals(text).into_iter().last()?;
+    let method = sanitize_symbol(&method)?;
+    Some(format!("{controller}_{method}"))
+}
+
+fn ruby_rails_handler_name(text: &str) -> Option<String> {
+    let target = quoted_literals(text)
+        .into_iter()
+        .find(|value| value.contains('#'))?;
+    let (controller, action) = target.split_once('#')?;
+    let controller = controller
+        .split('/')
+        .map(|segment| {
+            let mut chars = segment.chars();
+            chars
+                .next()
+                .map(|first| format!("{}{}", first.to_ascii_uppercase(), chars.as_str()))
+                .unwrap_or_default()
+        })
+        .collect::<String>();
+    let controller = format!("{controller}Controller");
+    Some(format!("{controller}_{}", sanitize_symbol(action)?))
+}
+
+fn php_route_attribute(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if let Some(attribute) = first_descendant_matching(node, &|child| {
+        matches!(child.kind(), "attribute_list" | "attribute_group")
+    }) {
+        return Some(node_text(attribute, source).to_string());
+    }
+    if let Some(attribute) = node
+        .prev_named_sibling()
+        .filter(|sibling| matches!(sibling.kind(), "attribute_list" | "attribute_group"))
+    {
+        return Some(node_text(attribute, source).to_string());
+    }
+    let prefix = std::str::from_utf8(source.get(..node.start_byte())?).ok()?;
+    prefix
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .filter(|line| line.trim_start().starts_with("#[Route("))
+        .map(|line| line.trim().to_string())
+}
+
+fn controller_route_prefix(text: &str, lang: LangKind) -> Option<String> {
+    let marker = match lang {
+        LangKind::Java => "@RequestMapping",
+        LangKind::CSharp => "Route",
+        _ => return None,
     };
-    Some((method, path))
+    annotation_route_path(text, marker).or_else(|| Some("/".to_string()))
+}
+
+fn annotation_http_route(text: &str, mappings: &[(&str, &str)]) -> Option<(String, String)> {
+    for (marker, method) in mappings {
+        if !text.contains(marker) {
+            continue;
+        }
+        let path = annotation_route_path(text, marker).unwrap_or_else(|| "/".to_string());
+        return Some(((*method).to_string(), path));
+    }
+    None
+}
+
+fn annotation_route_path(text: &str, marker: &str) -> Option<String> {
+    let (_, tail) = text.split_once(marker)?;
+    let arguments = tail.split_once('(')?.1.split_once(')')?.0;
+    let path = quoted_literals(arguments).into_iter().next()?;
+    Some(ensure_route_path(&path))
+}
+
+fn ensure_route_path(path: &str) -> String {
+    let path = path.trim();
+    if path.starts_with('/') {
+        canon_route_path(path)
+    } else {
+        canon_route_path(&format!("/{path}"))
+    }
+}
+
+fn preceding_rust_attribute<'a>(node: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    let prefix = std::str::from_utf8(source.get(..node.start_byte())?).ok()?;
+    prefix
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .filter(|line| line.starts_with("#["))
+}
+
+fn preceding_line_span(node: Node<'_>) -> CodeSpan {
+    let mut span = CodeSpan::from_node(node);
+    if span.start_line > 1 {
+        span.start_line -= 1;
+        span.start_column = 0;
+    }
+    span
+}
+
+fn nest_controller_prefix(text: &str) -> Option<String> {
+    text.lines()
+        .find(|line| line.trim_start().starts_with("@Controller"))
+        .and_then(first_quoted_route_path)
+        .or_else(|| text.contains("@Controller()").then(|| "/".to_string()))
+}
+
+fn nest_method_route(node: Node<'_>, source: &[u8]) -> Option<(String, String)> {
+    let decorator = preceding_decorator(node, source)?;
+    for line in decorator.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix('@') else {
+            continue;
+        };
+        let decorator = rest.split_once('(')?.0;
+        let method = http_method(decorator)?;
+        let path = first_quoted_route_path(line).unwrap_or_else(|| "/".to_string());
+        return Some((method, path));
+    }
+    None
+}
+
+fn preceding_decorator<'a>(node: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    let parent = node.parent()?;
+    let prefix = source.get(parent.start_byte()..node.start_byte())?;
+    let current_line_start = prefix.iter().rposition(|byte| *byte == b'\n')?;
+    let before_current_line = &prefix[..current_line_start];
+    let previous_line_start = before_current_line
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(0, |index| index + 1);
+    let previous_line = std::str::from_utf8(&before_current_line[previous_line_start..]).ok()?;
+    previous_line
+        .trim_start()
+        .starts_with('@')
+        .then_some(previous_line)
+}
+
+fn decorator_aware_span(node: Node<'_>, source: &[u8]) -> CodeSpan {
+    let mut span = CodeSpan::from_node(node);
+    if preceding_decorator(node, source).is_some() && span.start_line > 1 {
+        span.start_line -= 1;
+        span.start_column = 0;
+    }
+    span
+}
+
+fn join_route_paths(prefix: &str, suffix: &str) -> String {
+    let prefix = prefix.trim_end_matches('/');
+    let suffix = suffix.trim_start_matches('/');
+    canon_route_path(&format!("{prefix}/{suffix}"))
+}
+
+fn next_server_route_path(source: &str) -> Option<String> {
+    let relative = source.strip_prefix("workspace://")?;
+    let parts = relative.split('/').collect::<Vec<_>>();
+    let app_index = parts.iter().position(|part| *part == "app")?;
+    let file = *parts.last()?;
+    if !matches!(file, "route.ts" | "route.tsx" | "route.js" | "route.jsx") {
+        return None;
+    }
+    let segments = parts[app_index + 1..parts.len() - 1]
+        .iter()
+        .filter(|segment| !segment.starts_with('(') || !segment.ends_with(')'))
+        .map(|segment| {
+            if segment.starts_with('[') && segment.ends_with(']') {
+                ":param"
+            } else {
+                *segment
+            }
+        })
+        .collect::<Vec<_>>();
+    Some(canon_route_path(&format!("/{}", segments.join("/"))))
+}
+
+fn python_route_decorator(line: &str, source: &[u8]) -> Option<(String, String, &'static str)> {
+    let before_paren = line.split_once('(')?.0;
+    let (receiver, route_method) = before_paren.rsplit_once('.')?;
+    let receiver = last_identifier(receiver)?;
+    let note = python_framework_receiver(source, &receiver)?;
+    let method = if route_method == "route" {
+        if note != "oaf.ingest:route-flask" {
+            return None;
+        }
+        route_methods_argument(line).unwrap_or_else(|| "GET".to_string())
+    } else {
+        http_method(route_method)?
+    };
+    let path = first_quoted_route_path(line)?;
+    Some((method, path, note))
+}
+
+fn python_framework_receiver(source: &[u8], receiver: &str) -> Option<&'static str> {
+    let source = std::str::from_utf8(source).ok()?;
+    source
+        .lines()
+        .filter(|line| !line.starts_with([' ', '\t']))
+        .filter_map(python_assignment_type)
+        .filter(|(name, _)| name == receiver)
+        .find_map(|(_, constructor)| imported_python_framework(source, &constructor))
+}
+
+fn imported_python_framework(source: &str, local_constructor: &str) -> Option<&'static str> {
+    for raw_line in source.lines().filter(|line| !line.starts_with([' ', '\t'])) {
+        let line = raw_line.split('#').next().unwrap_or(raw_line).trim();
+        let Some(import) = line.strip_prefix("from ") else {
+            continue;
+        };
+        let Some((module, bindings)) = import.split_once(" import ") else {
+            continue;
+        };
+        let (note, supported): (&'static str, &[&str]) =
+            if module == "fastapi" || module.starts_with("fastapi.") {
+                ("oaf.ingest:route-fastapi", &["FastAPI", "APIRouter"])
+            } else if module == "flask" || module.starts_with("flask.") {
+                ("oaf.ingest:route-flask", &["Flask", "Blueprint"])
+            } else {
+                continue;
+            };
+        for binding in bindings.trim_matches(['(', ')']).split(',') {
+            let mut parts = binding.split_whitespace();
+            let Some(imported) = parts.next() else {
+                continue;
+            };
+            let local = match parts.next() {
+                Some("as") => parts.next().unwrap_or(imported),
+                Some(_) => continue,
+                None => imported,
+            };
+            if supported.contains(&imported) && local == local_constructor {
+                return Some(note);
+            }
+        }
+    }
+    None
 }
 
 fn route_methods_argument(line: &str) -> Option<String> {
@@ -2549,18 +6637,38 @@ fn is_import_node(kind: &str) -> bool {
             | "import"
             | "library_import"
             | "use_declaration"
+            | "namespace_use_declaration"
             | "preproc_include"
             | "include_expression"
             | "include_once_expression"
             | "source_command"
+            | "using_directive"
     )
 }
 
 fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTarget> {
+    if lang == LangKind::Go
+        && node.kind() == "import_declaration"
+        && descendant_has_kind(node, "import_spec")
+    {
+        return Vec::new();
+    }
     let text = node_text(node, source);
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
-        if let Some(target) = import_target_from_raw(&quoted) {
+        let target = match lang {
+            LangKind::Go | LangKind::Ruby | LangKind::C | LangKind::Cpp | LangKind::Dart => {
+                full_import_target_from_raw(&quoted)
+            }
+            LangKind::Php => php_import_target_from_raw(&quoted),
+            _ => import_target_from_raw(&quoted),
+        };
+        if let Some(target) = target {
+            out.push(target);
+        }
+    }
+    if out.is_empty() && matches!(lang, LangKind::C | LangKind::Cpp) {
+        if let Some(target) = angle_include_target(text) {
             out.push(target);
         }
     }
@@ -2581,11 +6689,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 }
             }
             LangKind::Rust => {
-                if let Some(raw) = text
-                    .trim()
-                    .strip_prefix("use ")
-                    .and_then(import_target_from_raw)
-                {
+                if let Some(raw) = rust_use_target_from_declaration(text) {
                     out.push(raw);
                 }
             }
@@ -2593,18 +6697,49 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
-                    .and_then(import_target_from_raw)
+                    .and_then(full_import_target_from_raw)
                 {
                     out.push(raw);
                 }
             }
-            LangKind::Kotlin
-            | LangKind::Swift
-            | LangKind::Php
-            | LangKind::CSharp
-            | LangKind::Scala
-            | LangKind::Dart
-            | LangKind::Julia => {
+            LangKind::CSharp => {
+                let cleaned = text.trim().trim_start_matches("global ");
+                if let Some(raw) = cleaned
+                    .strip_prefix("using ")
+                    .map(|value| value.split_once('=').map_or(value, |(_, target)| target))
+                    .and_then(full_import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Php => {
+                let cleaned = text.trim();
+                let raw = cleaned
+                    .strip_prefix("use ")
+                    .or_else(|| cleaned.strip_prefix("include "));
+                if let Some(raw) = raw.and_then(php_import_target_from_raw) {
+                    out.push(raw);
+                }
+            }
+            LangKind::Kotlin => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(full_import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Swift => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(swift_import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Scala | LangKind::Dart | LangKind::Julia => {
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
@@ -2626,6 +6761,82 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     out
 }
 
+fn php_use_alias(text: &str) -> Option<(String, String)> {
+    let declaration = text
+        .trim()
+        .strip_prefix("use ")?
+        .trim_end_matches(';')
+        .trim();
+    let declaration = declaration
+        .strip_prefix("function ")
+        .or_else(|| declaration.strip_prefix("const "))
+        .unwrap_or(declaration)
+        .trim();
+    if declaration.contains(['{', '}', ',']) {
+        return None;
+    }
+    let lower = declaration.to_ascii_lowercase();
+    let (target, alias) = if let Some(index) = lower.find(" as ") {
+        (&declaration[..index], declaration[index + 4..].to_string())
+    } else {
+        (declaration, last_identifier(declaration)?)
+    };
+    let target = normalize_container_name(target.trim().trim_start_matches('\\'))?;
+    let alias = sanitize_symbol(&alias)?;
+    Some((alias, target))
+}
+
+fn php_trait_use_targets(text: &str) -> Vec<String> {
+    let Some(declaration) = text.trim().strip_prefix("use ") else {
+        return Vec::new();
+    };
+    let declaration = declaration
+        .split_once('{')
+        .map(|(head, _)| head)
+        .unwrap_or(declaration)
+        .trim_end_matches(';')
+        .trim();
+    declaration
+        .split(',')
+        .filter_map(|target| last_identifier(target).and_then(|name| sanitize_symbol(&name)))
+        .collect()
+}
+
+fn ruby_mixin_target(text: &str) -> Option<String> {
+    let trimmed = text.trim();
+    let remainder = trimmed
+        .strip_prefix("include ")
+        .or_else(|| trimmed.strip_prefix("include("))?
+        .trim();
+    let candidate = remainder.trim_end_matches(')').split(',').next()?.trim();
+    if candidate.is_empty()
+        || !candidate.split("::").all(|segment| {
+            segment
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_ascii_uppercase())
+                && segment
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+    {
+        return None;
+    }
+    last_identifier(candidate).and_then(|name| sanitize_symbol(&name))
+}
+
+fn descendant_has_kind(node: Node<'_>, expected: &str) -> bool {
+    for index in 0..node.named_child_count() {
+        let Some(child) = node.named_child(index) else {
+            continue;
+        };
+        if child.kind() == expected || descendant_has_kind(child, expected) {
+            return true;
+        }
+    }
+    false
+}
+
 fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
     Some(ImportTarget {
         raw: clean_import_raw(value)?,
@@ -2633,10 +6844,126 @@ fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
     })
 }
 
+fn full_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    if raw.len() > 512
+        || raw
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
+    {
+        return None;
+    }
+    Some(ImportTarget {
+        fallback: format!("module:{raw}"),
+        raw,
+    })
+}
+
+fn rust_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let coordinate = raw
+        .split_once("::{")
+        .map_or(raw.as_str(), |(prefix, _)| prefix);
+    full_import_target_from_raw(coordinate)
+}
+
+fn rust_use_target_from_declaration(value: &str) -> Option<ImportTarget> {
+    rust_import_target_from_raw(rust_use_declaration_target(value)?)
+}
+
+fn rust_use_declaration_target(value: &str) -> Option<&str> {
+    let declaration = value.trim();
+    declaration
+        .strip_prefix("use ")
+        .or_else(|| declaration.strip_prefix("pub use "))
+        .or_else(|| {
+            declaration
+                .strip_prefix("pub(")?
+                .split_once(") use ")
+                .map(|(_, target)| target)
+        })
+}
+
+fn rust_public_use_symbol(value: &str) -> Option<String> {
+    let raw = clean_import_raw(rust_use_declaration_target(value)?)?;
+    if raw.contains(['{', '}', '*']) {
+        return None;
+    }
+    let symbol = raw.rsplit("::").next()?;
+    (!matches!(symbol, "crate" | "self" | "super"))
+        .then(|| sanitize_symbol(symbol))
+        .flatten()
+}
+
+fn rust_unrestricted_public(node: Node<'_>, source: &[u8]) -> bool {
+    (0..node.named_child_count())
+        .filter_map(|index| node.named_child(index))
+        .any(|child| {
+            child.kind() == "visibility_modifier" && node_text(child, source).trim() == "pub"
+        })
+}
+
+fn go_exported_identifier(value: &str) -> bool {
+    value.chars().next().is_some_and(|ch| ch.is_uppercase())
+}
+
+fn php_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let raw = raw
+        .strip_prefix("function ")
+        .or_else(|| raw.strip_prefix("const "))
+        .unwrap_or(&raw)
+        .trim_start_matches('\\')
+        .to_string();
+    let coordinate = raw.replace('\\', ".");
+    if coordinate.len() > 512
+        || coordinate
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
+    {
+        return None;
+    }
+    Some(ImportTarget {
+        raw,
+        fallback: format!("module:{coordinate}"),
+    })
+}
+
+fn swift_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    let coordinate = [
+        "class ",
+        "enum ",
+        "func ",
+        "let ",
+        "protocol ",
+        "struct ",
+        "typealias ",
+        "var ",
+    ]
+    .into_iter()
+    .find_map(|prefix| raw.strip_prefix(prefix))
+    .unwrap_or(&raw);
+    full_import_target_from_raw(coordinate)
+}
+
+fn angle_include_target(value: &str) -> Option<ImportTarget> {
+    let (_, tail) = value.split_once('<')?;
+    let (coordinate, _) = tail.split_once('>')?;
+    full_import_target_from_raw(coordinate)
+}
+
 fn clean_import_raw(value: &str) -> Option<String> {
-    let trimmed = value
+    let mut trimmed = value
         .trim()
         .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')']);
+    trimmed = trimmed.strip_prefix("static ").unwrap_or(trimmed);
+    trimmed = trimmed
+        .split_once(" as ")
+        .map_or(trimmed, |(target, _)| target);
+    trimmed = trimmed
+        .split_once('=')
+        .map_or(trimmed, |(_, target)| target.trim());
     if trimmed.is_empty() {
         return None;
     }
@@ -2644,6 +6971,7 @@ fn clean_import_raw(value: &str) -> Option<String> {
 }
 
 fn module_from_import(value: &str) -> Option<String> {
+    let relative = value.trim().starts_with('.');
     let trimmed = value
         .trim()
         .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')'])
@@ -2651,10 +6979,49 @@ fn module_from_import(value: &str) -> Option<String> {
         .trim_start_matches("super::")
         .trim_start_matches("./")
         .trim_start_matches("../");
+    let trimmed = if relative {
+        trimmed.rsplit(['/', '\\']).next().unwrap_or(trimmed)
+    } else {
+        trimmed
+    };
+    if let Some(builtin) = trimmed.strip_prefix("node:").and_then(sanitize_symbol) {
+        return Some(format!("module:node:{builtin}"));
+    }
+    if !relative {
+        if let Some((scope, package)) = trimmed
+            .strip_prefix('@')
+            .and_then(|value| value.split_once('/'))
+        {
+            if !package.contains('/')
+                && valid_npm_package_segment(scope)
+                && valid_npm_package_segment(package)
+            {
+                return Some(format!("module:{trimmed}"));
+            }
+        }
+    }
     let first = trimmed
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;
+    if !relative && !trimmed.starts_with('@') && valid_npm_package_segment(first) {
+        return Some(format!("module:{first}"));
+    }
     sanitize_symbol(first).map(|token| format!("module:{token}"))
+}
+
+fn valid_npm_package_segment(value: &str) -> bool {
+    value
+        .bytes()
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+fn is_relative_source_reference(value: &str) -> bool {
+    let value = value.trim();
+    !value.contains(':') && strip_known_extension(value) != value
 }
 
 fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
@@ -2671,6 +7038,18 @@ fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
         if !part.is_empty() {
             parts.push(part);
         }
+    }
+    if !raw.contains(['/', '\\']) {
+        let parent_count = raw.chars().take_while(|ch| *ch == '.').count();
+        for _ in 1..parent_count {
+            parts.pop()?;
+        }
+        parts.extend(
+            raw[parent_count..]
+                .split('.')
+                .filter(|part| !part.is_empty()),
+        );
+        return Some(parts.join("/"));
     }
     for part in raw.split(['/', '\\']) {
         match part {
@@ -2697,6 +7076,15 @@ fn resolve_package_import(entries: &BTreeMap<String, String>, raw: &str) -> Opti
     if let Some(stem) = entries.get(raw) {
         return Some(stem.clone());
     }
+    for (pattern, stem) in entries.iter().filter(|(key, _)| key.ends_with("/*")) {
+        let prefix = pattern.trim_end_matches('*');
+        let Some(suffix) = raw.strip_prefix(prefix) else {
+            continue;
+        };
+        if !suffix.is_empty() {
+            return Some(format!("{stem}/{suffix}"));
+        }
+    }
     for separator in ['/', '.', ':'] {
         if let Some(stem) = resolve_package_prefix(entries, raw, separator) {
             return Some(stem);
@@ -2720,6 +7108,12 @@ fn resolve_package_prefix(
         let Some(stem) = entries.get(prefix) else {
             continue;
         };
+        if stem == "." {
+            let suffix = raw[index + separator.len_utf8()..]
+                .replace("::", "/")
+                .replace('.', "/");
+            return (!suffix.is_empty()).then_some(suffix);
+        }
         if separator == '.' {
             let suffix = raw[index + 1..].replace('.', "/");
             if !suffix.is_empty() && !stem.ends_with("src/lib") && !stem.ends_with("src/index") {
@@ -2766,7 +7160,7 @@ fn quoted_literals(value: &str) -> Vec<String> {
 
 fn rust_impl_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     if let Some(child) = node.child_by_field_name("type") {
-        return sanitize_symbol(node_text(child, source));
+        return heritage_target_name(child, source);
     }
     let text = node_text(node, source);
     let before_body = text.split('{').next().unwrap_or(text);
@@ -2875,18 +7269,12 @@ fn symbol_kind(subject: &str) -> &'static str {
 
 fn sanitize_symbol(value: &str) -> Option<String> {
     let mut out = String::new();
-    let mut last_underscore = false;
     for ch in value.trim().chars() {
-        if ch.is_ascii_alphanumeric() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '$') {
             out.push(ch);
-            last_underscore = false;
-        } else if (ch == '_' || ch == '-') && !last_underscore && !out.is_empty() {
+        } else if ch == '-' && !out.ends_with('_') {
             out.push('_');
-            last_underscore = true;
         }
-    }
-    while out.ends_with('_') {
-        out.pop();
     }
     if out.is_empty() {
         return None;
@@ -2898,6 +7286,11 @@ fn sanitize_symbol(value: &str) -> Option<String> {
         out.truncate(96);
     }
     Some(out)
+}
+
+fn normalize_symbol_lookup_name(value: &str) -> Option<String> {
+    normalize_container_name(value.trim().trim_start_matches('\\'))
+        .or_else(|| sanitize_symbol(value))
 }
 
 fn path_token(rel: &str) -> String {
@@ -2936,6 +7329,29 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "zig" => Some(LangKind::Zig),
         _ => None,
     }
+}
+
+fn language_for_path_with_options(path: &Path, options: &IngestOptions) -> Option<LangKind> {
+    if options.prefer_cpp_headers && path.extension().and_then(|value| value.to_str()) == Some("h")
+    {
+        Some(LangKind::Cpp)
+    } else {
+        language_for_path(path)
+    }
+}
+
+fn is_build_configuration(path: &Path) -> bool {
+    path.file_name().and_then(|name| name.to_str()) == Some("CMakeLists.txt") || is_makefile(path)
+}
+
+fn is_python_project_configuration(path: &Path) -> bool {
+    path.file_name().and_then(|name| name.to_str()) == Some("pyproject.toml")
+}
+
+fn is_makefile(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == "Makefile" || name.starts_with("Makefile."))
 }
 
 fn should_descend(entry: &DirEntry) -> bool {
@@ -2979,216 +7395,96 @@ fn stable_hash64(parts: &[&str]) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
+include!("../test-support/lib_unit.rs");
+
+#[cfg(test)]
+mod bounded_hash_discovery_tests {
     use super::*;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    fn fixture_root() -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "memory-recall-hash-discovery-{}-{unique}",
+            std::process::id()
+        ))
+    }
 
     #[test]
-    fn resolves_calls_to_functions_not_modules() {
-        let mut parsed = ParsedRepo::new();
-        parsed.add_symbol_name("runServer", "function:runServer");
+    fn bounded_hash_discovery_fails_closed_at_each_resource_cap() {
+        let root = fixture_root();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("a.ts"), "export const a = 1;\n").unwrap();
+        fs::write(root.join("b.ts"), "export const b = 2;\n").unwrap();
+        let options = IngestOptions::new(&root);
+
+        let complete = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(complete.complete);
+        assert_eq!(complete.hashes.len(), 2);
+
+        let candidate_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 1,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(!candidate_capped.complete);
         assert_eq!(
-            parsed.resolve_call_target("runServer"),
-            "function:runServer"
+            candidate_capped.reason_codes,
+            vec!["source_index_freshness_candidate_cap"]
         );
+
+        let byte_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(!byte_capped.complete);
         assert_eq!(
-            parsed.resolve_call_target("missingModule"),
-            "function:missingModule"
+            byte_capped.reason_codes,
+            vec!["source_index_freshness_byte_cap"]
         );
-    }
 
-    #[test]
-    fn resolves_python_receiver_calls_with_constructor_type_bindings() {
-        let root =
-            std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(
-            root.join("src/typed.py"),
-            [
-                "class Counter:",
-                "    def inc(self):",
-                "        return 1",
-                "class Gauge:",
-                "    def inc(self):",
-                "        return 2",
-                "def run():",
-                "    counter = Counter()",
-                "    gauge = Gauge()",
-                "    counter.inc()",
-                "    gauge.inc()",
-            ]
-            .join("\n"),
+        let deadline_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now(),
+            },
+            |_| true,
         )
         .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let calls = report
-            .facts
-            .iter()
-            .filter(|fact| fact.predicate == "CALLS")
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.object.as_str(),
-                    fact.notes.as_deref(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(calls.contains(&(
-            "function:run",
-            "method:Counter_inc",
-            Some("oaf.ingest:typed-call-python")
-        )));
-        assert!(calls.contains(&(
-            "function:run",
-            "method:Gauge_inc",
-            Some("oaf.ingest:typed-call-python")
-        )));
-        assert!(!calls.contains(&("function:run", "function:inc", Some("oaf.ingest:call"))));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn emits_routes_and_resolved_imports() {
-        let root = std::env::temp_dir().join(format!("oaf-ingest-routes-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src/demo_app")).unwrap();
-        fs::write(
-            root.join("package.json"),
-            r#"{"name":"@acme/web","main":"src/index.js"}"#,
-        )
-        .unwrap();
-        fs::write(
-            root.join("pyproject.toml"),
-            "[project]\nname = \"demo-app\"\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/index.js"),
-            [
-                "import { helper } from './helper.js';",
-                "function listUsers(req, res) {",
-                "  return helper();",
-                "}",
-                "app.get('/api/accounts/:id', listUsers);",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/helper.js"),
-            "export function helper() { return 1; }\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/demo_app/app.py"),
-            [
-                "from flask import Flask",
-                "app = Flask(__name__)",
-                "@app.route('/items/<int:item_id>', methods=['POST'])",
-                "def create_item():",
-                "    return 'ok'",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/demo_app/client.py"),
-            "from demo_app.app import create_item\n",
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let facts = report
-            .facts
-            .iter()
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.predicate.as_str(),
-                    fact.object.as_str(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(facts.contains(&("route:GET_api_accounts_param", "IS_A", "Route")));
-        assert!(facts.contains(&(
-            "route:GET_api_accounts_param",
-            "HAS_PATH",
-            "path=/api/accounts/:param"
-        )));
-        assert!(facts.contains(&(
-            "function:listUsers",
-            "HANDLES",
-            "route:GET_api_accounts_param"
-        )));
-        assert!(facts.contains(&("route:POST_items_param", "IS_A", "Route")));
-        assert!(facts.contains(&("function:create_item", "HANDLES", "route:POST_items_param")));
-        assert!(facts.contains(&("module:src_index", "IMPORTS", "module:src_helper")));
-        assert!(facts.contains(&(
-            "module:src_demo_app_client",
-            "IMPORTS",
-            "module:src_demo_app_app"
-        )));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn emits_exact_retirement_facts() {
-        let active = vec![ActiveFactSnapshot {
-            subject: "function:OldName".to_string(),
-            predicate: "IS_A".to_string(),
-            object: "Function".to_string(),
-            source: "workspace://src/a.ts".to_string(),
-        }];
-        let retirements = retirement_facts(&active, &[]);
-        assert_eq!(retirements.len(), 1);
-        assert_eq!(retirements[0].subject, "function:OldName");
+        assert!(!deadline_capped.complete);
         assert_eq!(
-            retirements[0]
-                .supersedes
-                .as_ref()
-                .and_then(|item| item.object.as_deref()),
-            Some("Function")
+            deadline_capped.reason_codes,
+            vec!["source_index_freshness_deadline_exceeded"]
         );
-    }
-
-    #[test]
-    fn parallel_extract_matches_sequential_fact_set() {
-        let root = std::env::temp_dir().join(format!("oaf-ingest-parallel-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(
-            root.join("src/a.js"),
-            "export function alpha(){ return beta(); }\nfunction beta(){ return 1; }\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/b.py"),
-            "def gamma():\n    return delta()\ndef delta():\n    return 1\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/c.rs"),
-            "fn epsilon(){ zeta(); }\nfn zeta() {}\n",
-        )
-        .unwrap();
-
-        let mut sequential = IngestOptions::new(&root);
-        sequential.workers = 1;
-        let mut parallel = IngestOptions::new(&root);
-        parallel.workers = 4;
-
-        let sequential = extract_repo(&sequential).unwrap();
-        let parallel = extract_repo(&parallel).unwrap();
-        assert_eq!(sequential.facts, parallel.facts);
-        assert_eq!(sequential.scanned_file_count, parallel.scanned_file_count);
-        assert_eq!(sequential.parsed_file_count, parallel.parsed_file_count);
-        assert!(parallel.effective_worker_count >= 1);
-        assert!(parallel.effective_worker_count <= 4);
 
         fs::remove_dir_all(root).unwrap();
     }

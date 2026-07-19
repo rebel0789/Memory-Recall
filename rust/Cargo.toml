@@ -1,8 +1,8 @@
 [workspace]
-members = ["oaf-store", "oaf-ingest", "oaf"]
+members = ["oaf-store", "oaf-ingest", "oaf-index", "oaf"]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "0.1.0"
+version = "2.0.0"
 license = "Apache-2.0"

@@ -1,8 +1,10 @@
 # Recall Map
 
 `recall map` is the first explicit read-only command for understanding a local
-repository. It combines the implemented bounded JavaScript/TypeScript static
-source graph with the status of the governed local SQLite memory store.
+repository. Production graph and web reads use the packaged Rust engine and a
+healthy current local SQLite index. Missing or stale native state is shown as a
+bounded recovery state; it never silently invokes another intelligence engine.
+Source metadata stays separate from the governed local SQLite memory store.
 
 Run it from the repository you want to inspect:
 
@@ -54,9 +56,34 @@ Support, Architecture, Memory, Next commands, and Safeguards sections.
 
 ## What it reads and does not read
 
-Recall Map implements static JavaScript and TypeScript source coverage. It does
-not claim a language server, a semantic graph database, or support for every
-language. The report makes incomplete source coverage explicit.
+Recall Map implements static source coverage for `.js`, `.jsx`, `.mjs`, `.cjs`,
+`.ts`, and `.tsx` files. It does not claim a language server, a semantic graph
+database, or support for every language. The report makes incomplete source
+coverage explicit.
+
+Discovery analyzes at most 1,000 supported files. Unsupported files, ignored
+files, and excluded directories do not consume that budget. It honors root and
+descendant `.gitignore` files plus a root `.recallignore`. Default exclusions
+include source-control metadata, worktrees, dependency folders, virtual
+environments, caches, test results, coverage output, and common build or
+generated-output directories.
+
+Coverage is reported as `complete`, `partial`, `stale`, or `unavailable`.
+Partial reports include reason codes when file, node, or edge limits omit
+candidates. A stale report contains the last valid graph after a refresh fails;
+it is not presented as current or empty.
+
+The local Control API reads a healthy current Rust index for Recall Map and
+source preview requests without changing its SQLite bytes or timestamps. If no
+current index exists, it returns the exact build, refresh, repair, or package
+diagnostic. A POST request can set `refresh: true` to reload the view, but it
+never builds or refreshes the Rust index. Index writes remain explicit CLI
+operations. GET is cache-aware and read-only.
+
+When the native index contains enough evidence, Map also lists deterministic
+communities and bounded entry-to-sink processes with source locators,
+confidence, and truncation state. An unavailable native index leaves processes
+empty instead of inventing them.
 
 When `.local/memory.sqlite` is absent, the report remains read-only and reports
 the memory store as missing. It never creates a database just to produce a map.
@@ -72,6 +99,27 @@ Every format is local and read-only:
 - no absolute local workspace paths in the report.
 
 Recall Map exits `0` for a safe report and `2` for invalid command arguments.
+
+## Large repository check
+
+Run the generated large-repository fixture with:
+
+```bash
+npm run source-graph:large-smoke
+```
+
+To measure an existing repository without editing it:
+
+```bash
+MEMORY_RECALL_LARGE_REPO_ROOT=/absolute/path/to/repository \
+  npm run source-graph:large-smoke
+```
+
+The generated-fixture command verifies graph bounds, protocol validity,
+in-process cache reuse, persistent-index reload, one-file incremental refresh,
+and local safeguards. Its timings are measurements from the current machine,
+not universal performance claims. A configured external repository remains
+read-only, so that mode does not create a persistent index.
 
 ## Continue from the map
 

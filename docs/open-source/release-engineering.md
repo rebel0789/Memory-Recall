@@ -22,18 +22,42 @@ external writes.
 
 `.github/workflows/npm-publish.yml` is the maintainer publication lane for the
 public npm package. It is manual-only (`workflow_dispatch`), requires the exact
-`publish memory-recall@VERSION` confirmation text, runs CI, native smoke,
-consumer smoke, release-readiness verification, and an npm publish dry run before
-the real publish step, and uses the protected `npm-release` environment.
+`publish memory-recall@VERSION` confirmation text and the run ID of a successful
+`Rust` workflow for the same commit. The Rust run must produce all five native
+packages, deterministic file-complete SPDX 2.3 SBOMs, signed GitHub provenance
+for every tarball and receipt, and one exact
+aggregate artifact. The protected `npm-release` job authenticates that run and
+the signer workflow, verifies the complete release set, checksums, and signed
+SBOM predicates, then
+publishes the five native packages in fixed order. It verifies every native
+version, npm integrity, and exact publish/SLSA attestation bundle before it can
+dry-run or publish the root package.
+
+The validation job runs CI, native smoke, consumer smoke, and release-readiness
+verification, then packs the root package exactly once. It records the tarball's
+SHA-256 and SHA-512 integrity, generates a file-complete SPDX 2.3 document, signs
+both provenance and SBOM attestations, and uploads the exact artifact. The
+protected job downloads and validates those bytes, verifies both GitHub
+attestations, installs the exact root tarball with its matching native tarball in
+an isolated lifecycle, and publishes that same tarball only after all five
+native registry records pass. It then requires exact root registry integrity and
+both npm publish and SLSA attestations. No later bare `npm publish` repack is
+permitted. Both jobs use Node 22.14.0 and npm 11.18.0 so validation, JSON
+attestation verification, and publication do not drift with `npm@latest`.
 
 Prefer npm Trusted Publishing. Configure npm with GitHub Actions as the trusted
 publisher for repository `rebel0789/Memory-Recall` and workflow filename
 `npm-publish.yml`, then run the workflow with `auth_mode=trusted-publishing`.
-This uses OIDC and does not require a long-lived npm token. If the maintainer
-chooses token auth for the first release, set the repository secret `NPM_TOKEN`
-and run the same workflow with `auth_mode=npm-token`.
+This uses OIDC and does not require a long-lived npm token. Each of the six npm
+packages must authorize `npm-publish.yml` and the `npm-release` environment as
+its trusted publisher. If the maintainer chooses token auth for the first
+release, set the repository secret `NPM_TOKEN` and run the same workflow with
+`auth_mode=npm-token`; the workflow requests npm provenance in token mode.
 
-The workflow does not create tags, sign artifacts, submit marketplace manifests,
-or publish from pull requests. Marketplace or plugin-registry submission remains
-blocked until target registry requirements are known and a maintainer approves
-the submission.
+The workflows do not create tags, submit marketplace manifests, publish from
+pull requests, or publish without the protected environment. GitHub provenance
+attestation, root and native SBOM binding, exact-artifact lifecycle proof, and npm
+provenance verification are implemented locally, but the remote five-runner
+result and stable publication remain unproven.
+Marketplace or plugin-registry submission remains blocked until target registry
+requirements are known and a maintainer approves the submission.

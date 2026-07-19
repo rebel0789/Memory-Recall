@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { constants as fsConstants, createReadStream, existsSync, realpathSync } from 'node:fs';
+import { constants as fsConstants, createReadStream, existsSync, realpathSync, watch as watchFs } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -42,7 +42,7 @@ import {
   evaluateMemoryWrite,
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
-import { buildRecallMap } from '../../packages/recall-map/src/index.mjs';
+import { buildRecallMapMemorySummary } from '../../packages/recall-map/src/index.mjs';
 import {
   assertSemanticProposalSourcesCurrent,
   assertSemanticSourceBindingsCurrent,
@@ -57,8 +57,10 @@ import {
 } from '../../packages/semantic-setup/src/index.mjs';
 import { assertSafeContextPackUsePlanForResource, buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import contextPackSchema from '../../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
+import codeIntelligenceGraphSchema from '../../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import memoryRefineReportSchema from '../../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };
 import semanticSetupReportSchema from '../../packages/protocol/schemas/semantic-setup-report.schema.json' with { type: 'json' };
@@ -72,7 +74,13 @@ import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-  buildSourceGraphPreview
+  buildNativeIndexArchitecture,
+  buildNativeIndexSourceGraphPreview,
+  buildUnavailableSourceGraphPreview,
+  nativeIndexReadyForAutomaticRead,
+  nativeIndexSource,
+  nativeStructuralNode,
+  nativeStructuralRelationship
 } from '../../packages/source-graph/src/index.mjs';
 
 const CLI_PATH = fileURLToPath(import.meta.url);
@@ -86,6 +94,8 @@ const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 1
 const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const MCP_CONTEXT_PACK_AUX_MAX_BYTES = 2_000_000;
+const CODE_INTELLIGENCE_EDGE_KINDS = Object.freeze([...codeIntelligenceGraphSchema.$defs.edge.properties.kind.enum]);
 const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
 const SEMANTIC_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const SEMANTIC_PROVIDERS = new Set(['gemini', 'openai-compatible']);
@@ -93,8 +103,10 @@ const SEMANTIC_RESULT_MAX_BYTES = 256 * 1024;
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
 const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\)/u;
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
-const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
-const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
+const MCP_PRIVATE_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*)/u;
+const MCP_PRIVATE_PATH_GLOBAL = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*)/gu;
+const MCP_SECRET_MATERIAL = /(?:sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
+const MCP_SECRET_MATERIAL_GLOBAL = /(?:sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
 const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
 const MEMORY_BATCH_CONFIDENCES = new Set(['extracted', 'inferred', 'ambiguous']);
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
@@ -1871,21 +1883,21 @@ async function normalizeMemoryBatchFact(root, input) {
 function safeMemoryBatchToken(value, name) {
   const text = String(value ?? '').trim();
   if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(text)) throw new Error(`${name} must be safe`);
-  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error(`${name} must be safe`);
+  if (mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error(`${name} must be safe`);
   return text;
 }
 
 function safeMemoryBatchObject(value) {
   const text = String(value ?? '').trim().replace(/[.;:,]+$/u, '').trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9:_./ =,;()'-]{0,239}$/u.test(text)) throw new Error('object must be safe');
-  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
+  if (mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
   return text;
 }
 
 function safeMemoryBatchNotes(value) {
   const text = String(value ?? '').trim();
   if (!text || text.length > 500) throw new Error('notes must be safe');
-  if (/[\n\r]/u.test(text) || MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('notes must be safe');
+  if (/[\n\r]/u.test(text) || mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('notes must be safe');
   return text;
 }
 
@@ -2874,8 +2886,373 @@ async function graphCommand(values) {
   if (subcommand === 'search') return graphSearchCommand(rest);
   if (subcommand === 'trace') return graphTraceCommand(rest);
   if (subcommand === 'impact') return graphImpactCommand(rest);
-  console.error('graph requires stats, search, trace, or impact');
+  if (subcommand === 'index') return graphIndexCommand(rest);
+  if (subcommand === 'repositories') return graphRepositoriesCommand(rest);
+  console.error('graph requires stats, search, trace, impact, index, or repositories');
   process.exitCode = 2;
+}
+
+async function graphRepositoriesCommand(values) {
+  const action = values[0];
+  const args = values.slice(1);
+  const actionOptions = {
+    register: {
+      allowed: new Set(['--write', '--root', '--repository', '--name', '--workspace', '--format']),
+      valued: new Set(['--root', '--repository', '--name', '--workspace', '--format'])
+    },
+    list: {
+      allowed: new Set(['--read-only', '--root', '--workspace', '--format', '--limit']),
+      valued: new Set(['--root', '--workspace', '--format', '--limit'])
+    },
+    search: {
+      allowed: new Set(['--read-only', '--root', '--workspace', '--format', '--query', '--repository-ids', '--per-repository-limit', '--limit']),
+      valued: new Set(['--root', '--workspace', '--format', '--query', '--repository-ids', '--per-repository-limit', '--limit'])
+    }
+  }[action];
+  if (!actionOptions) {
+    console.error('graph repositories requires register, list, or search');
+    process.exitCode = 2;
+    return;
+  }
+  if (
+    unsupportedFlags(args, actionOptions.allowed, actionOptions.valued).length
+    || firstPositional(args, actionOptions.valued)
+    || [...actionOptions.valued].some((name) => args.includes(name) && missingOptionValue(args, name))
+  ) {
+    console.error(`graph repositories ${action} options are invalid`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(args, '--root');
+  if (!root || root.startsWith('--')) {
+    console.error(`graph repositories ${action} requires --root <fleet>`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(args, '--format') ?? 'summary';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('graph repositories only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const workspaceId = option(args, '--workspace') ?? 'ws_local';
+  if (!/^[a-z][a-z0-9_-]{0,127}$/u.test(workspaceId)) {
+    console.error('graph repositories workspace is invalid');
+    process.exitCode = 2;
+    return;
+  }
+  if (action === 'register' ? !args.includes('--write') : !args.includes('--read-only')) {
+    console.error(`graph repositories ${action} requires ${action === 'register' ? '--write' : '--read-only'}`);
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+    const provider = new RustCodeIntelligenceProvider();
+    let result;
+    if (action === 'register') {
+      const repository = option(args, '--repository');
+      const displayName = option(args, '--name');
+      const segments = repository?.split('/') ?? [];
+      if (
+        !repository
+        || path.isAbsolute(repository)
+        || repository.includes('\\')
+        || segments.some((segment) => !segment || segment === '.' || segment === '..' || !/^[A-Za-z0-9._@+-]+$/u.test(segment))
+      ) {
+        throw new Error('graph repositories register repository is invalid');
+      }
+      if (!displayName || !/^[A-Za-z0-9][A-Za-z0-9._ -]{0,79}$/u.test(displayName)) {
+        throw new Error('graph repositories register name is invalid');
+      }
+      result = await provider.registerRepository({
+        root,
+        workspaceId,
+        displayName,
+        rootLocator: `workspace://${repository}`
+      });
+    } else if (action === 'list') {
+      if (option(args, '--limit') === null) throw new Error('graph repositories list requires --limit');
+      const limit = strictIntegerOption(args, '--limit', 64);
+      if (limit < 1 || limit > 64) throw new Error('graph repositories list limit must be between 1 and 64');
+      result = await provider.listRepositories({ root, workspaceId, limit });
+    } else {
+      const query = option(args, '--query');
+      const repositoryIds = (option(args, '--repository-ids') ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+      if (option(args, '--per-repository-limit') === null || option(args, '--limit') === null) {
+        throw new Error('graph repositories search requires --per-repository-limit and --limit');
+      }
+      const perRepositoryLimit = strictIntegerOption(args, '--per-repository-limit', 25);
+      const limit = strictIntegerOption(args, '--limit', 50);
+      if (!query || !/^[A-Za-z0-9_.$:/#@ -]{1,160}$/u.test(query)) throw new Error('graph repositories search query is invalid');
+      if (
+        repositoryIds.length < 1
+        || repositoryIds.length > 8
+        || new Set(repositoryIds).size !== repositoryIds.length
+        || repositoryIds.some((repositoryId) => !/^repo_[a-f0-9]{32}$/u.test(repositoryId))
+      ) {
+        throw new Error('graph repositories search repository ids are invalid');
+      }
+      if (perRepositoryLimit < 1 || perRepositoryLimit > 25) {
+        throw new Error('graph repositories search per-repository limit must be between 1 and 25');
+      }
+      if (limit < 1 || limit > 50) throw new Error('graph repositories search limit must be between 1 and 50');
+      result = await provider.searchRepositories({ root, workspaceId, query, repositoryIds, perRepositoryLimit, limit });
+    }
+    const report = compactNativeGraphRepositoriesReport(result);
+    console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphRepositoriesSummary(report));
+  } catch (error) {
+    console.error(strictNativeReadMessage(error));
+    process.exitCode = 2;
+  }
+}
+
+async function graphIndexCommand(values) {
+  const modes = ['--status', '--write', '--refresh', '--doctor', '--repair', '--query'].filter((flag) => values.includes(flag));
+  if (modes.length !== 1) {
+    console.error('graph index requires --status, --write, --refresh, --doctor, --repair, or --query');
+    process.exitCode = 2;
+    return;
+  }
+  const watch = values.includes('--watch');
+  if (watch && modes[0] !== '--refresh') {
+    console.error('graph index --watch requires --refresh');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--status', '--write', '--refresh', '--doctor', '--repair', '--query', '--watch', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
+  const valueFlags = new Set(['--query', '--root', '--workspace', '--out', '--format', '--engine', '--confirm', '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error('graph index options are invalid');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'summary';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('graph index only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const requestedEngine = option(values, '--engine') ?? 'native';
+  if (!['auto', 'native', 'native-preview'].includes(requestedEngine)) {
+    console.error('graph index --engine must be native, native-preview, or auto');
+    process.exitCode = 2;
+    return;
+  }
+  const invalidForMode = invalidGraphIndexModeOption(values, modes[0]);
+  if (invalidForMode) {
+    console.error(`graph index ${modes[0]} does not accept ${invalidForMode}`);
+    process.exitCode = 2;
+    return;
+  }
+  if (option(values, '--out')) {
+    console.error('native source index uses the fixed workspace-local index path');
+    process.exitCode = 2;
+    return;
+  }
+  return nativeGraphIndexCommand(values, { mode: modes[0], root, workspaceId, format, watch });
+}
+
+async function nativeGraphIndexCommand(values, { mode, root, workspaceId, format, watch }) {
+  if (mode === '--repair' && missingOptionValue(values, '--confirm')) {
+    console.error('graph index --repair requires --confirm <repairPlanFingerprint>');
+    process.exitCode = 2;
+    return;
+  }
+  if (mode === '--query' && missingOptionValue(values, '--query')) {
+    console.error('graph index --query requires a query value');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const languagesValue = option(values, '--languages');
+    const common = {
+      root,
+      workspaceId,
+      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
+      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
+      maxNodes: strictIntegerOption(values, '--max-nodes', 5000),
+      maxEdges: strictIntegerOption(values, '--max-edges', 10000),
+      ...(languagesValue === null ? {} : { languages: languagesValue.split(',').map((value) => value.trim()).filter(Boolean) })
+    };
+    const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+    const provider = new RustCodeIntelligenceProvider();
+    const execute = async () => {
+      let result;
+      if (mode === '--status') result = await provider.indexStatus(common);
+      else if (mode === '--write') result = await provider.buildIndex(common);
+      else if (mode === '--refresh') result = await provider.refreshIndex(common);
+      else if (mode === '--doctor') result = await provider.doctorIndex(common);
+      else if (mode === '--repair') result = await provider.repairIndex({ ...common, confirmRepairPlan: option(values, '--confirm') });
+      else {
+        result = await provider.queryIndex({
+          ...common,
+          kind: option(values, '--kind') ?? 'exact',
+          query: option(values, '--query'),
+          ...(option(values, '--locator') === null ? {} : { locator: option(values, '--locator') }),
+          ...(option(values, '--direction') === null ? {} : { direction: option(values, '--direction') }),
+          ...(option(values, '--depth') === null ? {} : { depth: strictIntegerOption(values, '--depth', 1) }),
+          ...(option(values, '--cursor') === null ? {} : { cursor: option(values, '--cursor') }),
+          limit: strictIntegerOption(values, '--limit', 25)
+        });
+      }
+      const report = compactNativeGraphIndexReport(result);
+      console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphIndexSummary(report));
+      return report;
+    };
+    await execute();
+    if (watch) await watchGraphIndex({ root: path.resolve(root), execute, engine: 'native' });
+  } catch (error) {
+    console.error(error?.code ?? error.message);
+    process.exitCode = 2;
+  }
+}
+
+function invalidGraphIndexModeOption(values, mode) {
+  const base = new Set([mode, '--root', '--workspace', '--format', '--engine']);
+  const allowed = mode === '--status' || mode === '--doctor'
+      ? base
+      : mode === '--write' || mode === '--refresh'
+        ? new Set([...base, '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages', ...(mode === '--refresh' ? ['--watch'] : [])])
+        : mode === '--repair'
+          ? new Set([...base, '--confirm', '--max-files', '--max-file-bytes', '--max-nodes', '--max-edges', '--languages'])
+          : new Set([...base, '--kind', '--locator', '--direction', '--depth', '--limit', '--cursor']);
+  return values.find((value) => value.startsWith('--') && !allowed.has(value)) ?? null;
+}
+
+function missingOptionValue(values, name) {
+  const index = values.indexOf(name);
+  return index < 0 || index + 1 >= values.length || values[index + 1].startsWith('--');
+}
+
+function compactNativeGraphIndexReport(result) {
+  return {
+    schemaVersion: result.responseSchemaVersion,
+    command: `graph index ${result.operation.slice('index.'.length)}`,
+    engine: { selection: 'native', implementation: 'memory-recall-native', previewOnly: false, publicDefaultChanged: true },
+    status: result.state,
+    indexLocator: result.indexLocator,
+    activeGeneration: result.activeGeneration,
+    freshness: result.freshness,
+    health: result.health,
+    fileCount: result.summary.fileCount,
+    nodeCount: result.summary.nodeCount,
+    edgeCount: result.summary.edgeCount,
+    unresolvedCount: result.summary.unresolvedCount,
+    omittedCount: result.summary.omittedCount,
+    databaseBytes: result.summary.databaseBytes,
+    measurements: result.measurements,
+    results: result.results,
+    truncated: result.truncated,
+    nextCursor: result.nextCursor,
+    diagnostics: result.diagnostics,
+    safeguards: result.safeguards
+  };
+}
+
+function compactNativeGraphRepositoriesReport(result) {
+  return {
+    schemaVersion: result.responseSchemaVersion,
+    command: `graph repositories ${result.operation.slice('repository.'.length)}`,
+    engine: { selection: 'native', implementation: 'memory-recall-native', previewOnly: false, publicDefaultChanged: true },
+    status: result.state,
+    registryLocator: result.registryLocator,
+    repositories: result.repositories,
+    results: result.results,
+    perRepository: result.perRepository,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    safeguards: result.safeguards
+  };
+}
+
+function renderGraphRepositoriesSummary(report) {
+  return [
+    '# Graph Repositories',
+    `Command: ${report.command}`,
+    `Status: ${report.status}`,
+    `Repositories: ${report.repositories.length}`,
+    `Results: ${report.results.length}`,
+    ...report.repositories.map((repository) => `- ${repository.displayName}: ${repository.repositoryId} (${repository.rootLocator})`),
+    ...report.results.map((result) => `- ${result.repositoryId}: ${result.label} (${result.locator})`),
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards.readOnly ? 'yes' : 'no'}`,
+    `Local files written: ${report.safeguards.localFilesWritten}`,
+    `Raw source bodies included: ${report.safeguards.rawSourceBodiesIncluded ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+function renderGraphIndexSummary(report) {
+  const measurements = report.measurements ?? {};
+  const queryLines = report.command === 'graph index query'
+    ? [
+      `Results returned: ${report.results?.length ?? 0}`,
+      `Query truncated: ${report.truncated ? 'yes' : 'no'}`,
+      `Next cursor: ${report.nextCursor ?? 'none'}`
+    ]
+    : [];
+  return [
+    '# Source Graph Index',
+    `Status: ${report.status}`,
+    `Index: ${report.indexLocator}`,
+    `Files: ${report.fileCount ?? (measurements.parsedFileCount ?? 0) + (measurements.reusedFileCount ?? 0)}`,
+    `Nodes: ${report.nodeCount ?? report.graph?.nodeCount ?? 0}`,
+    `Edges: ${report.edgeCount ?? report.graph?.edgeCount ?? 0}`,
+    `Parsed: ${measurements.parsedFileCount ?? 0}`,
+    `Reused: ${measurements.reusedFileCount ?? 0}`,
+    `Changed: ${measurements.changedFileCount ?? 0}`,
+    `Added: ${measurements.addedFileCount ?? 0}`,
+    `Deleted: ${measurements.deletedFileCount ?? 0}`,
+    ...queryLines,
+    `Raw source bodies stored: no`
+  ].join('\n');
+}
+
+async function watchGraphIndex({ root, execute, engine = 'native' }) {
+  let timer = null;
+  let running = false;
+  let pending = false;
+  const refresh = async () => {
+    if (running) {
+      pending = true;
+      return;
+    }
+    running = true;
+    try {
+      await execute();
+    } finally {
+      running = false;
+      if (pending) {
+        pending = false;
+        await refresh();
+      }
+    }
+  };
+  const watcher = watchFs(root, { recursive: true }, (_event, filename) => {
+    const relative = String(filename ?? '').replaceAll('\\', '/');
+    const sourcePattern = engine === 'native'
+      ? /(?:\.(?:[cm]?[jt]sx?|py|java|kts?|cs|go|rs|php|rb|swift|c|h|cc|cpp|cxx|hpp|dart|lua|sh|bash|sql|m|mm|scala|r|jl|zig)|(?:^|\/)\.gitignore|(?:^|\/)\.recallignore)$/iu
+      : /(?:\.(?:[cm]?[jt]sx?)|(?:^|\/)\.gitignore|(?:^|\/)\.recallignore)$/u;
+    if (!relative || relative.startsWith('.local/source-graph/') || relative.startsWith('.local/source-index/') || !sourcePattern.test(relative)) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void refresh(), 250);
+  });
+  await new Promise((resolve) => {
+    const stop = () => {
+      if (timer) clearTimeout(timer);
+      watcher.close();
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+      resolve();
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+  });
 }
 
 async function recallMapCommand(values) {
@@ -2892,6 +3269,16 @@ async function recallMapCommand(values) {
       changedLocators,
       query: options.query,
       sqliteLocator: options.sqliteLocator,
+      sourceGraphPreviewBuilder: async (previewOptions) => {
+        try {
+          return await buildCurrentNativeSourceGraphPreview(previewOptions);
+        } catch (error) {
+          return buildUnavailableSourceGraphPreview({
+            ...previewOptions,
+            errorCode: String(error?.code ?? error?.message ?? 'native_index_unavailable')
+          });
+        }
+      },
       clock: fixedNow
     });
     if (options.format === 'json') {
@@ -2902,7 +3289,7 @@ async function recallMapCommand(values) {
       console.log(renderRecallMapSummary({ command: 'recall map', ...map }));
     }
   } catch (error) {
-    console.error(error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
@@ -3112,8 +3499,14 @@ async function graphPreviewBackedCommand(values, {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const requestedEngine = option(values, '--engine') ?? 'native';
+  if (!['auto', 'native', 'native-preview'].includes(requestedEngine)) {
+    console.error('graph --engine must be native, native-preview, or auto');
+    process.exitCode = 2;
+    return;
+  }
   try {
-    const preview = await buildSourceGraphPreview({
+    const preview = await buildCurrentNativeSourceGraphPreview({
       root,
       workspaceId,
       query,
@@ -3121,15 +3514,12 @@ async function graphPreviewBackedCommand(values, {
       changedLocators,
       nodeKinds: option(values, '--node-kinds'),
       edgeKinds: option(values, '--edge-kinds'),
-      labelPattern: option(values, '--label-pattern'),
       locatorPrefix: option(values, '--locator-prefix'),
       direction,
       limit: strictIntegerOption(values, '--limit', 20),
       offset: strictIntegerOption(values, '--offset', 0),
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
-      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
     const baseReport = {
@@ -3137,6 +3527,14 @@ async function graphPreviewBackedCommand(values, {
       command: commandName,
       generatedAt: preview.generatedAt,
       workspaceId: preview.workspaceId,
+      engine: {
+        selection: 'native',
+        implementation: 'memory-recall-native',
+        previewOnly: false,
+        publicDefaultChanged: true,
+        requested: requestedEngine,
+        reason: requestedEngine === 'native' ? null : 'native_alias'
+      },
       graph: compactGraphCommandGraph(preview.graph),
       ...pick(preview),
       safeguards: preview.safeguards
@@ -3144,9 +3542,81 @@ async function graphPreviewBackedCommand(values, {
     const report = { ...baseReport, measurements: graphCommandMeasurements(preview.measurements, baseReport) };
     console.log(format === 'summary' ? renderSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
-    console.error(error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
+}
+
+async function buildCurrentNativeSourceGraphPreview(options) {
+  const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+  const provider = new RustCodeIntelligenceProvider();
+  const status = await provider.indexStatus({ root: options.root, workspaceId: options.workspaceId });
+  if (!nativeIndexReadyForAutomaticRead(status)) {
+    const code = nativeIndexRecoveryCode(status);
+    const error = new Error(code);
+    error.code = code;
+    throw error;
+  }
+  return buildNativeIndexSourceGraphPreview({ ...options, provider, status });
+}
+
+async function currentNativeSourceGraphPreviewIfReady(options) {
+  try {
+    return await buildCurrentNativeSourceGraphPreview(options);
+  } catch (error) {
+    if (isNativeIndexRecoveryRequired(error)) return null;
+    throw error;
+  }
+}
+
+function nativeIndexRecoveryCode(status) {
+  switch (status?.health?.status) {
+    case 'absent': return 'source_index_build_required';
+    case 'stale': return 'source_index_refresh_required';
+    case 'interrupted':
+    case 'corrupt': return 'source_index_repair_required';
+    case 'migration-required': return 'source_index_migration_required';
+    case 'wrong-repository': return 'source_index_wrong_repository';
+    case 'unsupported-schema': return 'source_index_schema_newer';
+    default: return 'source_index_query_unavailable';
+  }
+}
+
+function strictNativeReadMessage(error) {
+  const code = String(error?.code ?? error?.message ?? 'native_engine_unavailable');
+  if (code === 'source_index_build_required' || code === 'source_index_query_unavailable') {
+    return `${code}: run recall graph index --write --engine native --root . --format summary`;
+  }
+  if (code === 'source_index_refresh_required') {
+    return `${code}: run recall graph index --refresh --engine native --root . --format summary`;
+  }
+  if ([
+    'source_index_corrupt',
+    'source_index_integrity_failed',
+    'source_index_migration_checksum_invalid',
+    'source_index_migration_required',
+    'source_index_repair_required',
+    'source_index_wrong_repository'
+  ].includes(code)) {
+    return `${code}: run recall graph index --doctor --engine native --root . --format summary, then use the exact repair command it reports`;
+  }
+  if (code === 'source_index_schema_newer') {
+    return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;
+  }
+  if (code === 'native_platform_unsupported') {
+    return `${code}: this platform has no supported packaged native engine`;
+  }
+  if ([
+    'native_engine_checksum_mismatch',
+    'native_engine_manifest_invalid',
+    'native_engine_path_invalid',
+    'native_engine_unavailable',
+    'native_engine_version_mismatch',
+    'native_platform_package_missing'
+  ].includes(code)) {
+    return `${code}: install the matching @memory-recall/native-* package`;
+  }
+  return code;
 }
 
 function graphCommandMeasurements(previewMeasurements = {}, report = {}) {
@@ -3187,10 +3657,11 @@ function renderGraphStatsSummary(report) {
   const entryPoints = summary.entryPoints ?? [];
   return [
     '# Graph Stats',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Nodes: ${summary.nodeCount ?? 0}`,
     `Edges: ${summary.edgeCount ?? 0}`,
     `Call edges: ${edgeKinds.calls ?? 0}`,
@@ -3216,10 +3687,11 @@ function renderGraphSearchSummary(report) {
   const results = report.search?.results ?? [];
   return [
     '# Graph Search',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Results: ${results.length}/${report.search?.total ?? 0}`,
     `Fingerprint: ${report.graph?.graphFingerprint ?? 'unavailable'}`,
     `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
@@ -3263,10 +3735,11 @@ function renderGraphTraceSummary(report) {
   const paths = report.trace?.paths ?? [];
   return [
     '# Graph Trace',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Start nodes: ${report.trace?.startNodeIds?.length ?? 0}`,
     `Paths: ${paths.length}`,
     `Direction: ${report.trace?.direction ?? 'unknown'}`,
@@ -3290,10 +3763,11 @@ function renderGraphImpactSummary(report) {
   const edgeKindSummary = Object.entries(impact.impactedEdgeKindCounts ?? {}).sort((a, b) => a[0].localeCompare(b[0])).map(([kind, count]) => `${kind} ${count}`).join(', ') || 'none';
   return [
     '# Graph Impact',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Changed coverage: ${impact.representedChangedLocators?.length ?? 0}/${impact.changedLocators?.length ?? 0}`,
     `Affected symbols: ${symbols.length}`,
     `Impacted edges: ${impact.impactedEdgeIds?.length ?? 0}`,
@@ -4626,7 +5100,12 @@ async function loadTemporalDataset(datasetPath) {
 }
 
 async function resolveBenchmarkDataset(requestedPath, bundledPath) {
-  const selectedPath = requestedPath ?? bundledPath;
+  if (requestedPath === null || requestedPath === undefined) {
+    const packagePath = path.join(PACKAGE_ROOT, ...bundledPath.split('/'));
+    return { path: packagePath, ref: `package://${bundledPath}` };
+  }
+
+  const selectedPath = requestedPath;
   const workspacePath = path.resolve(selectedPath);
   const workspaceFile = await stat(workspacePath).catch(() => null);
   if (workspaceFile?.isFile()) {
@@ -5180,7 +5659,16 @@ async function contextPackCommand(values) {
   const userSelectedFiles = options(values, '--include-file');
   try {
     const { changedLocators, detection: changedLocatorDetection } = await resolveChangedLocators(values, { root, workspaceId });
-    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget });
+    const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+      root,
+      workspaceId,
+      query: `${objective} ${step}`,
+      changedLocators,
+      limit: 12,
+      sampleLimit: 1,
+      clock: fixedNow
+    });
+    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget, sourceGraphPreview });
     const markdown = renderContextPackMarkdown(pack);
     const usePlan = buildContextPackUsePlan(pack);
     if (write) {
@@ -5479,31 +5967,32 @@ async function contextGraphPreviewCommand(values) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const query = option(values, '--query') ?? firstPositional(values, new Set(['--format', '--root', '--workspace', '--query', '--trace', '--start-name', '--start-node', '--changed', '--changed-locator', '--changed-locators', '--node-kinds', '--edge-kinds', '--label-pattern', '--locator-prefix', '--direction', '--limit', '--offset', '--depth', '--sample-limit', '--max-files', '--max-file-bytes'])) ?? '';
+  const unsupportedNativeOptions = ['--start-node', '--node-kinds', '--edge-kinds', '--label-pattern', '--max-files', '--max-file-bytes']
+    .filter((flag) => values.includes(flag));
+  if (unsupportedNativeOptions.length) {
+    console.error(`context graph preview does not support ${unsupportedNativeOptions[0]} with the native index`);
+    process.exitCode = 2;
+    return;
+  }
   try {
     const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
-    const preview = await buildSourceGraphPreview({
+    const preview = await buildCurrentNativeSourceGraphPreview({
       root,
       workspaceId,
       query,
       startName: option(values, '--trace') ?? option(values, '--start-name'),
-      startNodeId: option(values, '--start-node'),
       changedLocators: [...changedLocators, ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])],
-      nodeKinds: option(values, '--node-kinds'),
-      edgeKinds: option(values, '--edge-kinds'),
-      labelPattern: option(values, '--label-pattern'),
       locatorPrefix: option(values, '--locator-prefix'),
       direction: option(values, '--direction') ?? 'outbound',
       limit: strictIntegerOption(values, '--limit', 20),
       offset: strictIntegerOption(values, '--offset', 0),
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 12),
-      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
     console.log(format === 'summary' ? renderSourceGraphPreviewSummary(preview) : JSON.stringify(preview, null, 2));
   } catch (error) {
-    console.error(error.message);
+    console.error(strictNativeReadMessage(error));
     process.exitCode = 2;
   }
 }
@@ -5521,8 +6010,8 @@ function renderSourceGraphPreviewSummary(preview) {
     `Status: ${preview.status ?? 'ready'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
-    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
-    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 'unmeasured'}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 'unmeasured'}`,
     `Nodes: ${summary.nodeCount ?? 0}`,
     `Edges: ${summary.edgeCount ?? 0}`,
     `Hotspots: ${hotspots}`,
@@ -5547,9 +6036,10 @@ async function mcpCommand(values) {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
     if (subcommand === 'server') return await mcpServerCommand(rest);
     if (subcommand === 'install') return await mcpInstallCommand(rest);
+    if (subcommand === 'uninstall') return await mcpUninstallCommand(rest);
     if (subcommand === 'stats') return await mcpStatsCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires inspect, resources, server, install, stats, or smoke');
+    console.error('mcp requires inspect, resources, server, install, uninstall, stats, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -6233,6 +6723,12 @@ async function mcpServerCommand(values) {
     process.exitCode = 2;
     return;
   }
+  const sourceIndexEngine = option(values, '--engine') ?? 'native';
+  if (!['auto', 'native', 'native-preview'].includes(sourceIndexEngine)) {
+    console.error('mcp server --engine must be native, native-preview, or auto');
+    process.exitCode = 2;
+    return;
+  }
   const root = path.resolve(option(values, '--root') ?? process.cwd());
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
@@ -6349,7 +6845,467 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
+  let nativeProviderPromise = null;
+  const loadNativeProvider = () => {
+    nativeProviderPromise ??= import('../../providers/native/code-intelligence-rust/src/index.mjs')
+      .then(({ RustCodeIntelligenceProvider }) => new RustCodeIntelligenceProvider());
+    return nativeProviderPromise;
+  };
+  const actionableNativeReadError = (error) => {
+    throw new Error(strictNativeReadMessage(error));
+  };
+  const nativeStatus = async () => {
+    try {
+      return await (await loadNativeProvider()).indexStatus({ root, workspaceId });
+    } catch (error) {
+      return actionableNativeReadError(error);
+    }
+  };
+  let nativeRepositoryProviderPromise = null;
+  const requireNativeRepositoryProvider = () => {
+    nativeRepositoryProviderPromise ??= loadNativeProvider()
+      .then(async (provider) => {
+        const health = await provider.health();
+        if (health.status !== 'healthy') throw new Error('unhealthy');
+        return provider;
+      })
+      .catch(() => {
+        throw new Error('cross-repository native engine is unavailable; install the matching @memory-recall/native-* package');
+      });
+    return nativeRepositoryProviderPromise;
+  };
+  const nativeQuery = async (kind, argumentsValue = {}) => {
+    try {
+      return await (await loadNativeProvider()).queryIndex({
+        root,
+        workspaceId,
+        kind,
+        limit: argumentsValue.limit ?? 20,
+        ...(argumentsValue.query === undefined ? {} : { query: argumentsValue.query }),
+        ...(argumentsValue.locator === undefined ? {} : { locator: argumentsValue.locator }),
+        ...(argumentsValue.direction === undefined ? {} : { direction: argumentsValue.direction }),
+        ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth }),
+        ...(argumentsValue.edgeKinds === undefined ? {} : { edgeKinds: argumentsValue.edgeKinds }),
+        ...(argumentsValue.cursor === undefined ? {} : { cursor: argumentsValue.cursor }),
+        ...(argumentsValue.signal === undefined ? {} : { signal: argumentsValue.signal })
+      });
+    } catch (error) {
+      return actionableNativeReadError(error);
+    }
+  };
+  const nativeCompleteness = (result, locallyTruncated = false) => ({
+    truncated: Boolean(result?.truncated || result?.nextCursor || locallyTruncated),
+    nextCursor: result?.nextCursor ?? null,
+    locallyTruncated
+  });
+  const nativeQueryAtOffset = async (kind, argumentsValue, offset, limit) => {
+    if (offset === 0) return nativeQuery(kind, { ...argumentsValue, limit });
+    const maxPageCalls = 8;
+    const controller = new AbortController();
+    const deadlineTimer = setTimeout(() => controller.abort(), 1_500);
+    let pageCalls = 0;
+    let reachedOffset = 0;
+    let cursor = argumentsValue.cursor ?? null;
+    let lastResult = null;
+    const seenCursors = new Set(cursor ? [cursor] : []);
+    const incompleteResult = () => ({
+      ...(lastResult ?? {}),
+      results: [],
+      relationships: [],
+      truncated: true,
+      offsetIncomplete: true,
+      reachedOffset,
+      nextCursor: lastResult?.nextCursor ?? cursor
+    });
+    try {
+      while (reachedOffset < offset && pageCalls < maxPageCalls - 1 && !controller.signal.aborted) {
+        const skipLimit = Math.min(100, offset - reachedOffset);
+        try {
+          lastResult = await nativeQuery(kind, { ...argumentsValue, limit: skipLimit, ...(cursor ? { cursor } : {}), signal: controller.signal });
+        } catch (error) {
+          if (controller.signal.aborted) return incompleteResult();
+          throw error;
+        }
+        pageCalls += 1;
+        reachedOffset += lastResult.results?.length ?? 0;
+        if (reachedOffset >= offset) {
+          cursor = lastResult.nextCursor ?? null;
+          break;
+        }
+        if (!lastResult.nextCursor || seenCursors.has(lastResult.nextCursor)) break;
+        cursor = lastResult.nextCursor;
+        seenCursors.add(cursor);
+      }
+      if (controller.signal.aborted) return incompleteResult();
+      if (reachedOffset < offset) {
+        if (lastResult?.nextCursor || lastResult?.truncated) return incompleteResult();
+        return {
+          ...(lastResult ?? {}),
+          results: [],
+          relationships: [],
+          truncated: false,
+          offsetIncomplete: false,
+          reachedOffset,
+          nextCursor: null
+        };
+      }
+      if (!cursor) {
+        return {
+          ...(lastResult ?? {}),
+          results: [],
+          relationships: [],
+          truncated: false,
+          offsetIncomplete: false,
+          reachedOffset,
+          nextCursor: null
+        };
+      }
+      try {
+        const result = await nativeQuery(kind, { ...argumentsValue, limit, cursor, signal: controller.signal });
+        return { ...result, offsetIncomplete: false, reachedOffset };
+      } catch (error) {
+        if (controller.signal.aborted) return incompleteResult();
+        throw error;
+      }
+    } finally {
+      clearTimeout(deadlineTimer);
+    }
+  };
   return [
+    {
+      name: 'repo.architecture',
+      description: 'Return bounded architecture groups, communities, entry points, hotspots, and evidence-backed entry-to-sink processes from local source metadata.',
+      operation: 'repo.architecture',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const [communities, processes] = await Promise.all([
+          nativeQuery('communities', { limit }),
+          nativeQuery('processes', { depth: 4, limit })
+        ]);
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'repo.architecture', workspaceId, generatedAt: fixedNow(),
+          data: buildNativeIndexArchitecture(communities, processes, limit)
+        }));
+      }
+    },
+    {
+      name: 'repo.index_status',
+      description: 'Report local persistent-index status or list registered repositories; this tool never builds or refreshes indexes.',
+      operation: 'repo.index_status',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          scope: { type: 'string', enum: ['local', 'repositories'] },
+          limit: { type: 'integer', minimum: 1, maximum: 64 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['scope', 'limit'], 'repo.index_status');
+        const scope = input.scope ?? 'local';
+        if (!['local', 'repositories'].includes(scope)) throw new Error('repo.index_status scope is invalid');
+        if (scope === 'repositories') {
+          const limit = mcpStrictBoundedInteger(input.limit, 64, { min: 1, max: 64, name: 'limit' });
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.listRepositories({ root, workspaceId, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
+            data: nativeRepositoryListData(result)
+          }));
+        }
+        if (input.limit !== undefined) throw new Error('repo.index_status limit requires repository scope');
+        const result = await nativeStatus();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
+          data: nativeIndexStatusData(result)
+        }));
+      }
+    },
+    {
+      name: 'code.search',
+      description: 'Search bounded symbols, files, modules, and relationships in the local or selected registered repositories.',
+      operation: 'code.search',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          repositoryIds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 8,
+            uniqueItems: true,
+            items: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' }
+          },
+          nodeKinds: { type: 'array', maxItems: 4, items: { type: 'string', enum: ['file', 'chunk', 'symbol', 'module'] } },
+          edgeKinds: { type: 'array', maxItems: 6, items: { type: 'string', enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
+          locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+          offset: { type: 'integer', minimum: 0, maximum: 10000, default: 0 },
+          cursor: { type: 'string', pattern: '^idxcur_[a-f0-9]{32}$' }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'repositoryIds', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset', 'cursor'], 'code.search');
+        const query = mcpStructuralString(input.query, 'code.search query', { required: true, max: 512 });
+        const repositoryIds = mcpRepositoryIds(input.repositoryIds, { min: 1, max: 8 });
+        const nodeKinds = mcpStructuralKinds(input.nodeKinds, ['file', 'chunk', 'symbol', 'module']);
+        const edgeKinds = mcpStructuralKinds(input.edgeKinds, ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
+        const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: repositoryIds ? 25 : 50, name: 'limit' });
+        const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
+        const cursor = input.cursor === undefined ? null : mcpStructuralString(input.cursor, 'code.search cursor', { required: true, max: 39 });
+        if (cursor && !/^idxcur_[a-f0-9]{32}$/u.test(cursor)) throw new Error('code.search cursor is invalid');
+        if (cursor && offset !== 0) throw new Error('code.search cursor cannot be combined with a non-zero offset');
+        if (repositoryIds) {
+          if (query.length > 160) throw new Error('native repository query exceeds 160 characters');
+          if (nodeKinds?.length || edgeKinds?.length || locatorPrefix || offset !== 0 || cursor) {
+            throw new Error('code.search repository mode does not support local filters, offset, or cursor');
+          }
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.searchRepositories({
+            root,
+            workspaceId,
+            query,
+            repositoryIds,
+            perRepositoryLimit: limit,
+            limit
+          });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.search', workspaceId, generatedAt: fixedNow(),
+            data: nativeRepositorySearchData(result, query, repositoryIds)
+          }));
+        }
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available');
+        if (offset !== 0 && (nodeKinds?.length || locatorPrefix)) {
+          throw new Error('native code.search offset cannot be combined with local result filters; continue with nextCursor');
+        }
+        const result = await nativeQueryAtOffset('search', { query, ...(cursor ? { cursor } : {}) }, offset, limit);
+        const results = result.results
+          .filter((item) => nativeNodeMatchesKinds(item, nodeKinds))
+          .filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix))
+          .slice(0, limit)
+          .map(nativeStructuralNode);
+        const resultIds = new Set(results.map((item) => item.id));
+        const relationships = (result.relationships ?? [])
+          .filter((item) => resultIds.has(item.fromNodeId) && resultIds.has(item.toNodeId))
+          .slice(0, limit)
+          .map(nativeStructuralRelationship);
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.search', workspaceId, generatedAt: fixedNow(),
+          data: {
+            query,
+            results,
+            relationships,
+            resultCount: results.length,
+            limit,
+            offset,
+            reachedOffset: result.reachedOffset ?? offset,
+            offsetIncomplete: result.offsetIncomplete === true,
+            truncated: Boolean(result.truncated || result.nextCursor),
+            hasMore: Boolean(result.nextCursor),
+            nextCursor: result.nextCursor,
+            source: nativeIndexSource(result)
+          }
+        }));
+      }
+    },
+    {
+      name: 'code.context',
+      description: 'Return one selected symbol with bounded, optionally filtered incoming and outgoing structural relationships.',
+      operation: 'code.context',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          edgeKinds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 16,
+            uniqueItems: true,
+            items: { type: 'string', enum: CODE_INTELLIGENCE_EDGE_KINDS }
+          },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'direction', 'depth', 'edgeKinds', 'limit'], 'code.context');
+        const query = mcpStructuralString(input.query, 'code.context query', { required: true, max: 512 });
+        const constrained = ['direction', 'depth', 'edgeKinds'].some((key) => Object.hasOwn(input, key));
+        const direction = mcpStructuralDirection(input.direction ?? 'both');
+        const depth = mcpStrictBoundedInteger(input.depth, 1, { min: 1, max: 3, name: 'depth' });
+        const edgeKinds = mcpStructuralKinds(input.edgeKinds, CODE_INTELLIGENCE_EDGE_KINDS, { minItems: 1, maxItems: 16, unique: true });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        if (constrained) {
+          const status = await nativeStatus();
+          if (!nativeIndexReadyForAutomaticRead(status)) {
+            throw new Error('code.context constraints require a current native index; refresh it with recall graph index --refresh --engine native --root . --format summary');
+          }
+        }
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        const [selected, neighborhood] = await Promise.all([
+          nativeQuery('exact', { query, limit: 1 }),
+          constrained
+            ? nativeQuery('dependencies', { query, direction, depth, edgeKinds, limit })
+            : nativeQuery('neighborhood', { query, limit, depth: 1 })
+        ]);
+        const related = neighborhood.results.map(nativeStructuralNode);
+        const relatedIds = new Set(related.map((item) => item.id));
+        const relationships = (neighborhood.relationships ?? [])
+          .filter((item) => relatedIds.has(item.fromNodeId) && relatedIds.has(item.toNodeId))
+          .filter((item) => !edgeKinds || edgeKinds.includes(item.kind))
+          .map(nativeStructuralRelationship);
+        const completeness = {
+          selection: nativeCompleteness(selected),
+          neighborhood: nativeCompleteness(neighborhood)
+        };
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.context', workspaceId, generatedAt: fixedNow(),
+          data: {
+            query,
+            selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
+            related,
+            relationships,
+            completeness,
+            truncated: completeness.selection.truncated || completeness.neighborhood.truncated,
+            ...(constrained ? { direction, depth, edgeKinds: edgeKinds ?? [] } : {}),
+            source: nativeIndexSource(neighborhood)
+          }
+        }));
+      }
+    },
+    {
+      name: 'code.trace',
+      description: 'Trace bounded local call paths or one evidence-backed Go path across two registered repositories.',
+      operation: 'code.trace',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        oneOf: [{ required: ['symbol'] }, { required: ['crossRepository'] }],
+        properties: {
+          symbol: { type: 'string', minLength: 1, maxLength: 240 },
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 },
+          locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['symbol', 'crossRepository', 'direction', 'depth', 'limit', 'locatorPrefix'], 'code.trace');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['symbol', 'direction', 'depth', 'locatorPrefix'], 'code.trace');
+        const symbol = mcpStructuralString(input.symbol, 'code.trace symbol', { required: !crossRepository, max: 240 });
+        const direction = mcpStructuralDirection(input.direction);
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: crossRepository ? 25 : 50, name: 'limit' });
+        const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
+        if (crossRepository) {
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.traceGoRepositories({ root, workspaceId, ...crossRepository, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.trace', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
+        if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
+        const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
+        const completeness = nativeCompleteness(result);
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.trace', workspaceId, generatedAt: fixedNow(),
+          data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
+        }));
+      }
+    },
+    {
+      name: 'code.dependencies',
+      description: 'Walk a bounded local dependency neighborhood or resolve one exact Go module boundary across repositories.',
+      operation: 'code.dependencies',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        oneOf: [{ required: ['query'] }, { required: ['crossRepository'] }],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'crossRepository', 'direction', 'depth', 'limit'], 'code.dependencies');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['query', 'direction', 'depth', 'limit'], 'code.dependencies');
+        const query = mcpStructuralString(input.query, 'code.dependencies query', { required: !crossRepository, max: 512 });
+        const direction = mcpStructuralDirection(input.direction);
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: crossRepository ? 25 : 50, name: 'limit' });
+        if (crossRepository) {
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.resolveGoRepositories({ root, workspaceId, ...crossRepository });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
+        if (query.length > 160) throw new Error('native index query exceeds 160 characters');
+        const result = await nativeQuery('dependencies', { query, direction, depth, limit });
+        const completeness = nativeCompleteness(result);
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
+          data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
+        }));
+      }
+    },
+    {
+      name: 'code.routes',
+      description: 'Discover bounded HTTP route exports with locator-safe static evidence.',
+      operation: 'code.routes',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          query: { type: 'string', maxLength: 240 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'limit'], 'code.routes');
+        const query = mcpStructuralString(input.query, 'code.routes query', { required: false, max: 240 });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const result = await nativeQuery('routes', { limit });
+        const routes = result.results
+          .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+          .map(nativeStructuralNode);
+        const completeness = nativeCompleteness(result);
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.routes', workspaceId, generatedAt: fixedNow(),
+          data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), completeness, truncated: completeness.truncated, nextCursor: completeness.nextCursor, source: nativeIndexSource(result) }
+        }));
+      }
+    },
     {
       name: 'repo.map',
       description: 'Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness.',
@@ -6366,40 +7322,108 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        const payload = await buildMcpRepoMapPayload({
-          values,
-          root,
-          workspaceId,
-          generatedAt: fixedNow(),
-          args
-        });
-        return mcpToolJsonResult(payload);
+          const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
+          mcpMapClient(input.client);
+          const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
+          const query = mcpMapQuery(input.query);
+          const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+          const status = await nativeStatus();
+          const search = query ? await nativeQuery('exact', { query, limit }) : null;
+          const impact = [];
+          for (const locator of changedLocators) {
+            const result = await nativeQuery('impact', { query: locator, limit, depth: 2 });
+            impact.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
+          }
+          const completeness = {
+            search: search ? nativeCompleteness(search) : null,
+            impact: impact.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor }))
+          };
+          const sqlitePath = await resolveWorkspaceSqlitePath(
+            root,
+            option(values, '--sqlite') ?? '.local/memory.sqlite',
+            'mcp server',
+            { mustExist: false }
+          );
+          const memory = await buildRecallMapMemorySummary({
+            root,
+            workspaceId,
+            clock: () => fixedNow(),
+            sqliteLocator: sqlitePath.relative
+          });
+          const affectedSymbols = [...new Map(
+            impact.flatMap(({ nodes }) => nodes).map((node) => [node.id, node])
+          ).values()];
+          const payload = mcpStructuralPayload({
+            command: 'repo.map', workspaceId, generatedAt: fixedNow(),
+            data: {
+              sourceIndex: nativeIndexStatusData(status),
+              search: search ? search.results.map(nativeStructuralNode) : [],
+              impact,
+              architecture: {
+                search: {
+                  query,
+                  results: search ? search.results.map(nativeStructuralNode) : [],
+                  truncated: completeness.search?.truncated ?? false,
+                  nextCursor: completeness.search?.nextCursor ?? null
+                },
+                impact: {
+                  changedLocators,
+                  representedChangedLocators: impact.filter(({ nodes }) => nodes.length > 0).map(({ locator }) => locator),
+                  affectedSymbols
+                }
+              },
+              completeness,
+              truncated: Boolean(completeness.search?.truncated || completeness.impact.some((item) => item.truncated)),
+              memory,
+              source: nativeIndexSource(status)
+            }
+          });
+          payload.data.safeguards = payload.safeguards;
+          return mcpToolJsonResult(payload);
       }
     },
     {
       name: 'code.impact',
-      description: 'Return bounded locator-safe impact for changed local source files.',
+      description: 'Return bounded impact for changed local files or one evidence-backed Go boundary across repositories.',
       operation: 'code.impact',
       sideEffectClass: 'read-only',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
-        required: ['changed'],
+        oneOf: [{ required: ['changed'] }, { required: ['crossRepository'] }],
         properties: {
           changed: { type: 'array', minItems: 1, maxItems: 16, items: { type: 'string', minLength: 1, maxLength: 512 } },
-          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
-          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 }
         }
       },
       handler: async ({ arguments: args }) => {
-        const payload = await buildMcpCodeImpactPayload({
-          values,
-          root,
-          workspaceId,
-          generatedAt: fixedNow(),
-          args
-        });
-        return mcpToolJsonResult(payload);
+        const input = mcpMapArguments(args, ['changed', 'crossRepository', 'depth', 'limit'], 'code.impact');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['changed', 'depth'], 'code.impact');
+        if (crossRepository) {
+          const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 25, name: 'limit' });
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.impactGoRepositories({ root, workspaceId, ...crossRepository, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.impact', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
+        const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const results = [];
+        for (const locator of changedLocators) {
+          const result = await nativeQuery('impact', { query: locator, depth, limit });
+          results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), ...nativeCompleteness(result) });
+        }
+        const status = await nativeStatus();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.impact', workspaceId, generatedAt: fixedNow(),
+          data: { changedLocators, depth, results, completeness: results.map(({ locator, truncated, nextCursor }) => ({ locator, truncated, nextCursor })), truncated: results.some((item) => item.truncated), source: nativeIndexSource(status) }
+        }));
       }
     },
     {
@@ -6492,85 +7516,30 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolTextResult(await buildMcpContextPackToolText({
-        root,
-        workspaceId,
-        generatedAt,
-        args
-      }))
+      handler: async ({ arguments: args }) => {
+        const objective = mcpRequiredString(args.objective, 'objective', 500);
+        const step = mcpRequiredString(args.step, 'step', 500);
+        const [provider, status] = await Promise.all([loadNativeProvider(), nativeStatus()]);
+        const sourceGraphPreview = await buildNativeIndexSourceGraphPreview({
+          provider,
+          status,
+          root,
+          workspaceId,
+          query: `${objective} ${step}`,
+          limit: 12,
+          sampleLimit: 1,
+          clock: () => generatedAt
+        });
+        return mcpToolTextResult(await buildMcpContextPackToolText({
+          root,
+          workspaceId,
+          generatedAt,
+          args,
+          sourceGraphPreview
+        }));
+      }
     }
   ];
-}
-
-async function buildMcpRepoMapPayload({ values, root, workspaceId, generatedAt, args }) {
-  const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
-  mcpMapClient(input.client);
-  const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
-  const query = mcpMapQuery(input.query);
-  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-  const report = await buildMcpRecallMapReport({
-    values,
-    root,
-    workspaceId,
-    generatedAt,
-    changedLocators,
-    query,
-    depth: 2,
-    limit
-  });
-  return mcpNoWritePayload({
-    command: 'repo.map',
-    workspaceId,
-    generatedAt,
-    data: report
-  });
-}
-
-async function buildMcpCodeImpactPayload({ values, root, workspaceId, generatedAt, args }) {
-  const input = mcpMapArguments(args, ['changed', 'depth', 'limit'], 'code.impact');
-  const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
-  const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
-  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-  const report = await buildMcpRecallMapReport({
-    values,
-    root,
-    workspaceId,
-    generatedAt,
-    changedLocators,
-    query: '',
-    depth,
-    limit
-  });
-  return mcpNoWritePayload({
-    command: 'code.impact',
-    workspaceId,
-    generatedAt,
-    data: {
-      schemaVersion: report.schemaVersion,
-      reportVersion: report.reportVersion,
-      ...report.architecture.impact,
-      safeguards: report.safeguards
-    }
-  });
-}
-
-async function buildMcpRecallMapReport({ values, root, workspaceId, generatedAt, changedLocators, query, depth, limit }) {
-  const sqlitePath = await resolveWorkspaceSqlitePath(
-    root,
-    option(values, '--sqlite') ?? '.local/memory.sqlite',
-    'mcp server',
-    { mustExist: false }
-  );
-  return buildRecallMap({
-    root,
-    workspaceId,
-    changedLocators,
-    query,
-    depth,
-    limit,
-    clock: () => generatedAt,
-    sqliteLocator: sqlitePath.relative
-  });
 }
 
 function mcpMapArguments(args, allowedKeys, toolName) {
@@ -6581,7 +7550,7 @@ function mcpMapArguments(args, allowedKeys, toolName) {
 
 function mcpMapClient(value) {
   if (value === undefined || value === null) return;
-  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,80}$/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,80}$/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error('repo.map client is invalid');
   }
 }
@@ -6594,7 +7563,7 @@ function mcpMapChangedLocators(value, { required }) {
   if (!Array.isArray(value) || value.length > 16 || (required && !value.length)) throw new Error('mcp map changed locators are invalid');
   if (!value.length) return [];
   const locators = value.map((item) => {
-    if (typeof item !== 'string' || item.length > 512 || MCP_PRIVATE_MATERIAL.test(item)) {
+    if (typeof item !== 'string' || item.length > 512 || mcpContainsPrivateMaterial(item)) {
       throw new Error('mcp map changed locators are invalid');
     }
     try {
@@ -6608,7 +7577,7 @@ function mcpMapChangedLocators(value, { required }) {
 
 function mcpMapQuery(value) {
   if (value === undefined || value === null) return '';
-  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error('repo.map query is invalid');
   }
   return value.trim();
@@ -6620,6 +7589,133 @@ function mcpStrictBoundedInteger(value, fallback, { min, max, name }) {
     throw new Error(`mcp ${name} is invalid`);
   }
   return value;
+}
+
+function mcpStructuralString(value, name, { required, max }) {
+  if (value === undefined || value === null) {
+    if (required) throw new Error(`${name} is invalid`);
+    return '';
+  }
+  if (typeof value !== 'string' || value.length > max || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
+    throw new Error(`${name} is invalid`);
+  }
+  const normalized = value.trim();
+  if (required && !normalized) throw new Error(`${name} is invalid`);
+  return normalized;
+}
+
+function mcpStructuralKinds(value, allowed, { minItems = 0, maxItems = allowed.length, unique = false } = {}) {
+  if (value === undefined || value === null) return null;
+  if (
+    !Array.isArray(value)
+    || value.length < minItems
+    || value.length > maxItems
+    || (unique && new Set(value).size !== value.length)
+    || value.some((item) => !allowed.includes(item))
+  ) {
+    throw new Error('mcp structural kinds are invalid');
+  }
+  return [...new Set(value)];
+}
+
+function mcpStructuralDirection(value) {
+  const direction = value ?? 'outbound';
+  if (!['outbound', 'inbound', 'both'].includes(direction)) throw new Error('mcp direction is invalid');
+  return direction;
+}
+
+function mcpStructuralLocatorPrefix(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
+    throw new Error('mcp locator prefix is invalid');
+  }
+  try {
+    return normalizeSourceGraphWorkspaceLocator(value, { stripFragment: true });
+  } catch {
+    throw new Error('mcp locator prefix is invalid');
+  }
+}
+
+function mcpCrossRepositoryInputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'repositoryIds',
+      'clientRepositoryId',
+      'serviceRepositoryId',
+      'clientEntryNativeId',
+      'serviceTargetNativeId'
+    ],
+    properties: {
+      repositoryIds: {
+        type: 'array',
+        minItems: 2,
+        maxItems: 2,
+        uniqueItems: true,
+        items: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' }
+      },
+      clientRepositoryId: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' },
+      serviceRepositoryId: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' },
+      clientEntryNativeId: { type: 'string', pattern: '^cinode_[a-f0-9]{32}$' },
+      serviceTargetNativeId: { type: 'string', pattern: '^cinode_[a-f0-9]{32}$' }
+    }
+  };
+}
+
+function mcpRepositoryIds(value, { min, max }) {
+  if (value === undefined || value === null) return null;
+  if (
+    !Array.isArray(value)
+    || value.length < min
+    || value.length > max
+    || new Set(value).size !== value.length
+    || value.some((item) => typeof item !== 'string' || !/^repo_[a-f0-9]{32}$/u.test(item))
+  ) {
+    throw new Error('mcp repository ids are invalid');
+  }
+  return [...value];
+}
+
+function mcpCrossRepository(value) {
+  if (value === undefined || value === null) return null;
+  const expectedKeys = [
+    'repositoryIds',
+    'clientRepositoryId',
+    'serviceRepositoryId',
+    'clientEntryNativeId',
+    'serviceTargetNativeId'
+  ];
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some((key) => !expectedKeys.includes(key))) {
+    throw new Error('mcp cross-repository selector is invalid');
+  }
+  if (expectedKeys.some((key) => value[key] === undefined)) throw new Error('mcp cross-repository selector is invalid');
+  const repositoryIds = mcpRepositoryIds(value.repositoryIds, { min: 2, max: 2 });
+  const repositoryIdPattern = /^repo_[a-f0-9]{32}$/u;
+  const nativeIdPattern = /^cinode_[a-f0-9]{32}$/u;
+  if (
+    !repositoryIdPattern.test(value.clientRepositoryId)
+    || !repositoryIdPattern.test(value.serviceRepositoryId)
+    || !nativeIdPattern.test(value.clientEntryNativeId)
+    || !nativeIdPattern.test(value.serviceTargetNativeId)
+    || repositoryIds[0] !== value.clientRepositoryId
+    || repositoryIds[1] !== value.serviceRepositoryId
+  ) {
+    throw new Error('mcp cross-repository selector is invalid');
+  }
+  return {
+    repositoryIds,
+    clientRepositoryId: value.clientRepositoryId,
+    serviceRepositoryId: value.serviceRepositoryId,
+    clientEntryNativeId: value.clientEntryNativeId,
+    serviceTargetNativeId: value.serviceTargetNativeId
+  };
+}
+
+function mcpRejectMixedCrossRepositoryArguments(input, crossRepository, localKeys, toolName) {
+  if (crossRepository && localKeys.some((key) => input[key] !== undefined)) {
+    throw new Error(`${toolName} cannot mix local and cross-repository selectors`);
+  }
 }
 
 async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generatedAt, args }) {
@@ -6841,7 +7937,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
   return payload;
 }
 
-async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args }) {
+async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args, sourceGraphPreview = null }) {
   const objective = mcpRequiredString(args.objective, 'objective', 500);
   const step = mcpRequiredString(args.step, 'step', 500);
   const toolValues = [
@@ -6852,7 +7948,7 @@ async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, arg
     '--target', mcpSanitizeString(args.target ?? 'generic', 80),
     '--token-budget', String(mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 }))
   ];
-  const currentContextPack = await buildMcpContextPackResource(toolValues, { root, workspaceId });
+  const currentContextPack = await buildMcpContextPackResource(toolValues, { root, workspaceId, sourceGraphPreview });
   const resources = buildOafReadOnlyResourceCatalog({
     state: {},
     projectStatus: {},
@@ -7159,15 +8255,24 @@ function mcpBoundedInteger(value, fallback, { min, max }) {
   return Math.max(min, Math.min(max, parsed));
 }
 
+function mcpContainsPrivateMaterial(value) {
+  return MCP_PRIVATE_PATH.test(value) || MCP_SECRET_MATERIAL.test(value);
+}
+
 function mcpSanitizeString(value, maxLength = 240) {
-  const text = String(value ?? '').replace(MCP_PRIVATE_MATERIAL_GLOBAL, '[redacted]').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  const text = String(value ?? '')
+    .replace(MCP_PRIVATE_PATH_GLOBAL, '[redacted]')
+    .replace(MCP_SECRET_MATERIAL_GLOBAL, '[redacted]')
+    .normalize('NFKC')
+    .replace(/\s+/gu, ' ')
+    .trim();
   return text.slice(0, maxLength);
 }
 
 function mcpSafeLocator(value) {
   const raw = String(value ?? '');
   if (!raw) return null;
-  if (MCP_PRIVATE_MATERIAL.test(raw) || raw.startsWith('file:')) return fingerprintJson(raw);
+  if (mcpContainsPrivateMaterial(raw) || raw.startsWith('file:')) return fingerprintJson(raw);
   return mcpSanitizeString(raw, 240);
 }
 
@@ -7201,6 +8306,99 @@ function mcpNoWritePayload({ command, workspaceId, generatedAt, data }) {
       ...payload.safeguards,
       localFilesWritten: 0
     }
+  };
+}
+
+function mcpStructuralPayload({ command, workspaceId, generatedAt, data }) {
+  const payload = mcpNoWritePayload({ command, workspaceId, generatedAt, data });
+  return {
+    ...payload,
+    safeguards: {
+      ...payload.safeguards,
+      rawSourceBodiesIncluded: false
+    }
+  };
+}
+
+function nativeRepositorySource(result) {
+  return {
+    kind: 'native-persistent-repository-index',
+    engine: 'memory-recall-native',
+    registryLocator: result.registryLocator,
+    operation: result.operation
+  };
+}
+
+function nativeRepositorySearchData(result, query, repositoryIds) {
+  return {
+    query,
+    repositoryIds,
+    repositories: result.repositories,
+    results: result.results,
+    resultCount: result.results.length,
+    perRepository: result.perRepository,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
+  };
+}
+
+function nativeRepositoryListData(result) {
+  return {
+    scope: 'repositories',
+    repositories: result.repositories,
+    repositoryCount: result.repositories.length,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
+  };
+}
+
+function nativeCrossRepositoryData(result, crossRepository) {
+  return {
+    crossRepository,
+    repositories: result.repositories,
+    modules: result.goModules,
+    relationships: result.goRelationships,
+    paths: result.paths,
+    impactedNodes: result.impactedNodes,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
+  };
+}
+
+function nativeNodeMatchesKinds(item, requestedKinds) {
+  if (!requestedKinds?.length) return true;
+  const normalized = item.kind === 'file'
+    ? 'file'
+    : item.kind === 'module' || item.kind === 'package' || item.kind === 'namespace'
+      ? 'module'
+      : 'symbol';
+  return requestedKinds.includes(normalized);
+}
+
+function nativeIndexStatusData(result) {
+  return {
+    status: result.state,
+    freshness: result.freshness,
+    activeGeneration: result.activeGeneration,
+    indexLocator: result.indexLocator,
+    fileCount: result.summary.fileCount,
+    nodeCount: result.summary.nodeCount,
+    edgeCount: result.summary.edgeCount,
+    unresolvedCount: result.summary.unresolvedCount,
+    omittedCount: result.summary.omittedCount,
+    databaseBytes: result.summary.databaseBytes,
+    diagnostics: (result.diagnostics ?? []).slice(0, 32).map((diagnostic) => ({
+      code: mcpSanitizeString(diagnostic.code, 80),
+      ...(Number.isSafeInteger(diagnostic.count) && diagnostic.count >= 0 ? { count: diagnostic.count } : {})
+    })),
+    health: result.health,
+    source: nativeIndexSource(result)
   };
 }
 
@@ -7464,43 +8662,17 @@ function mcpToolJsonResult(payload) {
 }
 
 function mcpToolTextResult(text) {
-  if (MCP_PRIVATE_MATERIAL.test(text)) throw new Error('mcp tool output contains private material');
+  if (mcpContainsPrivateMaterial(text)) throw new Error('mcp tool output contains private material');
   return { content: [{ type: 'text', text }] };
 }
 
 async function mcpInstallCommand(values) {
-  if (values.includes('--write')) {
-    console.error('mcp install uses --apply with --confirm; --write is not supported');
-    process.exitCode = 2;
-    return;
-  }
-  const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('mcp install only supports --format json');
-    process.exitCode = 2;
-    return;
-  }
-  const client = normalizeMcpInstallClient(option(values, '--client'));
-  const apply = values.includes('--apply');
-  if (apply && values.includes('--dry-run')) {
-    console.error('mcp install accepts either dry-run/default or --apply, not both');
-    process.exitCode = 2;
-    return;
-  }
-  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--dry-run', '--apply', '--confirm']);
-  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--confirm']);
-  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
-  if (unsupported.length) {
-    console.error(`mcp install unsupported option: ${unsupported[0]}`);
-    process.exitCode = 2;
-    return;
-  }
+  const { client, apply, home, configPath } = parseMcpConfigMutationOptions(values, 'install');
   const root = path.resolve(option(values, '--root') ?? process.cwd());
   const rootStat = await stat(root).catch(() => null);
   if (!rootStat?.isDirectory()) throw new Error('mcp install --root must point at a local workspace directory');
   const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'mcp install', { mustExist: false });
   const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp install', { mustExist: false });
-  const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
   const setup = await buildHarnessSetupReport({
     action: 'plan',
     client: client.id,
@@ -7510,20 +8682,114 @@ async function mcpInstallCommand(values) {
     bridgeMode: 'token-saver',
     generatedAt: fixedNow()
   });
-  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath: option(values, '--config') ?? client.configPath });
+  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath });
   const preview = buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: false, localFilesWritten: 0 });
   const confirm = option(values, '--confirm');
+  if (apply && installPlan.status.server === 'drifted') {
+    console.error('mcp install refuses to replace a drifted server entry; remove or rename that entry manually after reviewing it');
+    process.exitCode = 2;
+    return;
+  }
   if (apply && confirm !== preview.planFingerprint) {
     console.error('mcp install --apply requires --confirm <planFingerprint> from a dry-run preview');
     process.exitCode = 2;
     return;
   }
   if (apply) {
-    await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: installPlan.desiredServer });
-    console.log(JSON.stringify(buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: true, localFilesWritten: 1 }), null, 2));
+    const result = await applyMcpInstallConfig({
+      home,
+      client,
+      configPath,
+      server: setup.server,
+      desiredServer: installPlan.desiredServer,
+      expectedPreimageFingerprint: installPlan.configPreimageFingerprint,
+      generatedAt: setup.generatedAt
+    });
+    console.log(JSON.stringify(buildMcpInstallReport({
+      setup,
+      installPlan,
+      client,
+      root,
+      sqlitePath,
+      statsPath,
+      apply,
+      applied: result.changed,
+      localFilesWritten: result.localFilesWritten,
+      backupRef: result.backupRef
+    }), null, 2));
     return;
   }
   console.log(JSON.stringify(preview, null, 2));
+}
+
+async function mcpUninstallCommand(values) {
+  const { client, apply, home, configPath } = parseMcpConfigMutationOptions(values, 'uninstall');
+  const setup = await buildHarnessSetupReport({
+    action: 'plan',
+    client: client.id,
+    server: option(values, '--server') ?? 'oaf',
+    home,
+    configPath: option(values, '--config'),
+    bridgeMode: 'token-saver',
+    generatedAt: fixedNow()
+  });
+  const uninstallPlan = await buildPortableMcpUninstallPlan({ setup, client, home, configPath });
+  const preview = buildMcpUninstallReport({ setup, uninstallPlan, client, apply, applied: false, localFilesWritten: 0 });
+  if (apply && uninstallPlan.status.server === 'drifted') {
+    console.error('mcp uninstall refuses to remove a drifted or unowned server entry');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply && uninstallPlan.status.server === 'absent') {
+    console.error('mcp uninstall found no exact owned server entry to remove');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply && option(values, '--confirm') !== preview.planFingerprint) {
+    console.error('mcp uninstall --apply requires --confirm <planFingerprint> from a dry-run preview');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply) {
+    const result = await removeMcpInstallConfig({
+      home,
+      client,
+      configPath,
+      server: setup.server,
+      expectedPreimageFingerprint: uninstallPlan.configPreimageFingerprint,
+      generatedAt: setup.generatedAt
+    });
+    console.log(JSON.stringify(buildMcpUninstallReport({
+      setup,
+      uninstallPlan,
+      client,
+      apply,
+      applied: result.changed,
+      localFilesWritten: result.localFilesWritten,
+      backupRef: result.backupRef
+    }), null, 2));
+    return;
+  }
+  console.log(JSON.stringify(preview, null, 2));
+}
+
+function parseMcpConfigMutationOptions(values, action) {
+  if (values.includes('--write')) throw new Error(`mcp ${action} uses --apply with --confirm; --write is not supported`);
+  if ((option(values, '--format') ?? 'json') !== 'json') throw new Error(`mcp ${action} only supports --format json`);
+  const apply = values.includes('--apply');
+  if (apply && values.includes('--dry-run')) throw new Error(`mcp ${action} accepts either dry-run/default or --apply, not both`);
+  const installOnly = action === 'install' ? ['--root', '--sqlite', '--stats'] : [];
+  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--format', '--dry-run', '--apply', '--confirm', ...installOnly]);
+  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--format', '--confirm', ...installOnly]);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) throw new Error(`mcp ${action} unsupported option: ${unsupported[0]}`);
+  const client = normalizeMcpInstallClient(option(values, '--client'));
+  return {
+    client,
+    apply,
+    home: option(values, '--home') ?? process.env.HOME ?? process.cwd(),
+    configPath: option(values, '--config') ?? client.configPath
+  };
 }
 
 function normalizeMcpInstallClient(value) {
@@ -7545,6 +8811,8 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
       'mcp',
       'server',
       '--read-only',
+      '--engine',
+      'native',
       '--root',
       realRoot,
       '--sqlite',
@@ -7558,20 +8826,26 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
     externalWrites: false
   };
   const serverConfig = { command: desiredServer.command, args: desiredServer.args };
-  const status = await classifyMcpInstallServer({ home, client, configPath, server: setup.server, desiredServer }).catch(() => setup.status.server);
+  const configState = await readMcpInstallConfigState({ home, client, configPath, server: setup.server });
+  const status = classifyMcpInstallServer({ configState, desiredServer });
   const diffOperations = status === 'installed'
     ? []
     : [{
-        op: status === 'absent' ? 'add' : 'replace',
+        op: status === 'absent' ? 'add' : status === 'upgradeable' ? 'replace' : 'conflict',
         target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
         before: status,
         after: 'read-only-oaf-mcp-stdio',
-        summary: `${status === 'absent' ? 'add' : 'replace'} ${setup.server} with read-only OAF MCP stdio token-saver server`
+        summary: status === 'absent'
+          ? `add ${setup.server} as read-only OAF MCP stdio token-saver server`
+          : status === 'upgradeable'
+            ? `upgrade ${setup.server} from the owned native alias to the canonical native engine`
+          : `refuse to replace drifted ${setup.server} server entry`
       }];
   return {
     desiredServer,
     workspaceRoot: realRoot,
     sqlitePath,
+    configPreimageFingerprint: fingerprintMcpConfigPreimage(configState),
     status: {
       ...setup.status,
       server: status
@@ -7588,6 +8862,44 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
       serverConfig
     })
   };
+}
+
+async function buildPortableMcpUninstallPlan({ setup, client, home, configPath }) {
+  const configState = await readMcpInstallConfigState({ home, client, configPath, server: setup.server });
+  const status = !configState.serverConfig
+    ? 'absent'
+    : isOwnedMcpInstallServer(configState.serverConfig) ? 'installed' : 'drifted';
+  const target = client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`;
+  const operations = status === 'installed'
+    ? [{ op: 'remove', target, before: 'installed', after: 'absent', summary: `remove exact Memory Recall-owned ${setup.server} server entry` }]
+    : status === 'drifted'
+      ? [{ op: 'conflict', target, before: 'drifted', after: 'unchanged', summary: `refuse to remove drifted or unowned ${setup.server} server entry` }]
+      : [];
+  return {
+    workspaceRoot: null,
+    desiredServer: null,
+    configPreimageFingerprint: fingerprintMcpConfigPreimage(configState),
+    status: { ...setup.status, server: status },
+    diff: {
+      ...setup.diff,
+      operations,
+      preview: operations.map((operation) => operation.summary)
+    }
+  };
+}
+
+function isOwnedMcpInstallServer(serverConfig) {
+  if (serverConfig?.command !== process.execPath || !Array.isArray(serverConfig.args)) return false;
+  const args = serverConfig.args;
+  return args.length === 13 &&
+    args[0] === CLI_PATH &&
+    arraysEqual(args.slice(1, 5), ['mcp', 'server', '--read-only', '--engine']) &&
+    ['native', 'auto', 'native-preview'].includes(args[5]) &&
+    args[6] === '--root' &&
+    path.isAbsolute(args[7]) &&
+    args[8] === '--sqlite' && path.isAbsolute(args[9]) &&
+    args[10] === '--stats' && path.isAbsolute(args[11]) &&
+    args[12] === '--stdio';
 }
 
 function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverConfig }) {
@@ -7607,31 +8919,29 @@ function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverC
   };
 }
 
-async function classifyMcpInstallServer({ home, client, configPath, server, desiredServer }) {
-  const existing = await readMcpInstallServerConfig({ home, client, configPath, server });
+function classifyMcpInstallServer({ configState, desiredServer }) {
+  const existing = configState.serverConfig;
   if (!existing) return 'absent';
   if (existing.command === desiredServer.command && arraysEqual(existing.args, desiredServer.args)) return 'installed';
+  if (isOwnedMcpInstallServer(existing)) return 'upgradeable';
   return 'drifted';
 }
 
-async function readMcpInstallServerConfig({ home, client, configPath, server }) {
-  const realHome = await realpath(home);
-  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
-  const target = path.resolve(realHome, configPath);
-  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
-  const text = await readFile(target, 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
-  if (text === null) return null;
+async function readMcpInstallConfigState({ home, client, configPath, server }) {
+  const current = await readHomeFile(home, configPath);
+  const text = current.text;
+  let serverConfig = null;
   if (client.format === 'json') {
     const parsed = JSON.parse(text || '{}');
     const existing = parsed?.mcpServers?.[server];
-    if (existing && typeof existing === 'object' && !Array.isArray(existing)) return existing;
-    return null;
+    if (existing && typeof existing === 'object' && !Array.isArray(existing)) serverConfig = existing;
   }
-  if (client.format === 'toml') return readMcpInstallTomlServerConfig(text, server);
-  return null;
+  if (client.format === 'toml') serverConfig = readMcpInstallTomlServerConfig(text, server);
+  return { exists: current.exists, text, serverConfig };
+}
+
+function fingerprintMcpConfigPreimage(configState) {
+  return fingerprintJson({ exists: configState.exists, text: configState.text });
 }
 
 function readMcpInstallTomlServerConfig(text, server) {
@@ -7658,7 +8968,7 @@ function arraysEqual(left, right) {
   return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied, localFilesWritten }) {
+function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied, localFilesWritten, backupRef = null }) {
   const reportBase = {
     schemaVersion: '1.0.0',
     command: 'mcp install',
@@ -7667,7 +8977,8 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     apply: {
       requested: apply,
       confirmed: apply,
-      applied
+      applied,
+      backupRef
     },
     client: setup.client,
     clientLabel: setup.clientLabel,
@@ -7688,6 +8999,8 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     config: setup.config,
     status: installPlan.status,
     desiredServer: installPlan.desiredServer,
+    indexBuildCommand: `recall graph index --write --engine native --root ${JSON.stringify(installPlan.workspaceRoot)} --format summary`,
+    configPreimageFingerprint: installPlan.configPreimageFingerprint,
     manualConfigSnippet: installPlan.manualConfigSnippet,
     reversal: {
       mode: 'manual',
@@ -7706,12 +9019,55 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
   return {
     ...reportBase,
     planFingerprint,
-    nextCommand: apply || applied
+    nextCommand: apply || applied || installPlan.status.server === 'drifted' || installPlan.status.server === 'installed'
       ? null
-      : `npm run oaf -- mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
+      : `recall mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
     warnings: [
-      'Dry-run is the default; OAF writes home config only with --apply and matching --confirm.',
-      'Review the config before applying. The MCP server is local stdio and read-only.'
+      'Dry-run is the default; Memory Recall writes home config only with --apply and matching --confirm.',
+      'mcp install configures the packaged native engine but never builds or refreshes an index. Run indexBuildCommand explicitly before using structural tools.',
+      'Structural tools fail with an actionable build, refresh, repair, or package error. The MCP server remains local stdio and read-only.'
+    ]
+  };
+}
+
+function buildMcpUninstallReport({ setup, uninstallPlan, client, apply, applied, localFilesWritten, backupRef = null }) {
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'mcp uninstall',
+    generatedAt: setup.generatedAt,
+    dryRun: !apply,
+    apply: {
+      requested: apply,
+      confirmed: apply,
+      applied,
+      backupRef
+    },
+    client: setup.client,
+    clientLabel: setup.clientLabel,
+    server: setup.server,
+    bridgeMode: setup.bridgeMode,
+    config: setup.config,
+    configPreimageFingerprint: uninstallPlan.configPreimageFingerprint,
+    status: uninstallPlan.status,
+    desiredServer: uninstallPlan.desiredServer,
+    diff: uninstallPlan.diff,
+    safeguards: {
+      ...setup.safeguards,
+      localFilesWritten,
+      homeConfigMutated: applied,
+      workspaceStateMutated: false
+    }
+  };
+  const planFingerprint = fingerprintMcpInstallPlan(reportBase);
+  return {
+    ...reportBase,
+    planFingerprint,
+    nextCommand: apply || applied || uninstallPlan.status.server !== 'installed'
+      ? null
+      : `recall mcp uninstall --client ${client.id} --apply --confirm ${planFingerprint} --format json`,
+    warnings: [
+      'Dry-run is the default; Memory Recall removes only an exact owned server entry after matching confirmation.',
+      'Workspace .local data is never removed by this command.'
     ]
   };
 }
@@ -7724,27 +9080,40 @@ function fingerprintMcpInstallPlan(report) {
     bridgeMode: report.bridgeMode,
     workspaceRootRef: report.workspaceRootRef,
     config: report.config,
+    configPreimageFingerprint: report.configPreimageFingerprint,
     status: report.status,
     desiredServer: report.desiredServer,
     diff: report.diff
   });
 }
 
-async function applyMcpInstallConfig({ home, client, configPath, server, desiredServer }) {
-  const realHome = await realpath(home);
-  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
-  const target = path.resolve(realHome, configPath);
-  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
-  await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
-  const current = await readFile(target, 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
+async function applyMcpInstallConfig({ home, client, configPath, server, desiredServer, expectedPreimageFingerprint, generatedAt }) {
+  const current = await readMcpInstallConfigState({ home, client, configPath, server });
+  if (fingerprintMcpConfigPreimage(current) !== expectedPreimageFingerprint) throw new Error('mcp install config changed after preview; run a new dry-run');
   const serverConfig = { command: desiredServer.command, args: desiredServer.args };
   const next = client.format === 'toml'
-    ? mergeMcpInstallToml(current ?? '', server, serverConfig)
-    : mergeMcpInstallJson(current ?? '{}', server, serverConfig);
-  await writeFile(target, next, { mode: 0o600 });
+    ? mergeMcpInstallToml(current.text, server, serverConfig)
+    : mergeMcpInstallJson(current.text || '{}', server, serverConfig);
+  return writeMcpInstallConfig({ home, configPath, current, next, generatedAt });
+}
+
+async function removeMcpInstallConfig({ home, client, configPath, server, expectedPreimageFingerprint, generatedAt }) {
+  const current = await readMcpInstallConfigState({ home, client, configPath, server });
+  if (fingerprintMcpConfigPreimage(current) !== expectedPreimageFingerprint) throw new Error('mcp uninstall config changed after preview; run a new dry-run');
+  const next = client.format === 'toml'
+    ? removeMcpInstallToml(current.text, server)
+    : removeMcpInstallJson(current.text, server);
+  return writeMcpInstallConfig({ home, configPath, current, next, generatedAt });
+}
+
+async function writeMcpInstallConfig({ home, configPath, current, next, generatedAt }) {
+  if (next === current.text) return { changed: false, localFilesWritten: 0, backupRef: null };
+  const { root, absolute } = await resolveHomePath(home, configPath);
+  await assertNoSymlinkAncestors(root, configPath);
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
+  const backupRef = current.exists ? await writeHomeBackup({ home, relativePath: configPath, text: current.text, generatedAt }) : null;
+  await writePrivateFileAtomic(absolute, next);
+  return { changed: true, localFilesWritten: backupRef ? 2 : 1, backupRef };
 }
 
 function mergeMcpInstallJson(text, server, serverConfig) {
@@ -7764,6 +9133,22 @@ function mergeMcpInstallToml(text, server, serverConfig) {
   const section = `[mcp_servers.${server}]\ncommand = ${tomlString(serverConfig.command)}\nargs = [${args}]\n`;
   const prefix = withoutExisting.trimEnd();
   return `${prefix ? `${prefix}\n\n` : ''}${section}`;
+}
+
+function removeMcpInstallJson(text, server) {
+  const parsed = JSON.parse(text || '{}');
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('mcp uninstall JSON config must be an object');
+  const mcpServers = parsed.mcpServers && typeof parsed.mcpServers === 'object' && !Array.isArray(parsed.mcpServers)
+    ? { ...parsed.mcpServers }
+    : {};
+  delete mcpServers[server];
+  return `${JSON.stringify({ ...parsed, mcpServers }, null, 2)}\n`;
+}
+
+function removeMcpInstallToml(text, server) {
+  const escaped = server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionPattern = new RegExp(`(?:^|\\n)\\[mcp_servers\\.${escaped}\\]\\n(?:[^\\[]|\\[(?!mcp_servers\\.))*`, 'u');
+  return text.replace(sectionPattern, (match) => match.startsWith('\n') ? '\n' : '').replace(/^\n+|\n+$/gu, '').concat('\n');
 }
 
 async function mcpSmokeCommand(values) {
@@ -8412,8 +9797,23 @@ async function loadMcpContextPackRegistryStatus(values, { root, workspaceId }) {
   return report.registry.exists || report.currentPointer.exists ? report : null;
 }
 
-async function buildMcpContextPackResource(values, { root, workspaceId }) {
+async function buildMcpContextPackResource(values, { root, workspaceId, sourceGraphPreview = null }) {
   if (!values.includes('--context-pack')) return null;
+  const contextPackFd = option(values, '--context-pack-fd');
+  if (contextPackFd !== null) {
+    if (!values.includes('--stdio') || contextPackFd !== '3') {
+      throw new Error('prebuilt context pack input is available only to internal MCP stdio verification');
+    }
+    const serialized = await readBoundedFileDescriptor(3, MCP_CONTEXT_PACK_AUX_MAX_BYTES, 'prebuilt context pack');
+    let pack;
+    try {
+      pack = JSON.parse(serialized);
+    } catch {
+      throw new Error('prebuilt context pack is not valid JSON');
+    }
+    assertJsonSchema(contextPackSchema, pack, 'prebuilt context pack');
+    return { pack, markdown: renderContextPackMarkdown(pack) };
+  }
   const objective = option(values, '--objective');
   const step = option(values, '--step');
   if (!objective || !step) {
@@ -8435,6 +9835,7 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: fixedNow
   });
   return {
@@ -8443,7 +9844,7 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
   };
 }
 
-async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp = null }) {
+async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp = null, contextPack = null }) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
@@ -8480,6 +9881,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   for (const value of options(values, '--changed-locator')) childArgs.push('--changed-locator', value);
   if (gitChangedLocatorsRequested(values)) childArgs.push('--changed-from-git');
   if (option(values, '--changed-shard')) childArgs.push('--changed-shard', String(changedShard(values)));
+  if (contextPack) childArgs.push('--context-pack-fd', '3');
 
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize' },
@@ -8490,7 +9892,8 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   ];
   const started = process.hrtime.bigint();
   const child = await runCliStdio(childArgs, messages.map((message) => JSON.stringify(message)).join('\n'), {
-    env: fixedTimestamp ? { ...process.env, OAF_FIXED_NOW: fixedTimestamp } : process.env
+    env: fixedTimestamp ? { ...process.env, OAF_FIXED_NOW: fixedTimestamp } : process.env,
+    auxiliaryInput: contextPack ? JSON.stringify(contextPack) : null
   });
   const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
   if (child.code !== 0) {
@@ -8606,6 +10009,15 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
   const generatedAt = fixedNow();
   const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
+  const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+    root,
+    workspaceId,
+    query: `${objective} ${step}`,
+    changedLocators,
+    limit: 12,
+    sampleLimit: 1,
+    clock: () => generatedAt
+  });
   const pack = await buildContextPack({
     root,
     harnesses: sourceHarnesses,
@@ -8616,11 +10028,12 @@ async function buildContextHandoffReport(values, { objective, step }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: () => generatedAt
   });
   const usePlan = buildContextPackUsePlan(pack);
   assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context-pack handoff use plan');
-  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt, contextPack: pack });
   const memoryProposalPreflight = await buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt });
   const skillCatalog = await buildSkillCatalogPreflight({ root, workspaceId, generatedAt });
   const setupClient = contextHandoffSetupClient(targetHarness);
@@ -9162,6 +10575,15 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
   const largeContext = buildLargeContextMeasurement({ values, changedLocators, detection });
   const started = process.hrtime.bigint();
+  const sourceGraphPreview = await currentNativeSourceGraphPreviewIfReady({
+    root,
+    workspaceId,
+    query: `${objective} ${step}`,
+    changedLocators,
+    limit: 12,
+    sampleLimit: 1,
+    clock: () => generatedAt
+  });
   const pack = await buildContextPack({
     root,
     harnesses: sourceHarnesses,
@@ -9172,10 +10594,11 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
     step,
     targetHarness,
     tokenBudget,
+    sourceGraphPreview,
     clock: () => generatedAt
   });
   const buildDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
-  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt, contextPack: pack });
   const usePlan = buildContextPackUsePlan(pack, { generatedAt });
   const impactBrief = buildContextPackImpactBrief(pack, {
     generatedAt,
@@ -9425,6 +10848,7 @@ function runCliStdio(
   input,
   {
     env = process.env,
+    auxiliaryInput = null,
     timeoutMs = MCP_STDIO_CHILD_TIMEOUT_MS,
     maxStdoutBytes = MCP_STDIO_CHILD_MAX_STDOUT_BYTES,
     maxStderrBytes = MCP_STDIO_CHILD_MAX_STDERR_BYTES
@@ -9434,11 +10858,15 @@ function runCliStdio(
   if (inputBytes > MCP_STDIO_MAX_STDIN_BYTES) {
     return Promise.reject(new Error(`mcp stdio child input exceeded ${MCP_STDIO_MAX_STDIN_BYTES} bytes`));
   }
+  const auxiliaryBytes = auxiliaryInput === null ? 0 : Buffer.byteLength(auxiliaryInput, 'utf8');
+  if (auxiliaryBytes > MCP_CONTEXT_PACK_AUX_MAX_BYTES) {
+    return Promise.reject(new Error(`mcp stdio auxiliary input exceeded ${MCP_CONTEXT_PACK_AUX_MAX_BYTES} bytes`));
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, nodeArgs, {
       cwd: process.cwd(),
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: auxiliaryInput === null ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'pipe']
     });
     const stdout = [];
     const stderr = [];
@@ -9482,6 +10910,12 @@ function runCliStdio(
     child.stdin.on('error', (error) => {
       if (!settled) fail(error);
     });
+    if (auxiliaryInput !== null) {
+      child.stdio[3].on('error', (error) => {
+        if (!settled) fail(error);
+      });
+      child.stdio[3].end(auxiliaryInput);
+    }
     child.on('error', fail);
     child.on('close', (code) => {
       if (settled) return;
@@ -10092,7 +11526,7 @@ function cleanDecisionObject(value) {
     .replace(/[.;:,]+$/u, '')
     .trim()
     .slice(0, 240);
-  if (!object || MCP_PRIVATE_MATERIAL.test(object)) return null;
+  if (!object || mcpContainsPrivateMaterial(object)) return null;
   return object;
 }
 
@@ -10145,14 +11579,21 @@ function dedupeMemoryIngestEpisodes(episodes) {
 }
 
 async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, projectSubject) {
-  const preview = await buildSourceGraphPreview({
-    root,
-    workspaceId,
-    query: 'memory context mcp',
-    sampleLimit: 12,
-    maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
-    clock: () => generatedAt
-  });
+  let preview;
+  try {
+    preview = await buildCurrentNativeSourceGraphPreview({
+      root,
+      workspaceId,
+      query: 'memory context mcp',
+      sampleLimit: 12,
+      clock: () => generatedAt
+    });
+  } catch (error) {
+    // Memory ingestion is useful before a repository has been indexed. It must
+    // not manufacture graph facts or fall back to the retired JS engine.
+    if (isNativeIndexRecoveryRequired(error)) return [];
+    throw error;
+  }
   const summary = preview.graph?.summary ?? {};
   const facts = [
     factTriple(projectSubject, 'source_graph_files', `files_${Math.max(0, Number(summary.fileCount ?? 0))}`),
@@ -10164,6 +11605,28 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, pro
     if (label) facts.push(factTriple(projectSubject, 'source_graph_hub', label));
   }
   return facts;
+}
+
+function isNativeIndexRecoveryRequired(error) {
+  return [
+    // Read-only memory and handoff operations remain useful before a matching
+    // platform package has been installed. They must report no graph facts,
+    // rather than resurrecting the retired JS engine or failing unrelated
+    // memory work.
+    'native_platform_package_missing',
+    'native_platform_unsupported',
+    'native_engine_unavailable',
+    'native_engine_checksum_mismatch',
+    'native_engine_manifest_invalid',
+    'native_engine_path_invalid',
+    'native_engine_version_mismatch',
+    'source_index_build_required',
+    'source_index_refresh_required',
+    'source_index_repair_required',
+    'source_index_migration_required',
+    'source_index_wrong_repository',
+    'source_index_schema_newer'
+  ].includes(String(error?.code ?? error?.message ?? ''));
 }
 
 function factTriple(subject, predicate, object) {
@@ -10477,6 +11940,8 @@ async function readHomeFile(home, relativePath) {
 }
 
 async function writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role }) {
+  const latest = await readHomeFile(home, relativePath);
+  if (fingerprintMcpConfigPreimage(latest) !== fingerprintMcpConfigPreimage(current)) throw new Error('home config changed after preflight; retry the command');
   if ((current.text ?? '') === nextText) return {
     role,
     target: `home://${toPosix(relativePath)}`,
@@ -10487,14 +11952,9 @@ async function writeHomeFileIfChanged({ home, relativePath, current, nextText, g
   };
   const { root, absolute } = await resolveHomePath(home, relativePath);
   await assertNoSymlinkAncestors(root, relativePath);
-  await mkdir(path.dirname(absolute), { recursive: true });
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
   const backupRef = current.exists ? await writeHomeBackup({ home, relativePath, text: current.text, generatedAt }) : null;
-  const existing = await lstat(absolute).catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
-  if (existing?.isSymbolicLink()) throw new Error(`home config target is a symlink: ${relativePath}`);
-  await writeFile(absolute, nextText, 'utf8');
+  await writePrivateFileAtomic(absolute, nextText);
   return {
     role,
     target: `home://${toPosix(relativePath)}`,
@@ -10506,13 +11966,29 @@ async function writeHomeFileIfChanged({ home, relativePath, current, nextText, g
 }
 
 async function writeHomeBackup({ home, relativePath, text, generatedAt }) {
-  const suffix = `${generatedAt.replace(/[^0-9A-Za-z_-]/gu, '-')}-${createHash('sha256').update(text).digest('hex').slice(0, 8)}`;
+  const suffix = `${generatedAt.replace(/[^0-9A-Za-z_-]/gu, '-')}-${createHash('sha256').update(text).digest('hex').slice(0, 8)}-${randomUUID().slice(0, 8)}`;
   const backupRelative = `${relativePath}.oaf-backup-${suffix}`;
   const { root, absolute } = await resolveHomePath(home, backupRelative);
   await assertNoSymlinkAncestors(root, backupRelative);
-  await mkdir(path.dirname(absolute), { recursive: true });
-  await writeFile(absolute, text, 'utf8');
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
+  await writePrivateFileAtomic(absolute, text);
   return `home://${toPosix(backupRelative)}`;
+}
+
+async function writePrivateFileAtomic(target, text) {
+  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.${randomUUID()}.tmp`);
+  let handle;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(text, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await renameFile(temporary, target);
+  } finally {
+    await handle?.close().catch(() => {});
+    await rm(temporary, { force: true }).catch(() => {});
+  }
 }
 
 async function resolveHomePath(home, relativePath) {
@@ -10738,9 +12214,41 @@ function runNode(nodeArgs, { cwd = PACKAGE_ROOT, env = process.env } = {}) {
     const [script, ...rest] = nodeArgs;
     const resolvedScript = path.isAbsolute(script) ? script : path.join(PACKAGE_ROOT, script);
     const child = spawn(process.execPath, [resolvedScript, ...rest], { stdio: 'inherit', env, cwd });
-    child.on('error', reject);
-    child.on('exit', (code) => resolve(code ?? 1));
+    const forwardSignal = (signal) => {
+      if (!child.killed) child.kill(signal);
+    };
+    const onSigint = () => forwardSignal('SIGINT');
+    const onSigterm = () => forwardSignal('SIGTERM');
+    const cleanup = () => {
+      process.removeListener('SIGINT', onSigint);
+      process.removeListener('SIGTERM', onSigterm);
+    };
+    process.once('SIGINT', onSigint);
+    process.once('SIGTERM', onSigterm);
+    child.once('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+    child.once('exit', (code, signal) => {
+      cleanup();
+      resolve(code ?? (signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1));
+    });
   });
+}
+
+async function readBoundedFileDescriptor(fd, maxBytes, label) {
+  const stream = createReadStream(null, { fd, autoClose: false });
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of stream) {
+    total += chunk.length;
+    if (total > maxBytes) {
+      stream.destroy();
+      throw new Error(`${label} exceeded ${maxBytes} bytes`);
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 function isHelpCommand(value) {

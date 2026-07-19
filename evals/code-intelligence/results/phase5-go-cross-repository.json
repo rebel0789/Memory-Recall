@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptVersion": "memory-recall-phase5-go-cross-repository-1",
+  "phase": 5,
+  "generatedAt": "2026-07-19T14:16:39.363Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3",
+    "nativeTarget": "darwin-arm64"
+  },
+  "implementation": {
+    "files": [
+      "apps/cli/oaf.mjs",
+      "packages/protocol/schemas/code-intelligence-repository-request.schema.json",
+      "packages/protocol/schemas/code-intelligence-repository-response.schema.json",
+      "providers/native/code-intelligence-rust/src/binary-resolver.mjs",
+      "providers/native/code-intelligence-rust/src/index.mjs",
+      "rust/oaf-index/src/registry.rs",
+      "rust/oaf/src/code_intelligence.rs",
+      "rust/oaf/src/repository_protocol.rs",
+      "scripts/native-code-intelligence-consumer-smoke.mjs"
+    ],
+    "fingerprint": "sha256:d940e82c602030d79c734cfffc4fb065f1c94b8e8c5404b9b99c51b115377f87",
+    "releaseBinarySha256": "sha256:d19b85bd2110d31fc58fdbad2e40024f83e49c714453cc343e8e8c5c5ab39982"
+  },
+  "packageEvidence": {
+    "rootPackage": "memory-recall@2.0.0",
+    "rootTarballSha256": "sha256:124d38a0dada7db362dbf95d45e018d0052f8397f8d04369753aae8939a67464",
+    "nativePackage": "@memory-recall/native-darwin-arm64@2.0.0",
+    "nativeTarballSha256": "sha256:3e7554532e4da30f93bdb92a0cbcce85d4c0875084aa7a11a8006db5965b8571",
+    "installed": true,
+    "providerSource": "platform-package",
+    "providerVerified": true,
+    "mcpEngine": "native"
+  },
+  "fixture": {
+    "language": "go",
+    "selectedIndependentGitRepositoryCount": 2,
+    "selectedGitHeadCommits": [
+      "340fa147d6bfbd4c390dfe57eeceff34c2abb9e5",
+      "2a640d32591b4d74e64052293ada1cb25ee4c328"
+    ],
+    "decoyRepositoryCount": 1,
+    "identicalDecoyNativeId": true,
+    "clientModuleCoordinate": "example.com/client",
+    "requiredModuleCoordinate": "example.com/demo",
+    "decoyModuleCoordinate": "example.com/wrong"
+  },
+  "results": {
+    "selectedRepositoryCount": 2,
+    "openedRepositoryCount": 2,
+    "selectedRepositoryFreshness": [
+      "current",
+      "current"
+    ],
+    "exactModuleEvidenceSelected": true,
+    "identicalDecoyExcluded": true,
+    "bounded": true,
+    "sourceBacked": true,
+    "sqliteBundlesPreserved": true,
+    "relationshipEvidence": [
+      {
+        "id": "mrrel_970a76d6d2fc7a3ac84813f502f89b78",
+        "kind": "imports",
+        "resolution": "exact_module_coordinate",
+        "evidenceLocator": "workspace://api/routes.go#L7-L7",
+        "evidenceNativeRelationshipIds": [
+          "ciedge_e955510eea2c76980fc59ff38ef910c0"
+        ]
+      },
+      {
+        "id": "mrrel_f7a06cc0412ab920ee02f137414a7565",
+        "kind": "constructs",
+        "resolution": "exact_module_coordinate",
+        "evidenceLocator": "workspace://api/routes.go#L18-L18",
+        "evidenceNativeRelationshipIds": [
+          "ciedge_e955510eea2c76980fc59ff38ef910c0",
+          "ciedge_65349a055f7d00ddc0299aea0b8e40b8"
+        ]
+      }
+    ],
+    "traceRelationshipIds": [
+      "mrrel_970a76d6d2fc7a3ac84813f502f89b78",
+      "mrrel_f7a06cc0412ab920ee02f137414a7565"
+    ],
+    "impactNativeNodeIds": [
+      "cinode_f01e41d6ce66dade402cd8760c3b235e"
+    ]
+  },
+  "safeguards": {
+    "readOnlyQueries": true,
+    "localFilesWrittenByQueries": 0,
+    "rawSourceBodiesIncluded": false,
+    "absolutePathsIncluded": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "published": false
+  },
+  "claims": {
+    "exactGoCrossRepositoryBehavior": true,
+    "generalCrossLanguageBehavior": false,
+    "competitorParity": false,
+    "productionPublishReady": false
+  },
+  "receiptFingerprint": "sha256:7aa6b4053a98b2691b82331e97def6b679d0228c603a6de6b7ffe1fbca5648af"
+}

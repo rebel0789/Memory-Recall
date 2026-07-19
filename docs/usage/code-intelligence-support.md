@@ -1,0 +1,334 @@
+# Code-intelligence language support
+
+The authoritative support record is
+[`evals/code-intelligence/capability-matrix.v1.json`](../../evals/code-intelligence/capability-matrix.v1.json).
+It records product status, benchmark status, evidence, and limitations for every
+language and capability. This page explains how to read it; it does not repeat
+the matrix cells.
+
+## Language tiers
+
+Tier 1 is the release target: TypeScript, JavaScript, Python, Java, Kotlin, C#,
+Go, Rust, PHP, Ruby, Swift, C, C++, and Dart. All fourteen must meet the
+published quality floors before Memory Recall can claim Tier 1 parity.
+
+Tier 2 contains Lua, Bash, SQL, Objective-C, Scala, R, Julia, and Zig. Their
+parsers remain experimental until each language passes the same evidence gates.
+Parser availability alone is not product support.
+
+## Status meanings
+
+Product status and benchmark status answer different questions:
+
+- `implemented`: behavior is available through the current public product path;
+- `experimental`: behavior exists only on an unbundled or manual path;
+- `specified`: the target contract exists, but qualifying behavior does not;
+- `unsupported`: no implementation is present;
+- `unmeasured`: the published accuracy benchmark has not evaluated the claim;
+- `does-not-meet-floor`: measured evidence missed at least one required floor;
+- `meets-floor`: measured evidence passed every required floor.
+
+A `meets-floor` capability requires both a deterministic fixture and evidence
+from a pinned real repository. The audit rejects absolute paths, repository
+escapes, missing evidence files, duplicate languages, incomplete capability
+rows, and full claims without both evidence classes.
+
+## Current boundary
+
+Node.js remains the production CLI and transport layer. Packaged Rust owns the
+production code-intelligence path. Graph commands, MCP, Control API, and web
+default to a healthy current SQLite index and fail closed with the exact build,
+refresh, repair, schema, target, or package action when native state is not
+usable. `auto` and `native-preview` remain strict native aliases; no JavaScript
+intelligence path is available.
+
+The current registry release does not ship the new binary. This source checkout
+contains five optional platform-package templates and a resolver that verifies
+package identity, target, path containment, SHA-256, executable availability,
+and exact binary version before use. The macOS arm64 package path passes an
+isolated local packed-install gate, including explicit first-run indexing and
+all twelve MCP tools while installed-package checks prove the retired JS graph
+paths are absent. The other targets, signing, stable publication, and
+published-package proof remain open.
+Unsupported or unmeasured language capabilities remain labeled as such.
+
+This boundary changes only when implementation, fixtures, pinned repository
+results, package verification, and public documentation land together.
+
+## Phase 2 Tier 1 evidence
+
+The Phase 2 receipt is
+[`phase2-tier1-summary.json`](../../evals/code-intelligence/results/phase2-tier1-summary.json).
+It aggregates 14 deterministic fixtures and all 43 pinned repositories. Every
+case passes its reviewed truth, determinism, duplicate-symbol, parse-failure,
+and safety gates. The summary does not average failures away: any failed case
+would block the affected capability row.
+
+The ratios below are reviewed samples, not whole-repository recall. A
+capability moves to `meets-floor` only when the fixture and at least three distinct
+pinned repositories contain qualifying reviewed evidence. An applicable capability
+with narrower evidence stays `unmeasured`, even when every sampled item passes.
+
+| Language | Declarations | Relationships | Reviewed calls | Capability rows at floor | Applicable rows still unmeasured | Overall |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| TypeScript | 6/6 | 10/10 | 6/6 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
+| JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
+| Python | 20/20 | 22/22 | 4/4 | parse, structure, imports, heritage, types, calls, config, frameworks | exports, impact, processes | unmeasured |
+| Java | 21/21 | 10/10 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| Kotlin | 20/20 | 13/13 | 5/5 | parse, structure, imports, types, calls | exports, heritage, config, frameworks, impact, processes | unmeasured |
+| C# | 23/23 | 10/10 | 5/5 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| Go | 19/19 | 12/12 | 4/4 | parse, structure, imports, exports, calls | heritage, types, config, frameworks, impact, processes | unmeasured |
+| Rust | 23/23 | 18/18 | 4/4 | parse, structure, imports, exports, types, calls | heritage, config, frameworks, impact, processes | unmeasured |
+| PHP | 18/18 | 12/12 | 4/4 | parse, structure, imports, heritage, calls | exports, types, config, frameworks, impact, processes | unmeasured |
+| Ruby | 17/17 | 11/11 | 4/4 | parse, structure, imports, calls | exports, heritage, types, config, frameworks, impact, processes | unmeasured |
+| Swift | 16/16 | 10/10 | 1/1 | parse, structure, imports, heritage, types | exports, calls, config, frameworks, impact, processes | unmeasured |
+| C | 14/14 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types, config, frameworks, impact, processes | unmeasured |
+| C++ | 16/16 | 12/12 | 4/4 | parse, structure, imports, heritage, types, calls | exports, config, frameworks, impact, processes | unmeasured |
+| Dart | 17/17 | 21/21 | 4/4 | parse, structure, imports, exports, heritage, types, calls | config, frameworks, impact, processes | unmeasured |
+
+Across the 154 Tier 1 capability cells, 75 meet the Phase 2 floor, none has a
+recorded floor failure, 78 applicable rows remain unmeasured, and C heritage is
+the sole explicit not-applicable row. Every language remains overall
+`unmeasured`.
+Five repository scopes hit the configured node or edge budget and report the
+exact omitted counts; their available reviewed evidence remains usable and partial.
+
+TypeScript's `imports` row is backed by an exact internal module edge in its
+fixture and each pinned repository. Its `types` row is backed by a resolved
+construction or typed-receiver edge in the same four cases. This Phase 2 status
+does not measure TypeScript heritage, configuration, frameworks, impact, or
+processes and is not a full-language or competitor-parity claim.
+
+Python's `imports`, `heritage`, `types`, and `config` rows are backed by exact reviewed
+edges in its fixture and each pinned repository. The native resolver handles
+dotted relative imports, absolute self-package submodules, sampled same-file
+inheritance, and sampled construction edges within the existing bounded package
+scopes. Python configuration evidence consists of package-keyed configuration
+resources derived from `pyproject.toml` project metadata or root package markers,
+plus exact `depends_on` edges to package nodes. Project metadata also participates
+in absolute self-package resolution and freshness checks. Imported-name expansion,
+impact, and processes remain unevaluated.
+
+Python framework extraction has exact route evidence in the fixture and three
+distinct pinned application sources: FastAPI's application-testing example,
+Flask's tutorial application, and Django's djangoproject.com accounts URLconf.
+
+Java imports are backed by exact reviewed import edges in the fixture and the
+pinned Gson, Guava, and Spring Petclinic scopes. Regular and static imports
+retain the full imported coordinate; the `static` keyword is not part of the
+target.
+
+Go, Rust, Kotlin, and C# imports are also backed by one fixture and three pinned
+repositories per language. External module or namespace coordinates remain
+complete, internal Go imports resolve to canonical modules, and reviewed
+same-source decoys prevent first-segment namespace truncation from passing.
+
+Go and Rust exports now have the same fixture-plus-three-repository coverage.
+Go evidence covers capitalized package types, functions, and sampled concrete
+methods. Exported fields and interface methods are omitted and are not part of
+the passing sample. Rust evidence covers unrestricted top-level `pub` items and
+simple-symbol `pub use` re-exports. Grouped and glob `pub use` forms are not part
+of the passing sample.
+
+Dart exports also meet the fixture-plus-three-repository floor for exact
+URI-level module re-exports. Local relative exports and self-package
+`package:` URIs resolve to workspace modules when the scan root is a Dart
+package root or its `lib` directory. `show` and `hide` symbol filtering remain
+unmeasured and are not part of this passing claim.
+
+Dart calls meet the same fixture-plus-three-repository floor for the sampled
+resolved calls. The Flutter sample binds `BookstoreAuth.of(context)` to the
+workspace method while a same-name `GoRouter.of(context)` decoy remains
+unresolved. This is sampled call evidence, not general framework or monorepo
+support.
+
+Dart heritage meets the sampled fixture-plus-three-repository floor. Flutter
+binds `_BookstoreState` only to its direct outer superclass `State`, does not
+emit the generic argument `Bookstore` as a superclass, and retains the reviewed
+`SingleTickerProviderStateMixin` edge. Shelf records `RouterParams on Request`
+as an unresolved external extension-type edge, while HTTP resolves
+`BaseClient implements Client` exactly. Generic substitution, compiler-level
+inference, and broader framework heritage remain unmeasured.
+
+Kotlin calls meet the fixture-plus-three-repository floor for sampled callsite
+owner attribution. In Now in Android, the `UserNewsResource` constructor owns
+the `map` call at line 45; the line-57 `map` call belongs to another function and
+is not attributed to that constructor. The sampled target remains unresolved,
+so this is not evidence of general typed, framework, or monorepo call resolution.
+
+Kotlin types meet the fixture-plus-three-repository floor for sampled
+constructor and type-use resolution. Coroutines binds `InlineList(element)` to
+`InlineList` without assigning the line-24 `ArrayList<E>(4)` expression to that
+type. Ktor binds `RoutingResolveTraceEntry(...)` without confusing it with the
+enclosing `RoutingResolveTrace`. Generic constructor calls and property
+initializer constructions remain missed, and the Kotlin `List(size) { ... }`
+factory can appear as an unresolved construction. This does not establish full
+type inference, generic substitution, nullability flow, overload resolution, or
+compiler-equivalent semantic analysis.
+
+C++ types meet the fixture-plus-three-repository floor for the reviewed sample.
+In fmt, `utf8_system_category` remains a class while the macro-shaped
+`FMT_STRING(...)` call does not become a construction edge. This does not prove
+general preprocessor expansion, template analysis, or C++ type resolution.
+
+C++ heritage meets the sampled fixture-plus-three-repository floor for direct
+base specifiers. Generic arguments are excluded: `ItemService` binds only to
+`ItemLoader`, Catch2's `ApproxMatcher` binds only to `MatcherBase`, and
+nlohmann's `lexer` binds only to `lexer_base`. The fmt sample records
+`utf8_system_category` to external `error_category` as unresolved and rejects a
+class used in the body as heritage. Template substitution, alias expansion,
+dependent names, and compiler-equivalent inheritance analysis remain unmeasured.
+
+PHP, Ruby, Swift, C, and C++ imports have the same fixture-plus-three-repository
+coverage. The reviewed evidence preserves dotted PHP namespace coordinates and
+exact local PHP module resolution, full Ruby `require` paths, scoped Swift
+coordinates, and C/C++ angle-bracket header paths. Grouped PHP imports such as
+`use Foo\{Bar, Baz};` remain unsupported and unmeasured; they are not part of
+the passing PHP import sample.
+Decorators must be bound to imported and constructed FastAPI, APIRouter, Flask,
+or Blueprint receivers. Conventional Django `path` and `re_path` registrations
+use their first two positional arguments; `include(...)` remains explicit
+unsupported composition. Route-like text inside docstrings and arbitrary
+objects with HTTP-named methods do not count toward the framework floor.
+
+Reproduce the stored batch receipts and aggregate from a source checkout with a
+local release binary:
+
+```bash
+node scripts/code-intelligence-batch-a.mjs --check
+node scripts/code-intelligence-batch-b.mjs --check
+node scripts/code-intelligence-batch-c.mjs --check
+node scripts/code-intelligence-batch-d.mjs --check
+node scripts/code-intelligence-batch-e.mjs --check
+node scripts/code-intelligence-phase2-tier1.mjs --check
+```
+
+The Phase 2 receipt itself did not bundle a native binary, move MCP or web to
+Rust, prove multi-repository or million-node behavior, compare a competitor, or
+justify parity or leadership language. Later runtime-default work does not
+retroactively strengthen that evidence.
+
+## Phase 3 source-index evidence
+
+The native source index stores derived structure in
+`.local/source-index/index.v1.sqlite`. Builds and refreshes are explicit writer
+operations. Status, doctor, bounded queries, and the explicit MCP preview are
+read-only. Repair requires the fingerprint returned by doctor. Immediate no-op
+refresh is covered across reviewed fixtures for all fourteen Tier 1 languages:
+it parses and writes zero files, preserves the active generation, and leaves the
+database bytes and modification time unchanged.
+
+The Phase 3 receipt is
+[`phase3-source-index.json`](../../evals/code-intelligence/results/phase3-source-index.json).
+It measures one 600-file dependency fixture and three exact-commit repository
+scopes. The run covers 781 files, 6,646 nodes, and 15,540 edges with no recorded
+omissions. On the dependency fixture, one sampled file change reparsed 11 files
+and the sampled dependency-impact change reparsed 5, instead of reparsing all
+600. Timings and RSS are machine-specific evidence, not performance promises.
+
+This evidence proves the local lifecycle and language integration boundary. It
+does not prove full language support, packaged native distribution,
+multi-repository indexing, million-node scale, or competitor parity.
+
+## Phase 4 structural-intelligence evidence
+
+The explicit native preview now derives deterministic bounded exact, lexical,
+and one-hop structural search, communities, entry-to-sink processes, and
+constrained dependency traversal from the persistent index. Search and filtered
+traversal return source-backed relationship evidence only
+when both endpoints are in the bounded result. Process results retain the
+entry relationship and every traversed source relationship. They exclude stale,
+unresolved, and sub-0.75-confidence steps. `repo.architecture` exposes these
+projections through the existing twelve read-only MCP tools.
+
+The local Phase 4 receipt is
+[`phase4-intelligence.json`](../../evals/code-intelligence/results/phase4-intelligence.json).
+It proves deterministic search ranking and output, complete returned evidence,
+an outbound depth-two calls-only traversal, unchanged SQLite bytes and
+modification time, and the two-second query deadline on its fixture.
+It does not promote any language's process capability to `meets-floor`: that
+still requires applicable deterministic and pinned real-repository evidence.
+It also does not change the JS default or prove packaged binaries, competitors,
+multi-repository behavior, or million-node scale.
+
+## Bounded cross-repository Go evidence
+
+The experimental Rust registry can read up to eight explicitly registered
+repository indexes for search. Its stronger relationship path is intentionally
+narrow: two ordered repositories, an exact Go module requirement and import,
+one selected client entry, and one selected service target. It returns the
+import plus call or construction evidence, one bounded trace path, and reverse
+impact to the client entry. A same-name service in a wrong Go module is rejected.
+
+The existing twelve-tool MCP server exposes repository listing through
+`repo.index_status`, selected-repository search through `code.search`, and the
+exact Go operations through `code.dependencies`, `code.trace`, and
+`code.impact`. The server remains read-only, returns workspace locators rather
+than source bodies or absolute paths, and does not fall back to JS after a
+cross-repository request starts. This is not general multi-repository,
+cross-language, semantic, cross-service, or million-node support.
+
+## Native source-freshness gate
+
+Native `index.status` is now a real source check, not only a SQLite integrity
+check. It walks the persisted language scope, hashes a bounded selected file
+set, compares it with the active generation through the existing refresh
+planner, and reports changed, added, deleted, or unverified state as stale. The
+check is read-only and preserves the SQLite file, WAL, SHM, and active
+generation. Persisted file, node, or edge omissions continue to report partial
+coverage rather than current coverage.
+
+Normal `index.query` calls remain SQLite-only and do not rescan the workspace.
+The automatic native selector runs one status check and reuses a generation only
+when it is current, healthy, committed, read-only, and requires no repair or
+local write. Indexes written before the scan-scope marker was added report
+unverified until rebuilt. A historical custom `maxFileBytes` value is not yet
+persisted, so status uses the protocol's 10 MiB maximum and may conservatively
+report stale for a file that an earlier lower limit excluded. It cannot turn
+that ambiguity into a false current result.
+
+Native `index.refresh` also requires a complete source snapshot. If `maxFiles`,
+the hash-byte budget, or the request deadline stops discovery early, refresh
+returns partial, reports zero parsed, changed, deleted, and written files, and
+preserves the active generation plus its SQLite, WAL, and SHM files. Increase
+`maxFiles` and retry to refresh a larger workspace. The index store separately
+rejects an incremental commit when any invalidated live file is missing from
+the replacement, before the transaction can write.
+
+## Phase 6 local distribution gate
+
+The checkout-only `scripts/native-code-intelligence-consumer-smoke.mjs` builds
+the current release binary, produces the matching optional platform tarball,
+packs the root package, and installs both into an isolated prefix with install
+scripts disabled and no registry access. The installed provider discovers the
+platform package without `MEMORY_RECALL_NATIVE_BINARY`, validates its manifest,
+checksum, target, contained path, executable, and version, then parses all
+fourteen Tier 1 fixture languages. It also builds, reads, and queries the
+workspace-local SQLite source index while preserving source files, governed
+memory, home configuration, and installed package bytes. Cargo and rustc are
+absent from the runtime path. The gate then removes both installed npm packages,
+proves the executable is gone while the workspace-local SQLite bundle and
+governed memory remain byte-identical, installs the exact same tarballs into a
+fresh prefix, and reopens the same generation for TypeScript, Python, and Go
+queries without building or refreshing.
+
+The recorded local pass is macOS arm64 only. It does not prove macOS x64,
+Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
+trusted-publisher ownership for the scoped packages, public installation, or a
+cross-platform native release. It proves same-version removal/reinstall
+survivability, not downgrade compatibility with an older release. The duplicate
+JavaScript intelligence path is removed from the source and packed root package.
+
+The Rust CI workflow defines native-runner packaging lanes for those five
+targets. Each lane checks the runner architecture, builds the locked release
+binary, packages and structurally verifies one unsigned tarball, then passes
+that exact tarball into the installed root-plus-native consumer gate. The
+workflow definition is not cross-platform proof by itself: the four non-local
+lanes remain pending until their hosted runs complete successfully.
+
+## Retired JavaScript comparison receipts
+
+The former Phase 0 baseline and Phase 1 JavaScript-versus-Rust comparison were
+removed with the duplicate JavaScript intelligence implementation. They are not
+current evidence. Tier 1 support, cross-repository behavior, and competitor
+parity remain explicitly unmeasured where their active gates are incomplete.

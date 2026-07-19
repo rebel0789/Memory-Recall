@@ -3,13 +3,58 @@
   "format": "memory-recall-release-readiness-sbom",
   "releaseCandidate": "1.0-readiness",
   "project": "memory-recall",
-  "packageVersion": "1.1.0",
+  "packageVersion": "2.0.0",
   "dependencyPolicy": "bootstrap dependency-free; optional integrations remain disabled adapters",
   "packages": [
     {
+      "path": "native-packages/darwin-arm64/package.json",
+      "name": "@memory-recall/native-darwin-arm64",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "private": false,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "native-packages/darwin-x64/package.json",
+      "name": "@memory-recall/native-darwin-x64",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "private": false,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "native-packages/linux-arm64-gnu/package.json",
+      "name": "@memory-recall/native-linux-arm64-gnu",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "private": false,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "native-packages/linux-x64-gnu/package.json",
+      "name": "@memory-recall/native-linux-x64-gnu",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "private": false,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "native-packages/win32-x64/package.json",
+      "name": "@memory-recall/native-win32-x64",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "private": false,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
       "path": "package.json",
       "name": "memory-recall",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,
@@ -232,15 +277,6 @@
       "devDependencyCount": 0
     },
     {
-      "path": "providers/native/context-candidate-ast-code/package.json",
-      "name": "@open-agent-fabric/native-context-candidate-ast-code",
-      "version": "0.2.0-dev",
-      "license": "Apache-2.0",
-      "private": true,
-      "dependencyCount": 0,
-      "devDependencyCount": 0
-    },
-    {
       "path": "providers/native/context-candidate-exact/package.json",
       "name": "@open-agent-fabric/native-context-candidate-exact",
       "version": "0.2.0-dev",
@@ -358,21 +394,14 @@
       "contract": "ArtifactStorePort"
     },
     {
-      "id": "provider:native:context-candidate:ast-code",
-      "category": "context-candidate",
-      "locality": "in-process",
+      "id": "provider:native:code-intelligence:rust",
+      "category": "code-intelligence",
+      "locality": "loopback-process",
       "enabledByDefault": true,
-      "contract": "CandidateSourcePort"
+      "contract": "CodeIntelligencePort"
     },
     {
       "id": "provider:native:context-candidate:exact",
-      "category": "context-candidate",
-      "locality": "in-process",
-      "enabledByDefault": true,
-      "contract": "CandidateSourcePort"
-    },
-    {
-      "id": "provider:native:context-candidate:graph",
       "category": "context-candidate",
       "locality": "in-process",
       "enabledByDefault": true,

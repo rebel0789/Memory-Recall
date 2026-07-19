@@ -40,11 +40,11 @@
       ]
     },
     {
-      "id": "ctxrec_ast_source_graph",
-      "query": "AST code candidate source JS TS source graph callers callees",
+      "id": "ctxrec_native_code_intelligence",
+      "query": "Rust code intelligence index search trace dependencies fourteen languages",
       "goldFiles": [
-        "providers/native/context-candidate-ast-code/src/index.mjs",
-        "tests/ast-code-candidate-source.test.mjs"
+        "rust/oaf-index/src/lib.rs",
+        "tests/native-code-intelligence-14-languages.test.mjs"
       ]
     },
     {

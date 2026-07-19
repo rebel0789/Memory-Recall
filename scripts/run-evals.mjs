@@ -10,7 +10,6 @@ import {
   compileContextFromSources,
   createCandidateSourceRegistry,
   createFixtureRecordReader,
-  generateContextCandidates,
   createNativeExactCandidateSource,
   createNativeLexicalCandidateSource,
   createSelectorExperiment,
@@ -37,7 +36,6 @@ import {
   createDurableSmokeWorkflowDefinition,
   createDurableSmokeWorkflowRegistry
 } from '../providers/native/workflow-durable-sqlite/src/index.mjs';
-import { buildJsTsSourceIndex, createNativeAstCodeCandidateSource, querySourceIndex } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import {
   createBenchmarkDataset,
   createEvaluationDataset,
@@ -96,49 +94,6 @@ check('benchmark-truth-floor: adapters and writes disabled',truthFloorReport.saf
 check('benchmark-truth-floor: deterministic phase artifacts',truthFloorReport.metrics.deterministicMismatchCount===0&&truthFloorReport.phaseArtifacts.every(item=>/^sha256:[a-f0-9]{64}$/.test(item.artifactFingerprint)));
 check('benchmark-truth-floor: sanitized report body',!truthFloorText.includes('Auth incident policy requires')&&!truthFloorText.includes('Auth incident local-first evidence')&&!truthFloorText.includes('/Users/rebel')&&!truthFloorText.includes('credential-sentinel-value'));
 check('benchmark-truth-floor: report fingerprint',/^sha256:[a-f0-9]{64}$/.test(truthFloorReport.reportFingerprint));
-const astEvalDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-ast-code-'));
-try{
-  await mkdir(path.join(astEvalDir,'src'),{recursive:true});
-  await writeFile(path.join(astEvalDir,'src','auth.ts'),[
-    "import { z } from 'zod';",
-    "import { compileContext } from '../context/compiler';",
-    'export class TokenResetService {',
-    '  async approveTokenReset(request) {',
-    '    const parsed = z.object({}).safeParse(request);',
-    "    return compileContext(parsed.success ? request : request, 'eval-private-body');",
-    '  }',
-    '}'
-  ].join('\n'));
-  const astSource=createNativeAstCodeCandidateSource({root:astEvalDir,workspaceId:'ws_ast_eval',clock:()=>'2026-06-23T00:00:00.000Z'});
-  const astRequest={schemaVersion:'1.0.0',requestId:'ccreq_eval_ast_code',correlationId:'req_eval_ast_code_000000',workspaceId:'ws_ast_eval',actorId:'usr_eval',taskId:'task_eval_ast_code',step:'select auth implementation evidence',objective:'approve token reset auth incident compile context',requiredIds:[],requiredEntities:['symbol:approveTokenReset','import:zod'],allowedDataClasses:['workspace-private'],allowedTrustClasses:['observed','verified'],allowedScopes:['workspace-private'],sourcePlan:[{kind:'ast-code',required:false,limit:5,timeoutMs:1000}],perSourceLimit:5,totalCandidateLimit:5,trustedTimestamp:'2026-06-23T00:00:00.000Z',tokenBudget:120};
-  const astGeneration=await generateContextCandidates(astRequest,{registry:createCandidateSourceRegistry([astSource]),recordReader:createFixtureRecordReader([])});
-  const astCompiled=await compileContextFromSources(astRequest,{registry:createCandidateSourceRegistry([astSource]),recordReader:createFixtureRecordReader([])});
-  const astText=JSON.stringify(astGeneration);
-  check('ast-code-source: source succeeds',astGeneration.status==='succeeded'&&astGeneration.reports.some(report=>report.sourceKind==='ast-code'&&report.status==='succeeded'));
-  check('ast-code-source: candidate selected',astCompiled.manifest.selected.some(item=>item.source?.startsWith('workspace://src/auth.ts#L')));
-  check('ast-code-source: symbol and import metadata',astGeneration.candidates.some(item=>item.record.tags.includes('symbol:approveTokenReset')&&item.record.tags.includes('import:zod')));
-  check('ast-code-source: no raw source body or local path leakage',!astText.includes('eval-private-body')&&!astText.includes(astEvalDir)&&!astText.includes('/Users/'));
-  check('ast-code-source: no model or network dependency',astSource.descriptor().methods.includes('js_ts_static_chunk')&&astSource.descriptor().kind==='ast-code');
-  await writeFile(path.join(astEvalDir,'src','workflow.ts'),[
-    "import { TokenResetService } from './auth';",
-    'export function runAuthWorkflow(request) {',
-    '  const service = new TokenResetService();',
-    '  return service.approveTokenReset(request);',
-    '}'
-  ].join('\n'));
-  const sourceIndex=await buildJsTsSourceIndex({root:astEvalDir,workspaceId:'ws_ast_eval',clock:()=>'2026-06-23T00:00:00.000Z'});
-  const sourceIndexText=JSON.stringify(sourceIndex);
-  check('source-index-js-ts: definition query',querySourceIndex(sourceIndex,{operation:'definition',name:'approveTokenReset'}).some(item=>item.kind==='method'));
-  check('source-index-js-ts: reference query',querySourceIndex(sourceIndex,{operation:'references',name:'approveTokenReset'}).some(item=>item.sourceLocator.startsWith('workspace://src/workflow.ts#L')));
-  check('source-index-js-ts: import and export queries',querySourceIndex(sourceIndex,{operation:'imports',module:'zod'}).length===1&&querySourceIndex(sourceIndex,{operation:'exports',name:'TokenResetService'}).some(item=>item.kind==='class'));
-  check('source-index-js-ts: caller and callee queries',querySourceIndex(sourceIndex,{operation:'callers',name:'approveTokenReset'}).some(item=>item.callerName==='runAuthWorkflow')&&querySourceIndex(sourceIndex,{operation:'callees',name:'runAuthWorkflow'}).some(item=>item.calleeName==='approveTokenReset'));
-  check('source-index-js-ts: repository and file outlines',sourceIndex.repositoryOutline.fileCount===2&&querySourceIndex(sourceIndex,{operation:'file-outline',locator:'workspace://src/auth.ts'}).length===1);
-  check('source-index-js-ts: content hash journal',sourceIndex.contentJournal.length===2&&sourceIndex.contentJournal.every(item=>/^sha256:[a-f0-9]{64}$/.test(item.contentHash)));
-  check('source-index-js-ts: no raw source or local path leakage',!sourceIndexText.includes('eval-private-body')&&!sourceIndexText.includes(astEvalDir)&&!sourceIndexText.includes('/Users/'));
-  check('source-index-js-ts: deterministic index fingerprint',/^sha256:[a-f0-9]{64}$/.test(sourceIndex.sourceIndexFingerprint)&&/^sha256:[a-f0-9]{64}$/.test(sourceIndex.symbolIndex.symbolIndexFingerprint));
-}finally{
-  await rm(astEvalDir,{recursive:true,force:true});
-}
 class EvalManifestRepository{
   constructor(){this.rows=new Map()}
   async append({workspaceId,manifest}){const key=`${workspaceId}:${manifest.id}`;const existing=this.rows.get(key);if(existing){if(existing.manifestFingerprint!==manifest.manifestFingerprint){const error=new Error('manifest_identity_conflict');error.code='manifest_identity_conflict';throw error}return existing}this.rows.set(key,structuredClone(manifest));return manifest}

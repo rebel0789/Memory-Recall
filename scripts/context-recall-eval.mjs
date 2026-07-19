@@ -1,14 +1,7 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import {
-  CODE_SEARCH_CONTEXT_SELECTION_POLICY,
-  compileContextFromSources,
-  createCandidateSourceRegistry,
-  createFixtureRecordReader
-} from '../packages/context-compiler/src/index.mjs';
-import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
-import { createNativeSourceGraphCandidateSource } from '../providers/native/context-candidate-ast-code/src/index.mjs';
+import { createFixtureRecordReader } from '../packages/context-compiler/src/index.mjs';
 
 const FIXED_TIME = '2026-06-30T00:00:00.000Z';
 const TEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.md', '.css', '.html', '.yml', '.yaml', '.toml', '.sql', '.txt', '.schema', '.lock']);
@@ -18,7 +11,7 @@ const EXCLUDED_FILES = new Set(['.env', '.DS_Store', 'REPOSITORY_MANIFEST.json.t
 
 function usage() {
   return [
-    'Usage: node scripts/context-recall-eval.mjs --dataset <path> [--mode lexical-pack|compiler-code-search|external-baseline-json] [--baseline-results <path>] [--budgets 8000,12000] [--candidate-limit 50]',
+    'Usage: node scripts/context-recall-eval.mjs --dataset <path> [--mode lexical-pack|external-baseline-json] [--baseline-results <path>] [--budgets 8000,12000] [--candidate-limit 50]',
     '',
     'Runs a tracked-repo context recall benchmark. Reports safe paths and metrics only.'
   ].join('\n');
@@ -401,36 +394,7 @@ function gateResult(result, thresholds) {
   return failures;
 }
 
-function requestForCase(testCase, budget, candidateLimit) {
-  const graphLimit = Math.max(1, Math.min(25, candidateLimit));
-  return {
-    schemaVersion: '1.0.0',
-    id: `ctxreq_${testCase.id}_${budget}`,
-    requestId: `ctxreq_${testCase.id}_${budget}`,
-    correlationId: `corr_${testCase.id}_${budget}`,
-    workspaceId: 'ws_context_recall',
-    actorId: 'usr_context_recall',
-    taskId: 'task_context_recall',
-    objective: testCase.query,
-    step: testCase.query,
-    requiredIds: [],
-    requiredEntities: terms(testCase.query, 24),
-    allowedDataClasses: ['workspace-private'],
-    allowedTrustClasses: ['observed', 'verified', 'trusted'],
-    allowedScopes: ['workspace-private'],
-    sourcePlan: [
-      { kind: 'lexical', required: true, limit: candidateLimit, timeoutMs: 10000 },
-      { kind: 'graph', required: false, limit: graphLimit, timeoutMs: 10000 }
-    ],
-    perSourceLimit: candidateLimit,
-    totalCandidateLimit: Math.min(200, candidateLimit + graphLimit),
-    tokenBudget: budget,
-    trustedTimestamp: FIXED_TIME,
-    now: FIXED_TIME
-  };
-}
-
-async function selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById, compilerRegistry }) {
+async function selectRows({ mode, testCase, budget, candidateLimit, reader }) {
   if (mode === 'lexical-pack') {
     const rows = await reader.searchLexical({
       workspaceId: 'ws_context_recall',
@@ -443,30 +407,6 @@ async function selectRows({ mode, testCase, budget, candidateLimit, reader, reco
     return {
       selected: packRows(rows, budget),
       generatedPaths: [...new Set(rows.map((row) => row.metadata?.path).filter(Boolean))]
-    };
-  }
-
-  if (mode === 'compiler-code-search') {
-    const compiled = await compileContextFromSources(requestForCase(testCase, budget, candidateLimit), {
-      registry: compilerRegistry,
-      recordReader: reader,
-      selectionPolicy: CODE_SEARCH_CONTEXT_SELECTION_POLICY,
-      clock: () => FIXED_TIME
-    });
-    const generatedById = new Map(compiled.candidateGeneration.candidates.map((candidate) => [candidate.record.id, candidate.record]));
-    const excludedByPath = new Map();
-    for (const item of compiled.manifest.excluded ?? []) {
-      const record = recordsById.get(item.id) ?? generatedById.get(item.id);
-      const filePath = record?.metadata?.path;
-      if (!filePath) continue;
-      const list = excludedByPath.get(filePath) ?? [];
-      list.push({ reasonCodes: Array.isArray(item.reasonCodes) ? item.reasonCodes : [] });
-      excludedByPath.set(filePath, list);
-    }
-    return {
-      selected: compiled.manifest.selected.map((item) => recordsById.get(item.id) ?? generatedById.get(item.id)).filter(Boolean),
-      generatedPaths: [...new Set(compiled.candidateGeneration.candidates.map((candidate) => candidate.record.metadata?.path).filter(Boolean))],
-      excludedByPath
     };
   }
 
@@ -485,7 +425,7 @@ async function main() {
   if (!datasetPath) throw new Error('missing --dataset');
 
   const dataset = JSON.parse(await readFile(datasetPath, 'utf8'));
-  const mode = argValue(args, '--mode', 'compiler-code-search');
+  const mode = argValue(args, '--mode', 'lexical-pack');
   const budgets = String(argValue(args, '--budgets', dataset.targetBudget ?? 12000)).split(',').map((value) => Number(value.trim())).filter(Number.isInteger);
   const candidateLimit = Number(argValue(args, '--candidate-limit', 50));
   const targetBudget = Number(argValue(args, '--target-budget', dataset.targetBudget ?? budgets[0]));
@@ -497,18 +437,6 @@ async function main() {
   const datasetRelativePath = workspaceRelative(root, datasetPath);
   const corpus = await buildCorpus({ root, excludePaths: datasetRelativePath ? [datasetRelativePath] : [] });
   const reader = createFixtureRecordReader(corpus.records);
-  const recordsById = new Map(corpus.records.map((record) => [record.id, record]));
-  const compilerRegistry = mode === 'compiler-code-search'
-    ? createCandidateSourceRegistry([
-      createNativeLexicalCandidateSource(),
-      createNativeSourceGraphCandidateSource({
-        root,
-        workspaceId: 'ws_context_recall',
-        maxFiles: Math.min(2500, Math.max(200, corpus.trackedTextFiles)),
-        clock: () => FIXED_TIME
-      })
-    ])
-    : null;
   const externalBaseline = mode === 'external-baseline-json' ? await readExternalBaseline(baselineResultsPath, { trackedSet: corpus.trackedSet }) : null;
   const cases = dataset.cases.map((testCase) => {
     const goldFiles = testCase.goldFiles.map(normalizeRelativePath);
@@ -530,7 +458,7 @@ async function main() {
         const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
         caseResults.push(summarizeExternalCase(testCase, row, corpus.fullCorpusTokens, { durationMs }));
       } else {
-        const selection = await selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById, compilerRegistry });
+        const selection = await selectRows({ mode, testCase, budget, candidateLimit, reader });
         const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
         caseResults.push(summarizeCase(testCase, selection.selected, corpus.fullCorpusTokens, {
           budget,

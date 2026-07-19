@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
+  "phase": 5,
+  "generatedAt": "2026-07-19T12:06:49.421Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3"
+  },
+  "inputs": {
+    "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
+    "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
+    "implementationFingerprint": "sha256:6cd06dca738f0b5d5801d8d943dab2ad470196ea785b0f005c1adcf6d869d4a0",
+    "workspaceId": "ws_phase5_cross_service",
+    "serviceBoundaries": [
+      {
+        "name": "@fixture/gateway",
+        "prefix": "workspace://services/gateway/"
+      },
+      {
+        "name": "@fixture/orders",
+        "prefix": "workspace://services/orders/"
+      },
+      {
+        "name": "@fixture/zzz-decoy",
+        "prefix": "workspace://services/zzz-decoy/"
+      }
+    ],
+    "repetitions": 5,
+    "queryLimit": 32,
+    "queryDepth": 4,
+    "queryDeadlineMs": 2000
+  },
+  "index": {
+    "repositoryIdentityHash": "sha256:1536f2b32ad6d213375bf692a1df9fac31335ccb412609d29945bad17dcc293c",
+    "fileCount": 4,
+    "nodeCount": 17,
+    "edgeCount": 20,
+    "databaseBytes": 81920
+  },
+  "results": {
+    "processCount": 1,
+    "crossServiceCallEvidenceId": "ciedge_71cff4fe203e2d21dfb1abb8c6a5b6b8",
+    "crossServiceImportEvidenceId": "ciedge_cc08b5f713181d8a6b49f127912b5564",
+    "crossServiceTraceRelationshipIds": [
+      "ciedge_71cff4fe203e2d21dfb1abb8c6a5b6b8"
+    ],
+    "sameNameDecoyIndexed": true,
+    "sameNameDecoyExcluded": true,
+    "unresolvedTargetExcluded": true,
+    "evidenceIdsComplete": true,
+    "bounded": true,
+    "deterministicFingerprint": "sha256:7ed21423cf7ea6f0a47ae02106f87b3bfd4f8ecb22ca60a00d3ccf77577b0594",
+    "queryWallMs": {
+      "minimum": 6.65,
+      "p50": 8.416,
+      "p95": 8.939,
+      "maximum": 8.939
+    },
+    "readQueriesPreservedIndex": true
+  },
+  "failures": [],
+  "gateDecision": "pass",
+  "claims": {
+    "crossServiceMonorepoFixture": true,
+    "multiRepository": false,
+    "competitorParity": false,
+    "leadership": false,
+    "millionNodeScale": false,
+    "reason": "This bounded local fixture proves source-backed import, call, trace, and process evidence across two declared service prefixes inside one repository. It does not prove independent repository indexes, a repository registry, cross-repository search, competitor parity, leadership, or large-scale behavior."
+  },
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "rawSourceStoredInReport": false,
+    "absolutePathsStoredInReport": false
+  },
+  "reportFingerprint": "sha256:7ec880ea0793d992ea8e276b04d7c6b5ca8b9066483159c5bd3e37b75648ceba"
+}

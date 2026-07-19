@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_go_gin_gonic_gin",
+  "language": "go",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#."
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_gin_engine",
+      "semanticKey": "node:struct:gin.go:Engine",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Engine",
+      "qualifiedName": "gin.go::Engine",
+      "locator": "workspace://gin.go#L92-L189"
+    },
+    {
+      "id": "cititem_gin_route_info",
+      "semanticKey": "node:struct:gin.go:RouteInfo",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "RouteInfo",
+      "qualifiedName": "gin.go::RouteInfo",
+      "locator": "workspace://gin.go#L68-L73"
+    },
+    {
+      "id": "cititem_gin_no_route",
+      "semanticKey": "node:method:gin.go:Engine:NoRoute",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "NoRoute",
+      "qualifiedName": "gin.go::Engine::NoRoute",
+      "locator": "workspace://gin.go#L326-L329"
+    },
+    {
+      "id": "cititem_gin_rebuild_404",
+      "semanticKey": "node:method:gin.go:Engine:rebuild404Handlers",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "rebuild404Handlers",
+      "qualifiedName": "gin.go::Engine::rebuild404Handlers",
+      "locator": "workspace://gin.go#L356-L358"
+    },
+    {
+      "id": "cititem_gin_construct_engine",
+      "semanticKey": "edge:constructs:gin.go:New:Engine",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "New", "qualifiedName": "gin.go::New", "locator": "workspace://gin.go#L202-L233" },
+      "to": { "kind": "struct", "name": "Engine", "qualifiedName": "gin.go::Engine", "locator": "workspace://gin.go#L92-L189" },
+      "locator": "workspace://gin.go#L204-L227",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_gin_call_rebuild_404",
+      "semanticKey": "edge:calls:gin.go:Engine.NoRoute:rebuild404Handlers",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "NoRoute", "qualifiedName": "gin.go::Engine::NoRoute", "locator": "workspace://gin.go#L326-L329" },
+      "to": { "kind": "method", "name": "rebuild404Handlers", "qualifiedName": "gin.go::Engine::rebuild404Handlers", "locator": "workspace://gin.go#L356-L358" },
+      "locator": "workspace://gin.go#L328-L328",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_gin_import_crypto_rand",
+      "semanticKey": "edge:imports:internal/bytesconv/bytesconv_test.go:crypto/rand",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "internal_bytesconv_bytesconv_test", "qualifiedName": "internal/bytesconv/bytesconv_test.go::internal_bytesconv_bytesconv_test", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L1-L125" },
+      "to": { "kind": "module", "name": "crypto/rand", "qualifiedName": "internal/bytesconv/bytesconv_test.go::crypto/rand", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9" },
+      "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_gin_import_crypto_rand_not_math_rand",
+      "semanticKey": "edge:imports:internal/bytesconv/bytesconv_test.go:crypto-line:not-math-rand",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "internal_bytesconv_bytesconv_test", "qualifiedName": "internal/bytesconv/bytesconv_test.go::internal_bytesconv_bytesconv_test", "locator": "workspace://internal/bytesconv/bytesconv_test.go#L1-L125" },
+      "to": { "kind": "module", "name": "math/rand", "qualifiedName": "githubapi_test.go::math/rand", "locator": "workspace://githubapi_test.go#L9-L9" },
+      "locator": "workspace://internal/bytesconv/bytesconv_test.go#L9-L9",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_gin_export_engine",
+      "semanticKey": "edge:exports:gin.go:Engine",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "gin", "qualifiedName": "gin.go::gin", "locator": "workspace://gin.go#L5-L5" },
+      "to": { "kind": "struct", "name": "Engine", "qualifiedName": "gin.go::Engine", "locator": "workspace://gin.go#L92-L189" },
+      "locator": "workspace://gin.go#L92-L189",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_gin_private_rebuild_not_exported",
+      "semanticKey": "edge:exports:gin.go:Engine.rebuild404Handlers:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "package", "name": "gin", "qualifiedName": "gin.go::gin", "locator": "workspace://gin.go#L5-L5" },
+      "to": { "kind": "method", "name": "rebuild404Handlers", "qualifiedName": "gin.go::Engine::rebuild404Handlers", "locator": "workspace://gin.go#L356-L358" },
+      "locator": "workspace://gin.go#L356-L358",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:bac48e4a489313758cfa8aeb896782a45b0eb9c5f27bd42f76f757f1842b506d"
+}

@@ -1,0 +1,971 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase3-source-index-2",
+  "phase": 3,
+  "generatedAt": "2026-07-19T17:18:54.297Z",
+  "environment": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "cpu": "Apple M2 Max",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 34359738368,
+    "nodeVersion": "v22.22.3",
+    "engineVersion": "2.0.0"
+  },
+  "checkout": {
+    "commit": "ac5c023011b03ae1e8c82eeb663331f96bc39e85",
+    "dirtyBeforeRun": false
+  },
+  "inputs": {
+    "corpusFingerprint": "sha256:7e0544963c5b00e0b6d55830e1251262e6f132d4b0e28bfd4c36b64587b26c96",
+    "implementationFingerprint": "sha256:c6cec8251541710e40c29e9e17a9dac49923668b4bd1836c35dacc61b9a24cb8",
+    "bounds": {
+      "maxFiles": 5000,
+      "maxFileBytes": 524288,
+      "maxNodes": 100000,
+      "maxEdges": 250000
+    },
+    "queryRepetitions": 5,
+    "repositoryRefs": [
+      "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+      "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
+      "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers"
+    ],
+    "fixtureRefs": [
+      "fixture://sha256:19b4cc8b09e8efefcb74a8b22524207fc17ed1c2dd78d0a9fbba1443d8e76e67"
+    ]
+  },
+  "summary": {
+    "caseCount": 4,
+    "fixtureCount": 1,
+    "repositoryCount": 3,
+    "totalFileCount": 781,
+    "totalNodeCount": 6660,
+    "totalEdgeCount": 15600,
+    "totalUnresolvedCount": 0,
+    "totalOmittedCount": 0,
+    "totalDatabaseBytes": 29806592,
+    "coldBuildWallMs": {
+      "minimum": 60.707,
+      "p50": 222.944,
+      "p95": 1113.945,
+      "maximum": 1113.945
+    },
+    "warmStatusWallMs": {
+      "minimum": 11.602,
+      "p50": 25.241,
+      "p95": 30.412,
+      "maximum": 30.412
+    },
+    "noChangeRefreshWallMs": {
+      "minimum": 14.131,
+      "p50": 21.887,
+      "p95": 44.68,
+      "maximum": 44.68
+    },
+    "oneFileRefreshWallMs": {
+      "minimum": 29.098,
+      "p50": 81.679,
+      "p95": 371.779,
+      "maximum": 371.779
+    },
+    "dependencyClosureRefreshWallMs": {
+      "minimum": 28.872,
+      "p50": 106.571,
+      "p95": 460.801,
+      "maximum": 460.801
+    },
+    "peakEvaluatorRssKb": 108304
+  },
+  "cases": [
+    {
+      "id": "phase3_fixture_typescript_dependency_chain",
+      "language": "typescript",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:19b4cc8b09e8efefcb74a8b22524207fc17ed1c2dd78d0a9fbba1443d8e76e67",
+      "graph": {
+        "fileCount": 600,
+        "nodeCount": 1800,
+        "edgeCount": 2998,
+        "unresolvedCount": 0,
+        "omittedCount": 0,
+        "databaseBytes": 6520832,
+        "activeGeneration": 3,
+        "generationCountObserved": 3
+      },
+      "operations": {
+        "coldBuild": {
+          "wallMs": 282.515,
+          "engineDurationMs": 241,
+          "responseBytes": 981,
+          "parsedFileCount": 600,
+          "reusedFileCount": 0,
+          "changedFileCount": 600,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "warmStatus": {
+          "wallMs": 30.412,
+          "engineDurationMs": 22,
+          "responseBytes": 1017,
+          "parsedFileCount": 0,
+          "reusedFileCount": 600,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "noChangeRefresh": {
+          "wallMs": 35.292,
+          "engineDurationMs": 26,
+          "responseBytes": 980,
+          "parsedFileCount": 0,
+          "reusedFileCount": 600,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "oneFileRefresh": {
+          "wallMs": 179.206,
+          "engineDurationMs": 169,
+          "responseBytes": 982,
+          "parsedFileCount": 11,
+          "reusedFileCount": 599,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 2,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "dependencyClosureRefresh": {
+          "wallMs": 176.833,
+          "engineDurationMs": 166,
+          "responseBytes": 981,
+          "parsedFileCount": 6,
+          "reusedFileCount": 599,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 3,
+          "state": "ready",
+          "freshness": "current",
+          "preChangeImpactNodeCount": 17,
+          "postChangeSeedStillQueryable": true
+        },
+        "exactLookup": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 2,
+          "wallMs": {
+            "minimum": 30.239,
+            "p50": 32.985,
+            "p95": 34.218,
+            "maximum": 34.218
+          },
+          "engineDurationMs": {
+            "minimum": 22,
+            "p50": 22,
+            "p95": 24,
+            "maximum": 24
+          },
+          "responseBytes": {
+            "minimum": 1381,
+            "p50": 1381,
+            "p95": 1381,
+            "maximum": 1381
+          },
+          "localFilesWritten": 0
+        },
+        "neighborhood": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 5,
+          "wallMs": {
+            "minimum": 33.662,
+            "p50": 35.967,
+            "p95": 36.133,
+            "maximum": 36.133
+          },
+          "engineDurationMs": {
+            "minimum": 23,
+            "p50": 23,
+            "p95": 25,
+            "maximum": 25
+          },
+          "responseBytes": {
+            "minimum": 3615,
+            "p50": 3615,
+            "p95": 3615,
+            "maximum": 3615
+          },
+          "localFilesWritten": 0
+        },
+        "impact": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 17,
+          "wallMs": {
+            "minimum": 36.587,
+            "p50": 40.771,
+            "p95": 48.468,
+            "maximum": 48.468
+          },
+          "engineDurationMs": {
+            "minimum": 26,
+            "p50": 28,
+            "p95": 35,
+            "maximum": 35
+          },
+          "responseBytes": {
+            "minimum": 12623,
+            "p50": 12623,
+            "p95": 12623,
+            "maximum": 12623
+          },
+          "localFilesWritten": 0
+        },
+        "trace": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 2,
+          "wallMs": {
+            "minimum": 33.599,
+            "p50": 35.522,
+            "p95": 46.552,
+            "maximum": 46.552
+          },
+          "engineDurationMs": {
+            "minimum": 23,
+            "p50": 25,
+            "p95": 29,
+            "maximum": 29
+          },
+          "responseBytes": {
+            "minimum": 1731,
+            "p50": 1731,
+            "p95": 1731,
+            "maximum": 1731
+          },
+          "localFilesWritten": 0
+        }
+      },
+      "invariants": {
+        "noChangeGenerationPreserved": true,
+        "noChangeParsedFileCount": 0,
+        "noChangeLocalFilesWritten": 0,
+        "noChangeDatabaseUnchanged": true,
+        "readQueriesDatabaseUnchanged": true,
+        "oneFileParsedFileCount": 11,
+        "oneFileChangedFileCount": 1,
+        "dependencyParsedFileCount": 6,
+        "dependencyChangedFileCount": 1,
+        "finalState": "ready",
+        "finalFreshness": "current"
+      },
+      "resources": {
+        "evaluatorMaxRssKbBefore": 54560,
+        "evaluatorMaxRssKbAfter": 78288,
+        "databaseFileBytes": 6520832
+      },
+      "diagnostics": [
+        {
+          "code": "source_index_ready",
+          "count": 1
+        }
+      ],
+      "safeguards": {
+        "readOnly": true,
+        "localFilesWritten": 0,
+        "canonicalMemoryWrites": 0,
+        "networkCalls": 0,
+        "modelCalls": 0,
+        "rawSourceBodiesIncluded": false,
+        "absolutePathsIncluded": false,
+        "repairPerformed": false
+      }
+    },
+    {
+      "id": "phase3_go_multierror",
+      "language": "go",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+      "commit": "6d4d48630db25c3c83fa83ecd41dd8438b82963c",
+      "graph": {
+        "fileCount": 14,
+        "nodeCount": 165,
+        "edgeCount": 425,
+        "unresolvedCount": 0,
+        "omittedCount": 0,
+        "databaseBytes": 823296,
+        "activeGeneration": 3,
+        "generationCountObserved": 3
+      },
+      "operations": {
+        "coldBuild": {
+          "wallMs": 60.707,
+          "engineDurationMs": 27,
+          "responseBytes": 974,
+          "parsedFileCount": 14,
+          "reusedFileCount": 0,
+          "changedFileCount": 14,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "warmStatus": {
+          "wallMs": 11.602,
+          "engineDurationMs": 2,
+          "responseBytes": 1011,
+          "parsedFileCount": 0,
+          "reusedFileCount": 14,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "noChangeRefresh": {
+          "wallMs": 14.131,
+          "engineDurationMs": 2,
+          "responseBytes": 974,
+          "parsedFileCount": 0,
+          "reusedFileCount": 14,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "oneFileRefresh": {
+          "wallMs": 29.098,
+          "engineDurationMs": 22,
+          "responseBytes": 975,
+          "parsedFileCount": 5,
+          "reusedFileCount": 13,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 2,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "dependencyClosureRefresh": {
+          "wallMs": 28.872,
+          "engineDurationMs": 20,
+          "responseBytes": 975,
+          "parsedFileCount": 3,
+          "reusedFileCount": 13,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 3,
+          "state": "ready",
+          "freshness": "current",
+          "preChangeImpactNodeCount": 43,
+          "postChangeSeedStillQueryable": true
+        },
+        "exactLookup": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 2,
+          "wallMs": {
+            "minimum": 9.047,
+            "p50": 9.831,
+            "p95": 11.127,
+            "maximum": 11.127
+          },
+          "engineDurationMs": {
+            "minimum": 2,
+            "p50": 2,
+            "p95": 3,
+            "maximum": 3
+          },
+          "responseBytes": {
+            "minimum": 1346,
+            "p50": 1346,
+            "p95": 1346,
+            "maximum": 1346
+          },
+          "localFilesWritten": 0
+        },
+        "neighborhood": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 5,
+          "wallMs": {
+            "minimum": 9.506,
+            "p50": 13.085,
+            "p95": 14.943,
+            "maximum": 14.943
+          },
+          "engineDurationMs": {
+            "minimum": 2,
+            "p50": 2,
+            "p95": 5,
+            "maximum": 5
+          },
+          "responseBytes": {
+            "minimum": 3195,
+            "p50": 3195,
+            "p95": 3195,
+            "maximum": 3195
+          },
+          "localFilesWritten": 0
+        },
+        "impact": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 43,
+          "wallMs": {
+            "minimum": 9.956,
+            "p50": 11.525,
+            "p95": 13.6,
+            "maximum": 13.6
+          },
+          "engineDurationMs": {
+            "minimum": 3,
+            "p50": 3,
+            "p95": 4,
+            "maximum": 4
+          },
+          "responseBytes": {
+            "minimum": 25695,
+            "p50": 25695,
+            "p95": 25695,
+            "maximum": 25695
+          },
+          "localFilesWritten": 0
+        },
+        "trace": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 3,
+          "wallMs": {
+            "minimum": 8.738,
+            "p50": 10.51,
+            "p95": 11.422,
+            "maximum": 11.422
+          },
+          "engineDurationMs": {
+            "minimum": 2,
+            "p50": 2,
+            "p95": 2,
+            "maximum": 2
+          },
+          "responseBytes": {
+            "minimum": 2192,
+            "p50": 2192,
+            "p95": 2192,
+            "maximum": 2192
+          },
+          "localFilesWritten": 0
+        }
+      },
+      "invariants": {
+        "noChangeGenerationPreserved": true,
+        "noChangeParsedFileCount": 0,
+        "noChangeLocalFilesWritten": 0,
+        "noChangeDatabaseUnchanged": true,
+        "readQueriesDatabaseUnchanged": true,
+        "oneFileParsedFileCount": 5,
+        "oneFileChangedFileCount": 1,
+        "dependencyParsedFileCount": 3,
+        "dependencyChangedFileCount": 1,
+        "finalState": "ready",
+        "finalFreshness": "current"
+      },
+      "resources": {
+        "evaluatorMaxRssKbBefore": 78336,
+        "evaluatorMaxRssKbAfter": 81104,
+        "databaseFileBytes": 823296
+      },
+      "diagnostics": [
+        {
+          "code": "source_index_ready",
+          "count": 1
+        }
+      ],
+      "safeguards": {
+        "readOnly": true,
+        "localFilesWritten": 0,
+        "canonicalMemoryWrites": 0,
+        "networkCalls": 0,
+        "modelCalls": 0,
+        "rawSourceBodiesIncluded": false,
+        "absolutePathsIncluded": false,
+        "repairPerformed": false
+      }
+    },
+    {
+      "id": "phase3_javascript_express",
+      "language": "javascript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
+      "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
+      "graph": {
+        "fileCount": 141,
+        "nodeCount": 866,
+        "edgeCount": 1327,
+        "unresolvedCount": 0,
+        "omittedCount": 0,
+        "databaseBytes": 3018752,
+        "activeGeneration": 3,
+        "generationCountObserved": 3
+      },
+      "operations": {
+        "coldBuild": {
+          "wallMs": 222.944,
+          "engineDurationMs": 187,
+          "responseBytes": 980,
+          "parsedFileCount": 141,
+          "reusedFileCount": 0,
+          "changedFileCount": 141,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "warmStatus": {
+          "wallMs": 25.241,
+          "engineDurationMs": 13,
+          "responseBytes": 1016,
+          "parsedFileCount": 0,
+          "reusedFileCount": 141,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "noChangeRefresh": {
+          "wallMs": 21.887,
+          "engineDurationMs": 14,
+          "responseBytes": 979,
+          "parsedFileCount": 0,
+          "reusedFileCount": 141,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "oneFileRefresh": {
+          "wallMs": 81.679,
+          "engineDurationMs": 74,
+          "responseBytes": 979,
+          "parsedFileCount": 2,
+          "reusedFileCount": 140,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 2,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "dependencyClosureRefresh": {
+          "wallMs": 106.571,
+          "engineDurationMs": 96,
+          "responseBytes": 979,
+          "parsedFileCount": 5,
+          "reusedFileCount": 140,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 3,
+          "state": "ready",
+          "freshness": "current",
+          "preChangeImpactNodeCount": 50,
+          "postChangeSeedStillQueryable": true
+        },
+        "exactLookup": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 2,
+          "wallMs": {
+            "minimum": 19.899,
+            "p50": 21,
+            "p95": 24.845,
+            "maximum": 24.845
+          },
+          "engineDurationMs": {
+            "minimum": 11,
+            "p50": 11,
+            "p95": 14,
+            "maximum": 14
+          },
+          "responseBytes": {
+            "minimum": 1406,
+            "p50": 1406,
+            "p95": 1406,
+            "maximum": 1406
+          },
+          "localFilesWritten": 0
+        },
+        "neighborhood": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 5,
+          "wallMs": {
+            "minimum": 19.391,
+            "p50": 23.298,
+            "p95": 27.601,
+            "maximum": 27.601
+          },
+          "engineDurationMs": {
+            "minimum": 11,
+            "p50": 14,
+            "p95": 18,
+            "maximum": 18
+          },
+          "responseBytes": {
+            "minimum": 3359,
+            "p50": 3359,
+            "p95": 3359,
+            "maximum": 3359
+          },
+          "localFilesWritten": 0
+        },
+        "impact": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 50,
+          "wallMs": {
+            "minimum": 25.545,
+            "p50": 26.885,
+            "p95": 28.869,
+            "maximum": 28.869
+          },
+          "engineDurationMs": {
+            "minimum": 13,
+            "p50": 15,
+            "p95": 17,
+            "maximum": 17
+          },
+          "responseBytes": {
+            "minimum": 28130,
+            "p50": 28130,
+            "p95": 28130,
+            "maximum": 28130
+          },
+          "localFilesWritten": 0
+        },
+        "trace": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 3,
+          "wallMs": {
+            "minimum": 19.362,
+            "p50": 23.245,
+            "p95": 24.974,
+            "maximum": 24.974
+          },
+          "engineDurationMs": {
+            "minimum": 11,
+            "p50": 14,
+            "p95": 15,
+            "maximum": 15
+          },
+          "responseBytes": {
+            "minimum": 2293,
+            "p50": 2293,
+            "p95": 2293,
+            "maximum": 2293
+          },
+          "localFilesWritten": 0
+        }
+      },
+      "invariants": {
+        "noChangeGenerationPreserved": true,
+        "noChangeParsedFileCount": 0,
+        "noChangeLocalFilesWritten": 0,
+        "noChangeDatabaseUnchanged": true,
+        "readQueriesDatabaseUnchanged": true,
+        "oneFileParsedFileCount": 2,
+        "oneFileChangedFileCount": 1,
+        "dependencyParsedFileCount": 5,
+        "dependencyChangedFileCount": 1,
+        "finalState": "ready",
+        "finalFreshness": "current"
+      },
+      "resources": {
+        "evaluatorMaxRssKbBefore": 81120,
+        "evaluatorMaxRssKbAfter": 88688,
+        "databaseFileBytes": 3018752
+      },
+      "diagnostics": [
+        {
+          "code": "source_index_ready",
+          "count": 1
+        }
+      ],
+      "safeguards": {
+        "readOnly": true,
+        "localFilesWritten": 0,
+        "canonicalMemoryWrites": 0,
+        "networkCalls": 0,
+        "modelCalls": 0,
+        "rawSourceBodiesIncluded": false,
+        "absolutePathsIncluded": false,
+        "repairPerformed": false
+      }
+    },
+    {
+      "id": "phase3_typescript_compiler_transformers",
+      "language": "typescript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
+      "graph": {
+        "fileCount": 26,
+        "nodeCount": 3829,
+        "edgeCount": 10850,
+        "unresolvedCount": 0,
+        "omittedCount": 0,
+        "databaseBytes": 19443712,
+        "activeGeneration": 3,
+        "generationCountObserved": 3
+      },
+      "operations": {
+        "coldBuild": {
+          "wallMs": 1113.945,
+          "engineDurationMs": 1078,
+          "responseBytes": 1016,
+          "parsedFileCount": 26,
+          "reusedFileCount": 0,
+          "changedFileCount": 26,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "warmStatus": {
+          "wallMs": 26.54,
+          "engineDurationMs": 17,
+          "responseBytes": 1016,
+          "parsedFileCount": 0,
+          "reusedFileCount": 26,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "noChangeRefresh": {
+          "wallMs": 44.68,
+          "engineDurationMs": 35,
+          "responseBytes": 979,
+          "parsedFileCount": 0,
+          "reusedFileCount": 26,
+          "changedFileCount": 0,
+          "deletedFileCount": 0,
+          "localFilesWritten": 0,
+          "activeGeneration": 1,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "oneFileRefresh": {
+          "wallMs": 371.779,
+          "engineDurationMs": 355,
+          "responseBytes": 1017,
+          "parsedFileCount": 3,
+          "reusedFileCount": 25,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 2,
+          "state": "ready",
+          "freshness": "current"
+        },
+        "dependencyClosureRefresh": {
+          "wallMs": 460.801,
+          "engineDurationMs": 448,
+          "responseBytes": 1017,
+          "parsedFileCount": 3,
+          "reusedFileCount": 25,
+          "changedFileCount": 1,
+          "deletedFileCount": 0,
+          "localFilesWritten": 1,
+          "activeGeneration": 3,
+          "state": "ready",
+          "freshness": "current",
+          "preChangeImpactNodeCount": 46,
+          "postChangeSeedStillQueryable": true
+        },
+        "exactLookup": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 2,
+          "wallMs": {
+            "minimum": 28.598,
+            "p50": 29.741,
+            "p95": 30.988,
+            "maximum": 30.988
+          },
+          "engineDurationMs": {
+            "minimum": 18,
+            "p50": 20,
+            "p95": 23,
+            "maximum": 23
+          },
+          "responseBytes": {
+            "minimum": 1353,
+            "p50": 1353,
+            "p95": 1353,
+            "maximum": 1353
+          },
+          "localFilesWritten": 0
+        },
+        "neighborhood": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 4,
+          "wallMs": {
+            "minimum": 28.166,
+            "p50": 31.398,
+            "p95": 36.474,
+            "maximum": 36.474
+          },
+          "engineDurationMs": {
+            "minimum": 20,
+            "p50": 21,
+            "p95": 25,
+            "maximum": 25
+          },
+          "responseBytes": {
+            "minimum": 3048,
+            "p50": 3048,
+            "p95": 3048,
+            "maximum": 3048
+          },
+          "localFilesWritten": 0
+        },
+        "impact": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 46,
+          "wallMs": {
+            "minimum": 64.99,
+            "p50": 69.618,
+            "p95": 75.327,
+            "maximum": 75.327
+          },
+          "engineDurationMs": {
+            "minimum": 56,
+            "p50": 58,
+            "p95": 61,
+            "maximum": 61
+          },
+          "responseBytes": {
+            "minimum": 26523,
+            "p50": 26523,
+            "p95": 26523,
+            "maximum": 26523
+          },
+          "localFilesWritten": 0
+        },
+        "trace": {
+          "available": true,
+          "repetitions": 5,
+          "resultCount": 3,
+          "wallMs": {
+            "minimum": 36.657,
+            "p50": 37.81,
+            "p95": 39.084,
+            "maximum": 39.084
+          },
+          "engineDurationMs": {
+            "minimum": 24,
+            "p50": 27,
+            "p95": 29,
+            "maximum": 29
+          },
+          "responseBytes": {
+            "minimum": 2553,
+            "p50": 2553,
+            "p95": 2553,
+            "maximum": 2553
+          },
+          "localFilesWritten": 0
+        }
+      },
+      "invariants": {
+        "noChangeGenerationPreserved": true,
+        "noChangeParsedFileCount": 0,
+        "noChangeLocalFilesWritten": 0,
+        "noChangeDatabaseUnchanged": true,
+        "readQueriesDatabaseUnchanged": true,
+        "oneFileParsedFileCount": 3,
+        "oneFileChangedFileCount": 1,
+        "dependencyParsedFileCount": 3,
+        "dependencyChangedFileCount": 1,
+        "finalState": "ready",
+        "finalFreshness": "current"
+      },
+      "resources": {
+        "evaluatorMaxRssKbBefore": 88688,
+        "evaluatorMaxRssKbAfter": 108304,
+        "databaseFileBytes": 19443712
+      },
+      "diagnostics": [
+        {
+          "code": "source_index_ready",
+          "count": 1
+        }
+      ],
+      "safeguards": {
+        "readOnly": true,
+        "localFilesWritten": 0,
+        "canonicalMemoryWrites": 0,
+        "networkCalls": 0,
+        "modelCalls": 0,
+        "rawSourceBodiesIncluded": false,
+        "absolutePathsIncluded": false,
+        "repairPerformed": false
+      }
+    }
+  ],
+  "failures": [],
+  "gateDecision": "pass",
+  "publicDefault": {
+    "engine": "js",
+    "changed": false
+  },
+  "claims": {
+    "persistentIndexLifecycleProven": true,
+    "fourteenLanguageLifecycleProven": true,
+    "multiRepository": false,
+    "millionNodeScale": false,
+    "competitorParity": false,
+    "leadership": false,
+    "reason": "Phase 3 measures a local native-preview SQLite lifecycle on one dependency fixture and three pinned repository scopes. It does not measure competitors, multi-repository indexes, packaged native binaries, or million-node scale."
+  },
+  "safeguards": {
+    "engineNetworkCalls": 0,
+    "benchmarkSetupNetworkFetches": 3,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "rawSourceStoredInReport": false,
+    "absoluteCheckoutPathsStoredInReport": false,
+    "publicDefaultChanged": false
+  },
+  "reportFingerprint": "sha256:d54187b4d6a2ec115ff76f8979b5ad8f13e909d76d18fab38824cf538dbada80"
+}

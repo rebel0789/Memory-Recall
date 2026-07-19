@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_javascript_expressjs_express",
+  "language": "javascript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#lib"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_express_create_application",
+      "semanticKey": "node:function:express.js:createApplication",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "createApplication",
+      "qualifiedName": "express.js::createApplication",
+      "locator": "workspace://express.js#L36-L56"
+    },
+    {
+      "id": "cititem_express_import_application",
+      "semanticKey": "edge:imports:express.js:application.js",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "express",
+        "qualifiedName": "express.js::express",
+        "locator": "workspace://express.js#L1-L82"
+      },
+      "to": {
+        "kind": "module",
+        "name": "application",
+        "qualifiedName": "application.js::application",
+        "locator": "workspace://application.js#L1-L632"
+      },
+      "locator": "workspace://express.js#L18-L18",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_express_export_create_application",
+      "semanticKey": "edge:exports:express.js:createApplication",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "express",
+        "qualifiedName": "express.js::express",
+        "locator": "workspace://express.js#L1-L82"
+      },
+      "to": {
+        "kind": "function",
+        "name": "createApplication",
+        "qualifiedName": "express.js::createApplication",
+        "locator": "workspace://express.js#L36-L56"
+      },
+      "locator": "workspace://express.js#L27-L27",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_express_onerror_type",
+      "semanticKey": "node:function:response.js:sendfile:onerror",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "onerror",
+      "qualifiedName": "response.js::sendfile::onerror",
+      "locator": "workspace://response.js#L949-L953"
+    },
+    {
+      "id": "cititem_express_onerror_call",
+      "semanticKey": "edge:calls:response.js:onfinish:onerror",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "onfinish",
+        "qualifiedName": "response.js::sendfile::onfinish",
+        "locator": "workspace://response.js#L968-L983"
+      },
+      "to": {
+        "kind": "function",
+        "name": "onerror",
+        "qualifiedName": "response.js::sendfile::onerror",
+        "locator": "workspace://response.js#L949-L953"
+      },
+      "locator": "workspace://response.js#L970-L970",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_express_false_directory_call",
+      "semanticKey": "edge:calls:response.js:onfinish:ondirectory:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "onfinish",
+        "qualifiedName": "response.js::sendfile::onfinish",
+        "locator": "workspace://response.js#L968-L983"
+      },
+      "to": {
+        "kind": "function",
+        "name": "ondirectory",
+        "qualifiedName": "response.js::sendfile::ondirectory",
+        "locator": "workspace://response.js#L939-L946"
+      },
+      "locator": "workspace://response.js#L970-L970"
+    }
+  ],
+  "truthFingerprint": "sha256:fcf11ab530b6cf2efccd3aa5d62378518cb96b53db154723fe79331258f7c708"
+}

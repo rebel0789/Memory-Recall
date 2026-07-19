@@ -9,6 +9,10 @@ import path from 'node:path';
 import { createControlApiServer, createLoginRateLimiter, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
+import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
+import { buildNativeIndexSourceGraphPreview } from '../packages/source-graph/src/index.mjs';
+import sourceGraphPreviewSchema from '../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
+import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
 const baseState = () => ({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] });
 
@@ -52,7 +56,7 @@ test('serve source graph root defaults to launched repository cwd with env overr
   assert.equal(resolveServeSourceGraphRoot({ env: { OAF_WORKSPACE_ROOT: '/tmp/other-project' }, cwd: '/tmp/project' }), path.resolve('/tmp/other-project'));
 });
 
-test('cli serve inspects the repository it is launched from', async (t) => {
+test('cli serve defaults to packaged native intelligence without silently scanning JS', async (t) => {
   const sourceRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-root-'));
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-data-'));
   const home = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-home-'));
@@ -140,7 +144,10 @@ test('cli serve inspects the repository it is launched from', async (t) => {
   assert.equal(graph.status, 200, graphText);
   const body = JSON.parse(graphText);
   assert.deepEqual(body.impact.changedLocators, ['workspace://src/web.ts']);
-  assert.deepEqual(body.impact.representedChangedLocators, ['workspace://src/web.ts']);
+  assert.deepEqual(body.impact.representedChangedLocators, []);
+  assert.equal(body.graph.summary.fileCount, 0);
+  assert.equal(body.snapshot.status, 'unavailable');
+  assert.match(body.snapshot.reason, /^source_graph_unavailable:(?:native_platform_package_missing|source_index_build_required)$/u);
 });
 
 test('memory intake previews facts that mention workspace source paths', async (t) => {
@@ -342,6 +349,126 @@ function rawRequest(base, path, { method = 'POST', headers = {}, chunks = [] } =
   });
 }
 
+test('Control API Recall Map presents a prebuilt TypeScript and Python native index without the legacy scanner', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-recall-map-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(
+    path.join(sourceGraphRoot, 'src', 'index.ts'),
+    'export function calculateRouteScore(): number { return 1; }\n'
+  );
+  await writeFile(
+    path.join(sourceGraphRoot, 'worker.py'),
+    'def compute_worker_score():\n    return 1\n'
+  );
+  await mkdir(path.join(sourceGraphRoot, 'app', 'api', 'users'), { recursive: true });
+  await writeFile(
+    path.join(sourceGraphRoot, 'app', 'api', 'users', 'route.ts'),
+    [
+      "import http from 'node:http';",
+      'export function GET() { return handleUser(); }',
+      'function handleUser() { return persistUser(); }',
+      'function persistUser() { return { ok: true }; }',
+      'http.createServer(persistUser);'
+    ].join('\n')
+  );
+
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript', 'python'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+
+  let legacyScannerInvocations = 0;
+  const sourceGraphSnapshotService = {
+    async getSnapshot() {
+      legacyScannerInvocations += 1;
+      throw new Error('legacy_js_intelligence_invoked');
+    },
+    close() {}
+  };
+  const api = await startServer(t, {
+    sourceGraphRoot,
+    sourceGraphSnapshotService,
+    codeIntelligenceProvider
+  });
+  const authHeaders = { cookie: api.auth.cookie, origin: api.base };
+
+  const typescript = await request(
+    api.base,
+    '/api/recall/map?workspaceId=ws_local&query=calculateRouteScore',
+    { headers: authHeaders }
+  );
+  const python = await request(
+    api.base,
+    '/api/recall/map?workspaceId=ws_local&query=compute_worker_score',
+    { headers: authHeaders }
+  );
+
+  for (const [language, response] of [['typescript', typescript], ['python', python]]) {
+    assert.equal(
+      response.status,
+      200,
+      `${language}: ${response.text}\nlogs: ${JSON.stringify(api.calls.logs)}`
+    );
+    assert.equal(response.body.support.sourceGraph.status, 'implemented');
+    assert.deepEqual(
+      response.body.support.sourceGraph.coverage.reasonCodes,
+      ['native_persistent_index', 'bounded_index_read']
+    );
+  }
+  assert(typescript.body.architecture.search.results.some((item) => (
+    item.label === 'calculateRouteScore' && item.locator.includes('workspace://src/index.ts')
+  )), JSON.stringify(typescript.body.architecture.search.results, null, 2));
+  assert(python.body.architecture.search.results.some((item) => (
+    item.label === 'compute_worker_score' && item.locator.includes('workspace://worker.py')
+  )), JSON.stringify(python.body.architecture.search.results, null, 2));
+  assert.deepEqual(python.body.architecture.groups, typescript.body.architecture.groups);
+  assert.deepEqual(python.body.architecture.processes, typescript.body.architecture.processes);
+  const routeProcess = typescript.body.architecture.processes.find((item) => (
+    item.entryPoint.label === 'GET' && item.sinkKind === 'listens'
+  ));
+  assert(routeProcess, JSON.stringify(typescript.body.architecture.processes, null, 2));
+  assert.equal(routeProcess.algorithmVersion, 'entry-path-v1');
+  assert.equal(routeProcess.truncated, false);
+  assert.equal(routeProcess.nodeIds[0], routeProcess.entryPoint.nodeId);
+  assert.equal(routeProcess.nodeIds.at(-1), routeProcess.sink.nodeId);
+  assert.equal(routeProcess.relationshipIds.length, routeProcess.nodeIds.length);
+  assert.equal(legacyScannerInvocations, 0);
+});
+
+test('Control API returns bounded native recovery when a ready index query fails', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-query-failure-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  const codeIntelligenceProvider = {
+    async indexStatus() {
+      return nativeReaderResult({ operation: 'index.status' });
+    },
+    async queryIndex() {
+      throw Object.assign(new Error('query failed'), { code: 'source_index_repair_required' });
+    }
+  };
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
+  const response = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', query: 'main' })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.snapshot.status, 'unavailable');
+  assert.equal(response.body.snapshot.reason, 'source_graph_unavailable:source_index_repair_required');
+  assert.equal(response.body.graph.summary.nodeCount, 0);
+  assert.equal(response.body.safeguards.localFilesWritten, 0);
+});
+
 const validContextPayload = () => ({
   request: {
     schemaVersion: '1.0.0',
@@ -404,7 +531,7 @@ test('Recall Map POST rate limit is route-local and returns Retry-After', async 
   const options = {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
-    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/app.js'] })
+    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/app.js'], refresh: true })
   };
   const first = await request(api.base, '/api/recall/map', options);
   assert.equal(first.status, 200, first.text);
@@ -428,7 +555,20 @@ test('context pack route is protected and does not mutate run state', async (t) 
   const largeMemoryTail = 'API_LARGE_MEMORY_TAIL_SHOULD_NOT_LEAK';
   await writeFile(path.join(sourceGraphRoot, 'notes', 'large-memory.md'), `project:oaf large_context browser_preflight\n${'ctx '.repeat(2_400_000)}${largeMemoryTail}`);
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
-  const api = await startServer(t, { sourceGraphRoot });
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const recallMap = await request(api.base, '/api/recall/map', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -740,6 +880,19 @@ test('context pack registry status route is protected read-only and sanitized', 
   await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API REGISTRY RAW AGENTS BODY should not leak.');
   await writeFile(path.join(sourceGraphRoot, 'CONTEXT.md'), 'API REGISTRY RAW SELECTED BODY should not leak.');
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export function registryStatusFixture(){ return true; }\n');
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
   const objective = 'private registry objective must not leak';
   const step = 'private registry step must not leak';
   const pinned = spawnSync(process.execPath, [
@@ -766,10 +919,17 @@ test('context pack registry status route is protected read-only and sanitized', 
     'context-packs/CONTEXT_PACK.md',
     '--format',
     'json'
-  ], { encoding: 'utf8', env: { ...process.env, OAF_FIXED_NOW: '2026-06-19T10:00:00.000Z' } });
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      MEMORY_RECALL_NATIVE_BINARY: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+      OAF_FIXED_NOW: '2026-06-19T10:00:00.000Z'
+    }
+  });
   assert.equal(pinned.status, 0, pinned.stderr);
 
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const denied = await request(api.base, '/api/context/pack/registry/status?workspaceId=ws_local');
   assert.equal(denied.status, 401);
   assert.equal(denied.body.error.code, 'authentication_required');
@@ -982,7 +1142,20 @@ test('context graph preview route is protected bounded and does not mutate run s
     '  return service.approveTokenReset(request);',
     '}'
   ].join('\n'));
-  const api = await startServer(t, { sourceGraphRoot });
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider });
   const denied = await request(api.base, '/api/context/graph/preview', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base },
@@ -1004,7 +1177,7 @@ test('context graph preview route is protected bounded and does not mutate run s
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
     body: JSON.stringify({
       workspaceId: 'ws_local',
-      query: 'approve token reset workflow',
+      query: 'approveTokenReset',
       startName: 'runAuthWorkflow',
       changedLocators: ['src/auth.ts'],
       sampleLimit: 3
@@ -1020,7 +1193,10 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert(response.body.search.results.some((item) => item.label.includes('approveTokenReset')));
   assert(response.body.trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
   assert.deepEqual(response.body.impact.representedChangedLocators, ['workspace://src/auth.ts']);
-  assert(response.body.impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
+  assert(
+    response.body.impact.affectedSymbols.some((item) => item.name === 'runAuthWorkflow'),
+    JSON.stringify(response.body.impact.affectedSymbols)
+  );
   assert.equal(response.text.includes('API GRAPH RAW BODY'), false);
   assert.equal(response.text.includes(sourceGraphRoot), false);
   assert.equal(api.store.updates, 0);
@@ -1028,11 +1204,278 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert.equal(api.calls.compile, 0);
 });
 
+function nativeQueryNode(suffix, label) {
+  return {
+    id: `cinode_${suffix.repeat(32)}`,
+    kind: 'function',
+    label,
+    locator: `workspace://src/${label}.ts#L1-L1`,
+    confidence: 1,
+    generation: 1
+  };
+}
+
+function nativeReaderResult(overrides = {}) {
+  return {
+    schemaVersion: '1.0.0',
+    operation: 'index.query',
+    state: 'ready',
+    freshness: 'current',
+    indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+    repositoryIdentityHash: `sha256:${'a'.repeat(64)}`,
+    activeGeneration: 1,
+    engineVersion: 'test',
+    results: [],
+    relationships: [],
+    communities: [],
+    processes: [],
+    truncated: false,
+    nextCursor: null,
+    summary: { fileCount: 3, nodeCount: 3, edgeCount: 0, omittedCount: 0 },
+    measurements: { durationMs: 1 },
+    diagnostics: [],
+    health: { status: 'ready', repairRequired: false, lastSuccessfulRefreshAt: '2026-07-19T00:00:00.000Z' },
+    safeguards: { readOnly: true, localFilesWritten: 0 },
+    ...overrides
+  };
+}
+
+test('native source graph projection drops unmapped hotspots and one-edge processes', async () => {
+  const nodes = Array.from({ length: 101 }, (_, index) => nativeQueryNode(index.toString(16).padStart(2, '0'), `node${index}`));
+  const relationship = {
+    id: `ciedge_${'b'.repeat(32)}`,
+    kind: 'calls',
+    fromNodeId: nodes.at(-1).id,
+    toNodeId: nodes[0].id,
+    locator: nodes.at(-1).locator,
+    confidence: 1,
+    generation: 1
+  };
+  const status = nativeReaderResult({ operation: 'index.status', summary: { fileCount: 101, nodeCount: 101, edgeCount: 1, omittedCount: 0 } });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities') return nativeReaderResult({
+        results: nodes,
+        relationships: [relationship],
+        communities: [{
+          id: 'community:src',
+          label: 'src',
+          pathPrefix: 'src',
+          representedNodeCount: nodes.length,
+          representedRelationshipCount: 1,
+          nodeIds: nodes.map((node) => node.id),
+          algorithmVersion: 'deterministic-community-v1',
+          truncated: true
+        }]
+      });
+      if (kind === 'processes') return nativeReaderResult({
+        relationships: [relationship],
+        processes: [{
+          id: 'process:one-edge',
+          label: 'node100 calls node0',
+          entryNodeId: nodes.at(-1).id,
+          entryRelationshipId: relationship.id,
+          sinkNodeId: nodes[0].id,
+          sinkKind: 'call',
+          nodeIds: [nodes.at(-1).id, nodes[0].id],
+          relationshipIds: [relationship.id],
+          confidence: 1,
+          algorithmVersion: 'entry-path-v1',
+          truncated: false
+        }]
+      });
+      throw new Error(`unexpected native query kind: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({ provider, status, root: '.', workspaceId: 'ws_local' });
+  const validation = validateJsonSchema(sourceGraphPreviewSchema, preview);
+  assert.equal(validation.valid, true, JSON.stringify(validation.errors));
+  assert.equal(preview.graph.summary.hotspots.every((hotspot) => typeof hotspot.nodeId === 'string'), true);
+  assert.equal(preview.orientation.processes.length, 0);
+});
+
+test('native source graph preview honors offset by walking opaque query cursors', async () => {
+  const cursorOne = `idxcur_${'1'.repeat(32)}`;
+  const cursorTwo = `idxcur_${'2'.repeat(32)}`;
+  const nodes = [
+    nativeQueryNode('a', 'pageOne'),
+    nativeQueryNode('b', 'pageTwo'),
+    nativeQueryNode('c', 'pageThree')
+  ];
+  const seenSearchCursors = [];
+  let selected = nodes[0];
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind, cursor }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult({ operation: 'index.query' });
+      if (kind === 'search') {
+        seenSearchCursors.push(cursor ?? null);
+        const index = cursor === cursorOne ? 1 : cursor === cursorTwo ? 2 : 0;
+        selected = nodes[index];
+        return nativeReaderResult({
+          operation: 'index.query',
+          results: [selected],
+          truncated: index < 2,
+          nextCursor: index === 0 ? cursorOne : index === 1 ? cursorTwo : null
+        });
+      }
+      if (kind === 'neighborhood') return nativeReaderResult({ operation: 'index.query', results: [selected] });
+      throw new Error(`unexpected native query kind: ${kind}`);
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 1,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.deepEqual(seenSearchCursors, [null, cursorOne, cursorTwo]);
+  assert.equal(preview.search.offset, 1);
+  assert.equal(preview.search.results.length, 1);
+  assert.equal(preview.search.results[0].label, 'pageTwo');
+  assert.equal(preview.search.hasMore, true);
+  assert.equal(preview.search.omittedCount, 1);
+});
+
+test('native source graph offset cursor walk is bounded and reports an incomplete offset', async () => {
+  let searchCalls = 0;
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      searchCalls += 1;
+      return nativeReaderResult({
+        results: [nativeQueryNode(String(searchCalls), `page${searchCalls}`)],
+        truncated: true,
+        nextCursor: `idxcur_${searchCalls.toString(16).padStart(32, '0')}`
+      });
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.equal(searchCalls, 8);
+  assert.equal(preview.search.offset, 10_000);
+  assert.equal(preview.search.reachedOffset, 8);
+  assert.equal(preview.search.offsetIncomplete, true);
+  assert.equal(preview.search.results.length, 0);
+  assert.equal(preview.search.hasMore, true);
+  assert.match(preview.search.continuationCursor, /^idxcur_[a-f0-9]{32}$/u);
+});
+
+test('native source graph offset cursor walk treats an exhausted eighth page as complete', async () => {
+  let searchCalls = 0;
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      searchCalls += 1;
+      return nativeReaderResult({
+        results: [nativeQueryNode(String(searchCalls), `page${searchCalls}`)],
+        truncated: searchCalls < 8,
+        nextCursor: searchCalls < 8 ? `idxcur_${searchCalls.toString(16).padStart(32, '0')}` : null
+      });
+    }
+  };
+
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert.equal(searchCalls, 8);
+  assert.equal(preview.search.reachedOffset, 8);
+  assert.equal(preview.search.offsetIncomplete, false);
+  assert.equal(preview.search.hasMore, false);
+  assert.equal(preview.search.results.length, 0);
+  assert.equal(validateJsonSchema(sourceGraphPreviewSchema, preview).valid, true);
+
+  const boundedWithoutCursor = await buildNativeIndexSourceGraphPreview({
+    provider: {
+      async queryIndex({ kind }) {
+        if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+        if (kind === 'neighborhood') return nativeReaderResult();
+        if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+        return nativeReaderResult({
+          results: [nativeQueryNode('b', 'boundedPage')],
+          truncated: true,
+          nextCursor: null
+        });
+      }
+    },
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'bounded',
+    offset: 0,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+  assert.equal(boundedWithoutCursor.search.truncated, true);
+  assert.equal(boundedWithoutCursor.search.hasMore, false);
+  assert.equal(boundedWithoutCursor.search.continuationCursor, null);
+  const boundedValidation = validateJsonSchema(sourceGraphPreviewSchema, boundedWithoutCursor);
+  assert.equal(boundedValidation.valid, true, JSON.stringify(boundedValidation.errors));
+});
+
+test('native source graph offset cursor walk aborts one slow provider call at the shared deadline', async () => {
+  const status = nativeReaderResult({ operation: 'index.status' });
+  const provider = {
+    async queryIndex({ kind, signal }) {
+      if (kind === 'communities' || kind === 'processes') return nativeReaderResult();
+      if (kind !== 'search') throw new Error(`unexpected native query kind: ${kind}`);
+      return new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(Object.assign(new Error('cancelled'), { code: 'native_engine_cancelled' })), { once: true });
+      });
+    }
+  };
+  const startedAt = Date.now();
+  const preview = await buildNativeIndexSourceGraphPreview({
+    provider,
+    status,
+    root: '.',
+    workspaceId: 'ws_local',
+    query: 'page',
+    offset: 10_000,
+    limit: 1,
+    clock: () => '2026-07-19T00:00:00.000Z'
+  });
+
+  assert(Date.now() - startedAt < 2_500);
+  assert.equal(preview.search.offsetIncomplete, true);
+  assert.equal(preview.search.reachedOffset, 0);
+  assert.equal(preview.search.results.length, 0);
+});
+
 test('context graph preview route returns sanitized unavailable preview when source root disappears', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-source-graph-missing-'));
   await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
   await writeFile(path.join(sourceGraphRoot, 'src', 'auth.ts'), 'export const vanishedRoot = true;\n');
-  const api = await startServer(t, { sourceGraphRoot });
+  const api = await startServer(t, { sourceGraphRoot, codeIntelligenceProvider: null });
   await rm(sourceGraphRoot, { recursive: true, force: true });
 
   const response = await request(api.base, '/api/context/graph/preview', {

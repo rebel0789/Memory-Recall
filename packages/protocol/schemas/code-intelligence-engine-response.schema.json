@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/code-intelligence-engine-response.schema.json",
+  "title": "Code Intelligence Engine Response",
+  "oneOf": [
+    { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/failure" }
+  ],
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "pattern": "^cireq_[a-f0-9]{32}$"
+    },
+    "safeCode": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+    },
+    "safeDetail": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9_. -]+$"
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "localFilesWritten",
+        "networkCalls",
+        "modelCalls",
+        "rawSourceBodiesIncluded",
+        "absolutePathsIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "localFilesWritten": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "rawSourceBodiesIncluded": { "const": false },
+        "absolutePathsIncluded": { "const": false }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scannedFileCount", "indexedFileCount", "nodeCount", "edgeCount"],
+      "properties": {
+        "scannedFileCount": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "indexedFileCount": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "nodeCount": { "type": "integer", "minimum": 0, "maximum": 5000 },
+        "edgeCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "omittedNodeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "omittedEdgeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "ok", "result"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": true },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["responseSchemaVersion", "graph", "measurements", "safeguards"],
+          "properties": {
+            "responseSchemaVersion": { "const": "1.0.0" },
+            "graph": { "type": "object" },
+            "measurements": { "$ref": "#/$defs/measurements" },
+            "safeguards": { "$ref": "#/$defs/safeguards" }
+          }
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "ok", "error"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": false },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "retryable", "details"],
+          "properties": {
+            "code": { "$ref": "#/$defs/safeCode" },
+            "retryable": { "type": "boolean" },
+            "details": {
+              "type": "array",
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/safeDetail" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

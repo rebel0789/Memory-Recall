@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "graphVersion": "memory-recall-code-intelligence-1",
+  "repository": {
+    "id": "repo_0123456789abcdef0123456789abcdef",
+    "workspaceId": "ws_local",
+    "rootIdentityHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "engine": {
+    "name": "memory-recall-native",
+    "version": "0.1.0",
+    "protocolVersion": "1.0.0"
+  },
+  "generation": {
+    "id": "cigen_0123456789abcdef0123456789abcdef",
+    "builtAt": "2026-07-16T00:00:00.000Z",
+    "freshness": "current"
+  },
+  "coverage": [],
+  "nodes": [
+    {
+      "id": "cinode_0123456789abcdef0123456789abcdef",
+      "kind": "file",
+      "language": "typescript",
+      "name": "private.ts",
+      "qualifiedName": "private.ts",
+      "locator": "/Users/example/private.ts",
+      "span": {
+        "startLine": 1,
+        "startColumn": 0,
+        "endLine": 1,
+        "endColumn": 1
+      },
+      "generationId": "cigen_0123456789abcdef0123456789abcdef",
+      "freshness": "current"
+    }
+  ],
+  "edges": [],
+  "diagnostics": [],
+  "graphFingerprint": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+}

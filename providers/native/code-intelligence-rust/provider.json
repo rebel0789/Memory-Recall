@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:code-intelligence:rust",
+  "name": "Native Rust Code Intelligence",
+  "version": "1.0.0",
+  "category": "code-intelligence",
+  "enabledByDefault": true,
+  "locality": "loopback-process",
+  "contract": "CodeIntelligencePort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "code-intelligence.graph.build",
+    "code-intelligence.index.build",
+    "code-intelligence.index.refresh",
+    "code-intelligence.index.repair",
+    "code-intelligence.index.status",
+    "code-intelligence.index.doctor",
+    "code-intelligence.index.query",
+    "code-intelligence.repository.register",
+    "code-intelligence.repository.list",
+    "code-intelligence.repository.search",
+    "code-intelligence.repository.go.resolve",
+    "code-intelligence.repository.go.trace",
+    "code-intelligence.repository.go.impact",
+    "code-intelligence.local-read-only",
+    "code-intelligence.native"
+  ],
+  "limits": {
+    "protocol": "JSON Lines 1.0.0",
+    "maxFiles": 100000,
+    "maxFileBytes": 10485760,
+    "maxNodes": 5000,
+    "maxEdges": 10000,
+    "writes": "explicit-source-index-only",
+    "network": false,
+    "models": false,
+    "productionDefault": true
+  },
+  "dataPaths": [
+    ".local/source-index/index.v1.sqlite",
+    ".local/source-index/registry.v1.sqlite"
+  ],
+  "experimental": false,
+  "notes": [
+    "Runs one bounded local subprocess per graph or source-index request.",
+    "Requires a verified native binary and never compiles Rust or falls back to a cloud service.",
+    "Returns provider-neutral structural metadata without source bodies or absolute paths. Source-index writers require explicit local intent, and repair requires a matching doctor fingerprint.",
+    "The verified packaged Rust engine is the only production code-intelligence implementation."
+  ]
+}

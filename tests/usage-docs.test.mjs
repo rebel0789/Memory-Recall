@@ -6,17 +6,30 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
-test('README and status keep the release candidate honest across the registry handoff', () => {
+test('polyglot leadership contract is approved and owns the native engine boundary', () => {
+  const design = read('docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md');
+  const adr = read('docs/adr/0023-production-rust-code-intelligence-engine.md');
+
+  assert.match(design, /\*\*Status:\*\* Approved for implementation/);
+  assert.match(adr, /## Status\s+Accepted/);
+  assert.match(adr, /Rust.*production code-intelligence engine/s);
+  assert.match(adr, /Node\.js.*CLI.*Control API.*memory.*MCP.*web/s);
+  assert.match(adr, /JSON Lines/);
+  assert.match(adr, /derived local state/);
+  assert.match(adr, /no local Rust toolchain/i);
+});
+
+test('README and status keep the major-release candidate honest across the registry handoff', () => {
   const readme = read('README.md');
   const status = JSON.parse(read('PROJECT_STATUS.json'));
   const release = status.capabilities.find((capability) => capability.id === 'release.readiness');
   const web = status.capabilities.find((capability) => capability.id === 'bootstrap.web');
 
   assert.match(readme, /npm view memory-recall version/);
-  assert.match(readme, /npm install -g memory-recall@1\.1\.0\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
-  assert.match(readme, /If the registry still reports an older version, use the source checkout/);
+  assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(readme, /Use the source checkout when testing changes that are not yet on the registry/);
   assert.doesNotMatch(readme, /npm still serves\s+1\.0\.5/);
-  assert.match(release.limitations.join('\n'), /1\.1\.0 is the package release candidate; verify `npm view memory-recall version` returns 1\.1\.0/);
+  assert.match(release.limitations.join('\n'), /2\.0\.0 is the source major-release candidate; use `npm view memory-recall version` to verify the current registry release/);
   assert.match(web.limitations.join('\n'), /confirm-gated proposal approval through the authenticated loopback API/);
 });
 
@@ -55,7 +68,7 @@ test('semantic setup docs and status describe only the governed implemented path
   assert.doesNotMatch(`${semantic}\n${skill}`, /oaf ingest-docs|memory consolidate/);
   assert.match(usageIndex, /\[Semantic setup\]\(semantic-setup\.md\)/);
   assert.match(readme, /docs\/usage\/semantic-setup\.md/);
-  assert.match(readme, /default local path needs no hosted account or model API key/i);
+  assert.match(readme, /No hosted account or model API key required/i);
   assert.doesNotMatch(readme, /\b(?:better|strongest|superior)\b/i);
   assert.match(contract, /Implemented: bounded semantic plan and task packets, strict result import, pending proposals, and source-rechecked named approval\./);
   assert.match(contract, /Experimental: explicit one-shot Gemini and OpenAI-compatible semantic API execution\./);
@@ -107,11 +120,12 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(docs, /zero model calls, network calls, external writes, adapter\s+enablement, active memory creation, or source-body inclusion/);
   assert.match(docs, /not provider\s+billing claims/);
   assert.match(contract, /# Memory Recall: Developer-First Product Contract/);
-  assert.match(contract, /Implemented: local JS\/TS static graph, reviewed SQLite memory, read-only MCP\./);
-  assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\./);
-  assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync, and non-JS\/TS source graph analysis\./);
-  assert.match(readme, /npm install -g memory-recall@1\.1\.0\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
-  assert.match(readme, /Release candidate: \*\*1\.1\.0\*\*\. Registry version: verify with `npm view memory-recall version`\./);
+  assert.match(contract, /Implemented: native-default, freshness-gated graph reads, reviewed SQLite\s+memory, and twelve read-only MCP tools\. Missing or stale native state fails\s+closed with the exact recovery action; JS\/TS requires explicit compatibility\s+mode\./);
+  assert.match(contract, /Experimental: the verified packaged Rust path has compiler-free local evidence across 14 Tier 1 fixtures, while full language and cross-platform release gates remain open\. The bounded cross-repository path currently covers exact Go module resolution/);
+  assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync,\s+general cross-repository analysis beyond the measured exact Go path, and\s+unmeasured Tier 1 capability rows\./);
+  assert.equal(contract.includes('million-node indexes.'), false);
+  assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(readme, /Source major-release candidate: \*\*2\.0\.0\*\*\. Registry version: verify with `npm view memory-recall version`\./);
   assert.match(readme, /`recall setup` creates only local state\. `recall map` is the explicit first\s+read-only repository scan; it does not run silently during setup\./);
   assert.match(normalHandoff, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(normalHandoff, /`recall setup` creates only local Recall state in the current repository; it\s+does not scan source files\. `recall map` is the explicit first read-only scan\./);
@@ -129,10 +143,10 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(recallMap, /no absolute local workspace paths in the report/);
   assert.doesNotMatch(normalHandoff, /npm run status/);
   assert.match(sourceCheckout, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
-  assert.doesNotMatch(readme, /Rust code intelligence/);
-  assert.match(readme, /Experimental Rust acceleration requires a local build/);
+  assert.match(readme, /Verified packaged Rust reads when a current local index exists/);
   assert.doesNotMatch(rustAcceleration, /Memory Recall uses a Rust core/);
-  assert.match(rustAcceleration, /Experimental Rust acceleration is opt-in and\s+requires a local build/);
+  assert.match(rustAcceleration, /Graph\s+reads default to the verified packaged Rust engine and its local SQLite index/);
+  assert.match(rustAcceleration, /It never silently selects the JS engine/);
   assert.match(rustAcceleration, /cargo build --release --manifest-path rust\/Cargo\.toml/);
   assert.match(tokenSavings, /## Experimental Rust evaluation/);
   assert.match(tokenSavings, /source-checkout-only experiment after a local\s+Rust build/i);
@@ -209,15 +223,15 @@ test('protocol bridge docs separate pending A2A bridge from receiver packets', (
   assert.match(guide, /versioned typed safe parts, required local reads, and zero write\ntools/);
 });
 
-test('native provider docs match shipped graph candidate source boundary', () => {
+test('native provider docs match the packaged Rust source-intelligence boundary', () => {
   const guide = read('docs/architecture/native-providers.md');
   const catalog = JSON.parse(read('providers/native/catalog.json'));
-  const graphProvider = catalog.providers.find((provider) => provider.id === 'provider:native:context-candidate:graph');
+  const codeIntelligenceProvider = catalog.providers.find((provider) => provider.id === 'provider:native:code-intelligence:rust');
 
-  assert.equal(graphProvider?.enabledByDefault, true);
-  assert.match(guide, /`native\.context-candidate\.graph` \| on \| Locator-only candidate source over the derived JS\/TS source graph/);
-  assert.match(guide, /native graph source\nis available now as a locator-only wrapper over the derived JS\/TS source graph/);
-  assert.doesNotMatch(guide, /Vector, graph, temporal, preference, and episode source kinds remain declared/);
+  assert.equal(codeIntelligenceProvider?.enabledByDefault, true);
+  assert.match(guide, /`native\.code-intelligence\.rust` \| on \| Verified packaged Rust code intelligence over the explicit local SQLite index/);
+  assert.match(guide, /packaged Rust code-intelligence provider owns source structure, search,\ntrace, impact, and graph projections/);
+  assert.match(guide, /Vector, temporal, preference, and episode source kinds remain declared/);
 });
 
 test('issue tracker docs use supported gh PR queue fields', () => {

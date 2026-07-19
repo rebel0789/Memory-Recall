@@ -206,6 +206,22 @@ export class RepositoryGraphPort {
   async export() { return notImplemented(RepositoryGraphPort.contract, 'export'); }
 }
 
+export class CodeIntelligencePort {
+  static contract = 'CodeIntelligencePort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'buildGraph'];
+  static optionalMethods = ['buildIndex', 'refreshIndex', 'repairIndex', 'indexStatus', 'doctorIndex', 'queryIndex'];
+  async health() { return notImplemented(CodeIntelligencePort.contract, 'health'); }
+  async capabilities() { return notImplemented(CodeIntelligencePort.contract, 'capabilities'); }
+  async buildGraph() { return notImplemented(CodeIntelligencePort.contract, 'buildGraph'); }
+  async buildIndex() { return notImplemented(CodeIntelligencePort.contract, 'buildIndex'); }
+  async refreshIndex() { return notImplemented(CodeIntelligencePort.contract, 'refreshIndex'); }
+  async repairIndex() { return notImplemented(CodeIntelligencePort.contract, 'repairIndex'); }
+  async indexStatus() { return notImplemented(CodeIntelligencePort.contract, 'indexStatus'); }
+  async doctorIndex() { return notImplemented(CodeIntelligencePort.contract, 'doctorIndex'); }
+  async queryIndex() { return notImplemented(CodeIntelligencePort.contract, 'queryIndex'); }
+}
+
 export class ResearchSourcePort {
   static contract = 'ResearchSourcePort';
   static requiredMethods = ['health', 'capabilities', 'collect'];

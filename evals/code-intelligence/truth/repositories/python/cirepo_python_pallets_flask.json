@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_python_pallets_flask",
+  "language": "python",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "unmeasured",
+    "heritage": "partial",
+    "types": "partial",
+    "calls": "partial",
+    "config": "partial",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_flask_view",
+      "semanticKey": "node:class:views.py:View",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "View",
+      "qualifiedName": "views.py::View",
+      "locator": "workspace://views.py#L16-L135"
+    },
+    {
+      "id": "cititem_flask_method_view",
+      "semanticKey": "node:class:views.py:MethodView",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "MethodView",
+      "qualifiedName": "views.py::MethodView",
+      "locator": "workspace://views.py#L138-L191"
+    },
+    {
+      "id": "cititem_flask_dispatch_request",
+      "semanticKey": "node:method:views.py:MethodView:dispatch_request",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "dispatch_request",
+      "qualifiedName": "views.py::MethodView::dispatch_request",
+      "locator": "workspace://views.py#L182-L191"
+    },
+    {
+      "id": "cititem_flask_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:flask",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "flask",
+      "qualifiedName": "__init__.py::flask",
+      "locator": "workspace://__init__.py#L1-L39"
+    },
+    {
+      "id": "cititem_flask_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:flask",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "flask", "qualifiedName": "__init__.py::flask", "locator": "workspace://__init__.py#L1-L39" },
+      "to": { "kind": "package", "name": "flask", "qualifiedName": "__init__.py::flask", "locator": "workspace://__init__.py#L1-L39" },
+      "locator": "workspace://__init__.py#L1-L39",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_flask_import_globals",
+      "semanticKey": "edge:imports:views.py:globals.py",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "views",
+        "qualifiedName": "views.py::views",
+        "locator": "workspace://views.py#L1-L192"
+      },
+      "to": {
+        "kind": "module",
+        "name": "globals",
+        "qualifiedName": "globals.py::globals",
+        "locator": "workspace://globals.py#L1-L78"
+      },
+      "locator": "workspace://views.py#L6-L6",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_flask_method_view_extends_view",
+      "semanticKey": "edge:extends:views.py:MethodView:View",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "extends",
+      "from": { "kind": "class", "name": "MethodView", "qualifiedName": "views.py::MethodView", "locator": "workspace://views.py#L138-L191" },
+      "to": { "kind": "class", "name": "View", "qualifiedName": "views.py::View", "locator": "workspace://views.py#L16-L135" },
+      "locator": "workspace://views.py#L138-L191",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_flask_construct_blueprint_setup_state",
+      "semanticKey": "edge:constructs:sansio/blueprints.py:Blueprint.make_setup_state:BlueprintSetupState",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "method",
+        "name": "make_setup_state",
+        "qualifiedName": "sansio/blueprints.py::Blueprint::make_setup_state",
+        "locator": "workspace://sansio/blueprints.py#L246-L253"
+      },
+      "to": {
+        "kind": "class",
+        "name": "BlueprintSetupState",
+        "qualifiedName": "sansio/blueprints.py::BlueprintSetupState",
+        "locator": "workspace://sansio/blueprints.py#L34-L116"
+      },
+      "locator": "workspace://sansio/blueprints.py#L253-L253",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_flask_call_ensure_sync",
+      "semanticKey": "edge:calls:views.py:MethodView.dispatch_request:ensure_sync",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "dispatch_request", "qualifiedName": "views.py::MethodView::dispatch_request", "locator": "workspace://views.py#L182-L191" },
+      "to": { "kind": "function", "name": "ensure_sync", "qualifiedName": "views.py::ensure_sync", "locator": "workspace://views.py#L110-L110" },
+      "locator": "workspace://views.py#L191-L191",
+      "resolution": "unresolved"
+    }
+  ],
+  "truthFingerprint": "sha256:63c808d1d9eb974163850a1c0a3db7886cd9f4b7807e3ad510a03e4f16c1baca"
+}

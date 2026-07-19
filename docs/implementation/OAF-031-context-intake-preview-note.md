@@ -64,20 +64,13 @@ slice.
 - `npm run recall -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`
   exposes the schema-validated gold-evidence truth floor for native exact,
   full-context, lexical, and current-harness baselines.
-- `providers/native/context-candidate-ast-code/` exposes a dependency-free
-  JS/TS static source index with definitions, references, imports, exports,
-  callers, callees, file outlines, repository outlines, exact slice hashes, and
-  content-hash journals.
-- The same native provider now exposes a read-only derived source graph built
-  from that JS/TS source index, with schema-validated file/chunk/symbol/module
-  nodes, contains/defined/import/export/reference/call edges, lexical graph
-  search, call tracing, changed-file impact reports, and locator-only graph
-  candidate records for Context Compiler selection. The parser uses a
-  linear string/comment stripper, 256 KiB default static JS/TS file coverage,
-  a 1 MiB hard validation ceiling, and bounded reference/call fanout so large
-  template-heavy project files cannot spin the CLI, API, or browser preview.
-  Over-limit files remain hash/read-plan-only and keep changed-file coverage in
-  review instead of claiming symbol impact.
+- The packaged Rust engine owns source parsing, the persistent SQLite index,
+  definitions, relationships, search, trace, impact, communities, and bounded
+  entry-to-sink processes for the fourteen shipped parsers.
+- Context packs consume only the native index's locator-safe projection. Missing,
+  stale, corrupt, or unavailable indexes stay explicit and never trigger a
+  duplicate JavaScript scanner. Over-limit or unsupported evidence remains
+  partial and keeps changed-file coverage in review.
 - Durable context manifests now record explicit assembly representation tiers,
   token budget reports, manifest `etag`s, and `deltaFrom` summaries for
   repeated local runs. The token report separates selected-token ratio

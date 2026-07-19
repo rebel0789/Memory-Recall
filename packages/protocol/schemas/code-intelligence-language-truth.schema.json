@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/code-intelligence-language-truth.schema.json",
+  "title": "Memory Recall Code Intelligence Language Truth",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "truthVersion", "id", "language", "source", "review", "reviewCoverage", "capabilityClaims", "items", "truthFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "truthVersion": { "const": "memory-recall-code-intelligence-truth-1" },
+    "id": { "type": "string", "pattern": "^citruth_[a-z0-9_]{3,120}$" },
+    "language": { "$ref": "#/$defs/language" },
+    "source": { "$ref": "#/$defs/source" },
+    "review": { "$ref": "#/$defs/review" },
+    "reviewCoverage": { "$ref": "#/$defs/reviewCoverage" },
+    "capabilityClaims": { "$ref": "#/$defs/capabilityClaims" },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/nodeTruth" },
+          { "$ref": "#/$defs/edgeTruth" },
+          { "$ref": "#/$defs/diagnosticTruth" }
+        ]
+      }
+    },
+    "truthFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "language": {
+      "enum": ["typescript", "javascript", "python", "java", "kotlin", "csharp", "go", "rust", "php", "ruby", "swift", "c", "cpp", "dart"]
+    },
+    "capability": {
+      "enum": ["parse", "structure", "imports", "exports", "heritage", "types", "calls", "config", "frameworks", "impact", "processes"]
+    },
+    "claim": { "enum": ["full", "partial", "parse-only", "unsupported", "unmeasured"] },
+    "reviewExtent": { "enum": ["exhaustive", "sampled", "not-applicable"] },
+    "locator": {
+      "type": "string",
+      "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+    },
+    "safeName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9_$@~./*+,:()\\[\\]<># -]+$"
+    },
+    "semanticKey": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9_.:/#@~-]+$"
+    },
+    "itemId": { "type": "string", "pattern": "^cititem_[a-z0-9_]{3,120}$" },
+    "nodeKind": {
+      "enum": ["file", "package", "module", "library", "namespace", "function", "method", "class", "interface", "struct", "enum", "trait", "protocol", "mixin", "extension", "type_alias", "variable", "constant", "route", "configuration_resource", "framework_component", "execution_process", "build_target"]
+    },
+    "edgeKind": {
+      "enum": ["contains", "defines", "imports", "exports", "re_exports", "references", "calls", "constructs", "inherits", "implements", "extends", "mixes_in", "extends_type", "part_of", "entry_point", "handles_route", "reads", "writes", "emits", "listens", "depends_on", "member_of", "process_step"]
+    },
+    "resolution": { "enum": ["exact", "typed", "inferred", "lexical", "unresolved"] },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "ref"],
+      "properties": {
+        "class": { "enum": ["fixture", "real-repo"] },
+        "ref": {
+          "type": "string",
+          "pattern": "^(?:fixture://sha256:[a-f0-9]{64}|corpus://cirepo_[a-z0-9_]{3,120}@[a-f0-9]{40}#[A-Za-z0-9._/-]{1,240})$"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method", "reviewedBy", "reviewedAt"],
+      "properties": {
+        "status": { "const": "reviewed" },
+        "method": { "const": "source-locator" },
+        "reviewedBy": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,63}$" },
+        "reviewedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "reviewCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declarations", "relationships", "calls"],
+      "properties": {
+        "declarations": { "$ref": "#/$defs/reviewExtent" },
+        "relationships": { "$ref": "#/$defs/reviewExtent" },
+        "calls": { "$ref": "#/$defs/reviewExtent" }
+      }
+    },
+    "capabilityClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parse", "structure", "imports", "exports", "heritage", "types", "calls", "config", "frameworks", "impact", "processes"],
+      "properties": {
+        "parse": { "$ref": "#/$defs/claim" },
+        "structure": { "$ref": "#/$defs/claim" },
+        "imports": { "$ref": "#/$defs/claim" },
+        "exports": { "$ref": "#/$defs/claim" },
+        "heritage": { "$ref": "#/$defs/claim" },
+        "types": { "$ref": "#/$defs/claim" },
+        "calls": { "$ref": "#/$defs/claim" },
+        "config": { "$ref": "#/$defs/claim" },
+        "frameworks": { "$ref": "#/$defs/claim" },
+        "impact": { "$ref": "#/$defs/claim" },
+        "processes": { "$ref": "#/$defs/claim" }
+      }
+    },
+    "nodeSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "locator"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "name": { "$ref": "#/$defs/safeName" },
+        "qualifiedName": { "$ref": "#/$defs/safeName" },
+        "locator": { "$ref": "#/$defs/locator" }
+      }
+    },
+    "nodeTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "semanticKey", "capability", "expectation", "recordKind", "kind", "name", "locator"],
+      "properties": {
+        "id": { "$ref": "#/$defs/itemId" },
+        "semanticKey": { "$ref": "#/$defs/semanticKey" },
+        "capability": { "$ref": "#/$defs/capability" },
+        "expectation": { "enum": ["present", "absent"] },
+        "recordKind": { "const": "node" },
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "name": { "$ref": "#/$defs/safeName" },
+        "qualifiedName": { "$ref": "#/$defs/safeName" },
+        "locator": { "$ref": "#/$defs/locator" }
+      }
+    },
+    "edgeTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "semanticKey", "capability", "expectation", "recordKind", "kind", "from", "to", "locator"],
+      "properties": {
+        "id": { "$ref": "#/$defs/itemId" },
+        "semanticKey": { "$ref": "#/$defs/semanticKey" },
+        "capability": { "$ref": "#/$defs/capability" },
+        "expectation": { "enum": ["present", "absent"] },
+        "recordKind": { "const": "edge" },
+        "kind": { "$ref": "#/$defs/edgeKind" },
+        "from": { "$ref": "#/$defs/nodeSelector" },
+        "to": { "$ref": "#/$defs/nodeSelector" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "resolution": { "$ref": "#/$defs/resolution" }
+      }
+    },
+    "diagnosticTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "semanticKey", "capability", "expectation", "recordKind", "code", "locator"],
+      "properties": {
+        "id": { "$ref": "#/$defs/itemId" },
+        "semanticKey": { "$ref": "#/$defs/semanticKey" },
+        "capability": { "$ref": "#/$defs/capability" },
+        "expectation": { "enum": ["present", "absent"] },
+        "recordKind": { "const": "diagnostic" },
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,63}$" },
+        "locator": { "$ref": "#/$defs/locator" }
+      }
+    }
+  }
+}

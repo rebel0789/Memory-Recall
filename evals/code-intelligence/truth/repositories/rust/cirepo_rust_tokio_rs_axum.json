@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_rust_tokio_rs_axum",
+  "language": "rust",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_axum_router",
+      "semanticKey": "node:struct:routing/mod.rs:Router",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Router",
+      "qualifiedName": "routing/mod.rs::Router",
+      "locator": "workspace://routing/mod.rs#L86-L88"
+    },
+    {
+      "id": "cititem_axum_router_inner",
+      "semanticKey": "node:struct:routing/mod.rs:RouterInner",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "RouterInner",
+      "qualifiedName": "routing/mod.rs::RouterInner",
+      "locator": "workspace://routing/mod.rs#L98-L102"
+    },
+    {
+      "id": "cititem_axum_router_default",
+      "semanticKey": "node:method:routing/mod.rs:Router:default",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "default",
+      "qualifiedName": "routing/mod.rs::Router::default",
+      "locator": "workspace://routing/mod.rs#L108-L110"
+    },
+    {
+      "id": "cititem_axum_into_make_service",
+      "semanticKey": "node:method:routing/mod.rs:Router:into_make_service",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "into_make_service",
+      "qualifiedName": "routing/mod.rs::Router::into_make_service",
+      "locator": "workspace://routing/mod.rs#L558-L562"
+    },
+    {
+      "id": "cititem_axum_construct_router",
+      "semanticKey": "edge:constructs:routing/mod.rs:Router.default:Router",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "method", "name": "default", "qualifiedName": "routing/mod.rs::Router::default", "locator": "workspace://routing/mod.rs#L108-L110" },
+      "to": { "kind": "struct", "name": "Router", "qualifiedName": "routing/mod.rs::Router", "locator": "workspace://routing/mod.rs#L86-L88" },
+      "locator": "workspace://routing/mod.rs#L109-L109",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axum_construct_into_make_service",
+      "semanticKey": "edge:constructs:routing/mod.rs:Router.into_make_service:IntoMakeService",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "method", "name": "into_make_service", "qualifiedName": "routing/mod.rs::Router::into_make_service", "locator": "workspace://routing/mod.rs#L558-L562" },
+      "to": { "kind": "struct", "name": "IntoMakeService", "qualifiedName": "routing/into_make_service.rs::IntoMakeService", "locator": "workspace://routing/into_make_service.rs#L12-L14" },
+      "locator": "workspace://routing/mod.rs#L561-L561",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axum_call_with_state",
+      "semanticKey": "edge:calls:routing/mod.rs:Router.into_make_service:with_state",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "into_make_service", "qualifiedName": "routing/mod.rs::Router::into_make_service", "locator": "workspace://routing/mod.rs#L558-L562" },
+      "to": { "kind": "function", "name": "with_state", "qualifiedName": "routing/mod.rs::with_state", "locator": "workspace://routing/mod.rs#L561-L561" },
+      "locator": "workspace://routing/mod.rs#L561-L561",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_axum_import_tower_layer",
+      "semanticKey": "edge:imports:routing/route.rs:tower-layer",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "routing_route", "qualifiedName": "routing/route.rs::routing_route", "locator": "workspace://routing/route.rs#L1-L309" },
+      "to": { "kind": "module", "name": "tower_layer::Layer", "qualifiedName": "error_handling/mod.rs::tower_layer::Layer", "locator": "workspace://error_handling/mod.rs#L16-L16" },
+      "locator": "workspace://routing/route.rs#L24-L24",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_axum_import_tower_layer_not_pin_project",
+      "semanticKey": "edge:imports:routing/route.rs:tower-layer-line:not-pin-project",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "routing_route", "qualifiedName": "routing/route.rs::routing_route", "locator": "workspace://routing/route.rs#L1-L309" },
+      "to": { "kind": "module", "name": "pin_project_lite::pin_project", "qualifiedName": "error_handling/mod.rs::pin_project_lite::pin_project", "locator": "workspace://error_handling/mod.rs#L228-L228" },
+      "locator": "workspace://routing/route.rs#L24-L24",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_axum_export_router",
+      "semanticKey": "edge:exports:routing/mod.rs:Router",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "routing_mod", "qualifiedName": "routing/mod.rs::routing_mod", "locator": "workspace://routing/mod.rs#L1-L841" },
+      "to": { "kind": "struct", "name": "Router", "qualifiedName": "routing/mod.rs::Router", "locator": "workspace://routing/mod.rs#L86-L88" },
+      "locator": "workspace://routing/mod.rs#L86-L88",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axum_private_router_inner_not_exported",
+      "semanticKey": "edge:exports:routing/mod.rs:RouterInner:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "routing_mod", "qualifiedName": "routing/mod.rs::routing_mod", "locator": "workspace://routing/mod.rs#L1-L841" },
+      "to": { "kind": "struct", "name": "RouterInner", "qualifiedName": "routing/mod.rs::RouterInner", "locator": "workspace://routing/mod.rs#L98-L102" },
+      "locator": "workspace://routing/mod.rs#L98-L102",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:8402c959c84484593c65a17e22500ede31e7acc6cd672bc5af3f05e7bdab92a4"
+}

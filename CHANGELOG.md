@@ -1,6 +1,48 @@
 # Changelog
 
-## [Unreleased] — 1.1.0 release candidate
+## [Unreleased] — 2.0.0 major candidate
+
+### Added
+
+- Connected the loopback Control API and web Recall Map to healthy current Rust indexes. Browser reads stay bounded and read-only, preserve native coverage diagnostics, and return an exact build, refresh, repair, or package action instead of silently scanning with JS/TS.
+- Added source-backed community and entry-to-sink process evidence to the native Map, with bounded paths, confidence, and explicit truncation state.
+- Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 43-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline makes no competitor-parity claim.
+- Added a versioned, bounded Rust provider and made its packaged SQLite index the production default for graph, MCP, Control API, and web reads. `native-preview` and `auto` remain strict native aliases; the temporary JS/TS path requires explicit `compatibility` selection.
+- Added isolated packed-package proof and a reproducible Phase 1 compatibility receipt across JS/TS fixtures and two exact-commit repositories. The receipt records current import and call gaps and makes no accuracy, parity, or leadership claim.
+- Added PHP and Ruby native-preview structure, namespaces, traits and mixins, typed calls, imports, and framework-route evidence, completing the five planned Tier 1 language batches.
+- Added a deterministic Phase 2 aggregate over 14 fixtures and all 43 pinned Tier 1 repositories, with per-capability worst-case status, response bytes, resource measurements, and explicit node and edge budget diagnostics.
+- Added an isolated SQLite native source index with generation commits, incremental refresh, bounded queries, doctor/confirm-gated repair, and a no-write MCP preview. A reviewed integration fixture proves build, query, and exact no-op refresh behavior for all 14 Tier 1 languages.
+- Added deterministic bounded communities and evidence-backed entry-to-sink processes to the existing native `repo.architecture` MCP result, plus a reproducible Phase 4 correctness and query-deadline receipt. The MCP surface remains twelve read-only tools and no parity claim is made.
+- Added deterministic native hybrid search that ranks one exact hit, lexical matches, and bounded one-hop structural neighbors while returning source-backed relationship evidence through the existing `code.search` MCP tool.
+- Added safe constrained traversal to the existing `code.context` MCP tool. A current native index can filter direction, depth, and canonical edge kinds inside each SQLite expansion while keeping the public surface at twelve read-only tools.
+- Added five optional native-platform package templates, exact npm/Cargo/binary version alignment, a verified platform-binary resolver, and an offline macOS arm64 installed-package gate covering all fourteen Tier 1 parsers and the SQLite lifecycle without a compiler. A five-runner CI matrix now defines the same exact-tarball gate for the remaining targets, but those hosted runs, signing, and publication remain unproven.
+- Made MCP native by default. Each structural read requires a healthy current committed SQLite generation and otherwise returns an actionable build, refresh, repair, schema, target, or package error. It never silently falls back; explicit `compatibility` is the temporary JS/TS path.
+- Extended the isolated native-package consumer gate through package removal and same-version reinstall. It proves the CLI and both npm packages are removed while workspace source, governed memory, home configuration, and the SQLite index bundle remain unchanged, then reopens the same generation from freshly installed exact tarballs without Cargo, rustc, build, or refresh.
+- Added confirmed `mcp uninstall` for Codex, Claude Code, and Cursor. Install and removal now reject drifted entries, bind confirmation to exact config bytes, create private backups, write atomically, and preserve neighboring configuration and workspace data.
+- Added a Rust-index cross-service fixture for bounded import, call, trace, and process evidence. Same-name and unresolved negatives pass; multi-repository and parity claims remain false.
+- Added a Rust-owned SQLite repository registry and explicit repository-scoped search for up to eight registered indexes. Results carry deterministic repository-qualified identities; list and search remain bounded, sequential, read-only, and local. Cross-repository relationships, trace, impact, and parity remain unproven.
+
+### Fixed
+
+- Hardened the existing `connect` and `disconnect` config writer with exact preflight rechecks, private atomic replacement, and `0600` config and backup files.
+- Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.
+- `recall serve` now forwards interrupt and termination signals to the Control API child process.
+- Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
+- Native `index.status` now verifies the active SQLite generation against a bounded source snapshot and reports changed, added, deleted, partial, or unverified state without writing the database. Normal queries remain SQLite-only, and stale source state requires refresh rather than repair.
+- Native `index.refresh` now refuses to plan or write from incomplete discovery. If `maxFiles`, the byte budget, or the deadline prevents a complete source snapshot, it returns partial with zero writes and keeps the active generation unchanged; raising `maxFiles` permits a complete recovery refresh.
+- Python route extraction now inspects only executable decorator syntax, so `@app.route(...)` examples inside docstrings no longer become route nodes or handler edges.
+- Python framework routes now require imported and constructed FastAPI, APIRouter, Flask, or Blueprint receivers. Conventional Django URL patterns use structural positional arguments, ignore naming metadata, and leave unresolved `include(...)` composition explicit.
+- Python project metadata and root package markers now produce package-keyed configuration resources, exact configuration-to-package evidence, and freshness-sensitive absolute package resolution.
+
+### Changed
+
+- Stable npm publication is now native-first and fail-closed: one exact successful Rust run must supply all five checksum-verified packages, file-complete SPDX 2.3 SBOMs, and signed GitHub provenance. The root package is packed once, checksum-bound, given a complete SPDX document, attested, installed through the exact-artifact lifecycle, and published as those same bytes only after every native registry integrity and npm publish/SLSA attestation verifies. The workflow, command-line publisher, and exported root publisher all require the exact native artifact directory and repeat the five-package registry integrity, provenance, and npm signature audit immediately before any root lookup or publication. Root integrity and both npm predicates must also verify. The lane remains local and unproven until the remote five-platform and final release gates pass.
+- Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
+- Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
+- Tier 1 documentation now names the 75 capability rows that meet the sampled Phase 2 floor, the 78 applicable rows that remain unmeasured, the zero recorded floor failures, and the single not-applicable row. Go, Rust, and Dart exports retain their sampled fixture-plus-three-repository floor. Dart calls and heritage, Kotlin calls and types, and C++ types also retain their reviewed sampled floors. C++ heritage now meets the sampled floor for direct base specifiers: template arguments and body references are explicit negative decoys, while template substitution, alias expansion, dependent names, and compiler-equivalent inheritance analysis remain unmeasured. Every Tier 1 language remains unmeasured overall; no competitor, parity, leadership, general multi-repository, or scale claim is made.
+- The npm package excludes checkout-only Tier 1 audit and real-world benchmark scripts, the nested Rust build guide, the architecture bitmap, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
+
+## [1.1.0] — 2026-07-15
 
 No breaking CLI migration is required. Local-only defaults, proposal-gated memory, and read-only MCP remain unchanged.
 
@@ -30,7 +72,7 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Internal
 
-- Release gates cover 659 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+- Release gates cover the full Node suite, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
 
 ## [1.0.5] — 2026-07-09
 

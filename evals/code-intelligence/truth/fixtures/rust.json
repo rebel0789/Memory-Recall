@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_rust_batch_b_fixture",
+  "language": "rust",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:1d75880dd0dbf80f9af36f5463184ef1b6a7bf2be1f3bcc5ffa24c5f971f3d9c"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "exhaustive"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "partial",
+    "types": "partial",
+    "calls": "partial",
+    "config": "partial",
+    "frameworks": "partial",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    { "id": "cititem_rust_runner", "semanticKey": "node:trait:src/service.rs:Runner", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "trait", "name": "Runner", "qualifiedName": "src/service.rs::Runner", "locator": "workspace://src/service.rs#L1-L3" },
+    { "id": "cititem_rust_service", "semanticKey": "node:struct:src/service.rs:Service", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "struct", "name": "Service", "qualifiedName": "src/service.rs::Service", "locator": "workspace://src/service.rs#L5-L5" },
+    { "id": "cititem_rust_service_new", "semanticKey": "node:method:src/service.rs:Service:new", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "new", "qualifiedName": "src/service.rs::Service::new", "locator": "workspace://src/service.rs#L8-L10" },
+    { "id": "cititem_rust_service_run", "semanticKey": "node:method:src/service.rs:Service:run", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "run", "qualifiedName": "src/service.rs::Service::run", "locator": "workspace://src/service.rs#L14-L16" },
+    { "id": "cititem_rust_use_service", "semanticKey": "node:function:src/service.rs:use_service", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "use_service", "qualifiedName": "src/service.rs::use_service", "locator": "workspace://src/service.rs#L19-L21" },
+    { "id": "cititem_rust_item", "semanticKey": "node:function:src/lib.rs:item", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "item", "qualifiedName": "src/lib.rs::item", "locator": "workspace://src/lib.rs#L5-L5" },
+    { "id": "cititem_rust_rocket_item", "semanticKey": "node:function:src/lib.rs:rocket_item", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "rocket_item", "qualifiedName": "src/lib.rs::rocket_item", "locator": "workspace://src/lib.rs#L8-L8" },
+    { "id": "cititem_rust_router", "semanticKey": "node:function:src/lib.rs:router", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "router", "qualifiedName": "src/lib.rs::router", "locator": "workspace://src/lib.rs#L10-L12" },
+    { "id": "cititem_rust_actix_item", "semanticKey": "node:function:src/lib.rs:actix_item", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "actix_item", "qualifiedName": "src/lib.rs::actix_item", "locator": "workspace://src/lib.rs#L14-L14" },
+    { "id": "cititem_rust_app", "semanticKey": "node:function:src/lib.rs:app", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "app", "qualifiedName": "src/lib.rs::app", "locator": "workspace://src/lib.rs#L16-L18" },
+    { "id": "cititem_rust_build", "semanticKey": "node:function:src/lib.rs:build", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "build", "qualifiedName": "src/lib.rs::build", "locator": "workspace://src/lib.rs#L20-L22" },
+    {
+      "id": "cititem_rust_import_service",
+      "semanticKey": "edge:imports:src/lib.rs:src/service.rs",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "to": { "kind": "module", "name": "src_service", "qualifiedName": "src/service.rs::src_service", "locator": "workspace://src/service.rs#L1-L22" },
+      "locator": "workspace://src/lib.rs#L3-L3",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_import_service_not_self",
+      "semanticKey": "edge:imports:src/lib.rs:service-line:not-lib",
+      "capability": "imports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "to": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "locator": "workspace://src/lib.rs#L3-L3",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_export_service",
+      "semanticKey": "edge:exports:src/service.rs:Service",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "src_service", "qualifiedName": "src/service.rs::src_service", "locator": "workspace://src/service.rs#L1-L22" },
+      "to": { "kind": "struct", "name": "Service", "qualifiedName": "src/service.rs::Service", "locator": "workspace://src/service.rs#L5-L5" },
+      "locator": "workspace://src/service.rs#L5-L5",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_private_build_not_exported",
+      "semanticKey": "edge:exports:src/lib.rs:build:absent",
+      "capability": "exports",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": { "kind": "module", "name": "src_lib", "qualifiedName": "src/lib.rs::src_lib", "locator": "workspace://src/lib.rs#L1-L23" },
+      "to": { "kind": "function", "name": "build", "qualifiedName": "src/lib.rs::build", "locator": "workspace://src/lib.rs#L20-L22" },
+      "locator": "workspace://src/lib.rs#L20-L22",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_implements_runner",
+      "semanticKey": "edge:implements:src/service.rs:Service:Runner",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "implements",
+      "from": { "kind": "struct", "name": "Service", "qualifiedName": "src/service.rs::Service", "locator": "workspace://src/service.rs#L5-L5" },
+      "to": { "kind": "trait", "name": "Runner", "qualifiedName": "src/service.rs::Runner", "locator": "workspace://src/service.rs#L1-L3" },
+      "locator": "workspace://src/service.rs#L13-L17",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_construct_service",
+      "semanticKey": "edge:constructs:src/lib.rs:build:Service",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "build", "qualifiedName": "src/lib.rs::build", "locator": "workspace://src/lib.rs#L20-L22" },
+      "to": { "kind": "struct", "name": "Service", "qualifiedName": "src/service.rs::Service", "locator": "workspace://src/service.rs#L5-L5" },
+      "locator": "workspace://src/lib.rs#L21-L21",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_call_service_run",
+      "semanticKey": "edge:calls:src/service.rs:use_service:Service.run",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "function", "name": "use_service", "qualifiedName": "src/service.rs::use_service", "locator": "workspace://src/service.rs#L19-L21" },
+      "to": { "kind": "method", "name": "run", "qualifiedName": "src/service.rs::Service::run", "locator": "workspace://src/service.rs#L14-L16" },
+      "locator": "workspace://src/service.rs#L20-L20",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_rust_route_wrapper_not_call",
+      "semanticKey": "edge:calls:src/lib.rs:router:item:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "function", "name": "router", "qualifiedName": "src/lib.rs::router", "locator": "workspace://src/lib.rs#L10-L12" },
+      "to": { "kind": "function", "name": "item", "qualifiedName": "src/lib.rs::item", "locator": "workspace://src/lib.rs#L5-L5" },
+      "locator": "workspace://src/lib.rs#L11-L11"
+    },
+    {
+      "id": "cititem_rust_axum_route",
+      "semanticKey": "edge:handles_route:src/lib.rs:item:GET_items_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "item", "qualifiedName": "src/lib.rs::item", "locator": "workspace://src/lib.rs#L5-L5" },
+      "to": { "kind": "route", "name": "GET_items_param", "qualifiedName": "src/lib.rs::GET_items_param", "locator": "workspace://src/lib.rs#L11-L11" },
+      "locator": "workspace://src/lib.rs#L11-L11",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_rocket_route",
+      "semanticKey": "edge:handles_route:src/lib.rs:rocket_item:GET_rocket_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "rocket_item", "qualifiedName": "src/lib.rs::rocket_item", "locator": "workspace://src/lib.rs#L8-L8" },
+      "to": { "kind": "route", "name": "GET_rocket_param", "qualifiedName": "src/lib.rs::GET_rocket_param", "locator": "workspace://src/lib.rs#L7-L8" },
+      "locator": "workspace://src/lib.rs#L7-L8",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_rust_actix_route",
+      "semanticKey": "edge:handles_route:src/lib.rs:actix_item:POST_legacy_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "actix_item", "qualifiedName": "src/lib.rs::actix_item", "locator": "workspace://src/lib.rs#L14-L14" },
+      "to": { "kind": "route", "name": "POST_legacy_param", "qualifiedName": "src/lib.rs::POST_legacy_param", "locator": "workspace://src/lib.rs#L17-L17" },
+      "locator": "workspace://src/lib.rs#L17-L17",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:8fbef3c0ad6750ba5919b56aa26137d02012407711720fac449e2cc9086bb427"
+}

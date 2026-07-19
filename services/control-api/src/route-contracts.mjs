@@ -17,7 +17,7 @@ const workspaceLocatorInput = {
   type: 'string',
   minLength: 1,
   maxLength: 512,
-  pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+  pattern: "^(?:workspace://)?(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
 };
 const contextPackLocator = {
   type: 'string',
@@ -29,7 +29,7 @@ const recallMapChangedLocator = {
   type: 'string',
   minLength: 1,
   maxLength: 512,
-  pattern: '^(?!/)(?!.*(?:^|/)\\.\\.?($|/))(?!.*\\\\)(?!.*\\s)(?!.*://)(?!.*(?:^|/)(?:Users|private|node_modules|\\.git|\\.local)(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._@+~,-]+(?:/[A-Za-z0-9._@+~,-]+)*$'
+  pattern: "^(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
 };
 const recallMapQuery = {
   type: 'string',
@@ -511,7 +511,7 @@ export function createApiRouteContracts(limits = {}) {
     type: 'object',
     additionalProperties: false,
     required: ['workspaceId', 'changedLocators'],
-    maxProperties: 3,
+    maxProperties: 4,
     properties: {
       workspaceId: recallMapWorkspaceId,
       changedLocators: {
@@ -520,7 +520,8 @@ export function createApiRouteContracts(limits = {}) {
         uniqueItems: true,
         items: recallMapChangedLocator
       },
-      query: recallMapQuery
+      query: recallMapQuery,
+      refresh: { type: 'boolean' }
     }
   };
   const gitChangeDetectionSafeguards = {
@@ -733,7 +734,8 @@ export function createApiRouteContracts(limits = {}) {
       depth: { type: 'integer', minimum: 1, maximum: 5 },
       sampleLimit: { type: 'integer', minimum: 1, maximum: 50 },
       maxFiles: { type: 'integer', minimum: 1, maximum: 1000 },
-      maxFileBytes: { type: 'integer', minimum: 1024, maximum: 1048576 }
+      maxFileBytes: { type: 'integer', minimum: 1024, maximum: 1048576 },
+      refresh: { type: 'boolean' }
     }
   };
   const harnessSetupPlanRequest = {

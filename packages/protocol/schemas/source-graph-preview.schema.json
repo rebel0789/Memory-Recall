@@ -14,6 +14,9 @@
     "search": { "$ref": "#/$defs/searchResult" },
     "trace": { "$ref": "#/$defs/traceResult" },
     "impact": { "$ref": "#/$defs/impactResult" },
+    "orientation": { "$ref": "#/$defs/orientation" },
+    "focus": { "$ref": "#/$defs/focus" },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
     "measurements": { "$ref": "#/$defs/measurements" },
     "safeguards": { "$ref": "#/$defs/safeguards" }
   },
@@ -22,11 +25,130 @@
     "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "nodeId": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" },
     "edgeId": { "type": "string", "pattern": "^sgedge_[a-f0-9]{32}$" },
-    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!(?:Users|private)(?:/|$))(?!var/folders(?:/|$))(?!.*\\/(?:Users|private)(?:/|$))(?!.*\\/var/folders(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$" },
-    "safeLabel": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])[Uu][Ss][Ee][Rr][Ss][\\\\/])(?!.*(?:^|[\\\\/])[Pp][Rr][Ii][Vv][Aa][Tt][Ee][\\\\/])(?!.*(?:^|[\\\\/])[Vv][Aa][Rr][\\\\/][Ff][Oo][Ll][Dd][Ee][Rr][Ss][\\\\/])(?!.*[?{}=;\\\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])(?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)(?: (?:contains|defined_in|imports|exports|references|calls)(?: (?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)){1,2})?$" },
+    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$" },
+    "safeLabel": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?=.{1,240}$)(?!/)(?![A-Za-z]:[\\\\/])(?!.*[?{}=;\\\\])(?!.*[Ss][Ee][Nn][Tt][Ii][Nn][Ee][Ll])(?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)(?: (?:contains|defined_in|imports|exports|references|calls)(?: (?:[A-Za-z0-9_$@~./#*+,\\[\\]-]+|node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*|local:absolute-import)){1,2})?$" },
     "nodeKind": { "enum": ["file", "chunk", "symbol", "module"] },
     "edgeKind": { "enum": ["contains", "defined_in", "imports", "exports", "references", "calls"] },
     "sourceRef": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^(symbol|astchunk|import|export|call|ref|srcsnap)_[a-f0-9]{16,32}$|^sha256:[a-f0-9]{64}$" },
+    "nodeCountMap": {
+      "type": "object",
+      "maxProperties": 4,
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "chunk": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "symbol": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "module": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "edgeCountMap": {
+      "type": "object",
+      "maxProperties": 6,
+      "additionalProperties": false,
+      "properties": {
+        "contains": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "defined_in": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "imports": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "exports": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "calls": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "references": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "groupPrefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+(?:/[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+){0,2}$"
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groups", "relations"],
+      "properties": {
+        "groups": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationGroup" } },
+        "processes": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationProcess" } },
+        "relations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/orientationRelation" } }
+      }
+    },
+    "orientationGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prefix", "fileCount", "symbolCount", "changedFileCount", "entryPoints"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "prefix": { "$ref": "#/$defs/groupPrefix" },
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "changedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "entryPoints": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "orientationRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceGroupId", "targetGroupId", "sourcePrefix", "targetPrefix", "count", "edgeKindCounts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgrelation_[a-f0-9]{24}$" },
+        "sourceGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "targetGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "sourcePrefix": { "$ref": "#/$defs/groupPrefix" },
+        "targetPrefix": { "$ref": "#/$defs/groupPrefix" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "edgeKindCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "properties": {
+            "imports": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+            "calls": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+          }
+        }
+      }
+    },
+    "orientationProcess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "entryPoint", "sink", "sinkKind", "nodeIds", "relationshipIds", "confidence", "algorithmVersion", "truncated"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgprocess_[a-f0-9]{24}$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "entryPoint": { "$ref": "#/$defs/nodeReference" },
+        "sink": { "$ref": "#/$defs/nodeReference" },
+        "sinkKind": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.-]{0,127}$" },
+        "nodeIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+        "relationshipIds": { "type": "array", "minItems": 2, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/edgeId" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "algorithmVersion": { "const": "entry-path-v1" },
+        "truncated": { "type": "boolean" }
+      }
+    },
+    "focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeLimit", "edgeLimit", "nodes", "edges", "omittedNodes", "omittedEdges"],
+      "properties": {
+        "nodeLimit": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "edgeLimit": { "type": "integer", "minimum": 1, "maximum": 400 },
+        "nodes": { "type": "array", "maxItems": 200, "items": { "$ref": "#/$defs/node" } },
+        "edges": { "type": "array", "maxItems": 400, "items": { "$ref": "#/$defs/edge" } },
+        "omittedNodes": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "omittedEdges": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reuse", "reason", "generation", "validationMode", "buildDurationMs", "builtAt"],
+      "properties": {
+        "status": { "enum": ["fresh", "stale", "unavailable"] },
+        "reuse": { "enum": ["cold", "cache", "inflight", "none"] },
+        "reason": { "type": ["string", "null"], "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_:-]*$" },
+        "generation": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "validationMode": { "enum": ["watcher", "metadata-scan", "none"] },
+        "buildDurationMs": { "type": ["number", "null"], "minimum": 0, "maximum": 3600000 },
+        "builtAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -164,6 +286,28 @@
         "sourceRelevantExcludedDirectoryLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
         "unsupportedFileCount": { "type": "integer", "minimum": 0 },
         "unsupportedExtensions": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^\\.[a-z0-9]{1,16}$" } },
+        "unsupportedExtensionCounts": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+        },
+        "ignoredFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "ignoredDirectoryCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "ignoredSamples": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
+        "ignoreRuleFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "ignoreFileLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
+        "candidateNodeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "representedNodeCount": { "type": "integer", "minimum": 0, "maximum": 20000 },
+        "omittedNodeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "candidateNodeKindCounts": { "$ref": "#/$defs/nodeCountMap" },
+        "representedNodeKindCounts": { "$ref": "#/$defs/nodeCountMap" },
+        "omittedNodeKindCounts": { "$ref": "#/$defs/nodeCountMap" },
+        "candidateEdgeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "representedEdgeCount": { "type": "integer", "minimum": 0, "maximum": 50000 },
+        "omittedEdgeCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "candidateEdgeKindCounts": { "$ref": "#/$defs/edgeCountMap" },
+        "representedEdgeKindCounts": { "$ref": "#/$defs/edgeCountMap" },
+        "omittedEdgeKindCounts": { "$ref": "#/$defs/edgeCountMap" },
         "maxFilesReached": { "type": "boolean" },
         "reasonCodes": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" } }
       }
@@ -190,6 +334,10 @@
         "total": { "type": "integer", "minimum": 0 },
         "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
         "offset": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "reachedOffset": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "offsetIncomplete": { "type": "boolean" },
+        "continuationCursor": { "type": ["string", "null"], "pattern": "^idxcur_[a-f0-9]{32}$" },
+        "truncated": { "type": "boolean" },
         "hasMore": { "type": "boolean" },
         "omittedCount": { "type": "integer", "minimum": 0 },
         "results": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/searchItem" } }

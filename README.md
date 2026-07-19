@@ -15,25 +15,25 @@
 
 <p align="center">
   <strong>Local repo memory and context for Codex, Claude Code, Cursor, and other coding agents.</strong><br>
-  Governed SQLite memory. Read-only MCP. Experimental Rust acceleration requires a local build. The default local path needs no hosted account or model API key.
+  Governed SQLite memory. Read-only MCP. Verified packaged Rust reads when a current local index exists. No hosted account or model API key required.
 </p>
 
 Memory Recall turns a repository into a governed context source. New agent
 sessions get reviewed repo facts, changed-file impact, required local reads,
 and proof of what was sent instead of a giant pasted transcript.
 
-The source and package release candidate are 1.1.0. Check the registry before
-using the global install path:
+The source checkout is the 2.0.0 major-release candidate. The registry remains the
+installation authority:
 
 ```bash
 npm view memory-recall version
-npm install -g memory-recall@1.1.0
+npm install -g memory-recall@latest
 recall setup
 recall map --root . --sqlite .local/memory.sqlite --format summary
 recall handoff
 ```
 
-If the registry still reports an older version, use the source checkout:
+Use the source checkout when testing changes that are not yet on the registry:
 
 ```bash
 git clone https://github.com/rebel0789/Memory-Recall.git
@@ -59,8 +59,10 @@ for preserved legacy names and URIs.
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Implemented JS/TS static graph; experimental Rust ingest and graph/search require a local build. |
-| First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
+| Fast local code intelligence | Packaged Rust is the only engine. Reads use the local SQLite index and return an explicit build, refresh, repair, or package action when native state is not ready. |
+| Larger repositories | Explicit local index with incremental refresh and watch mode; MCP and the web workbench read it without writing. |
+| Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
+| First look at a repository | The web Recall Map reads a healthy current Rust index, including source-backed communities and bounded entry-to-sink processes. Until first-run indexing is complete, it returns a bounded recovery state instead of silently switching engines. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |
@@ -68,9 +70,9 @@ for preserved legacy names and URIs.
 ## Five-Minute Path
 
 ```bash
-# Confirm and install the 1.1.0 package.
+# Confirm and install the current registry release.
 npm view memory-recall version
-npm install -g memory-recall@1.1.0
+npm install -g memory-recall@latest
 
 # Create local state only. This does not scan the repository.
 recall setup
@@ -113,8 +115,14 @@ approval.
 
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
-command only when the fingerprint matches. That path installs the five-tool
-read-only MCP server. `recall connect` is separate: it installs a resource
+command only when the fingerprint matches. That path installs the twelve-tool
+read-only MCP server with `--engine native`; install never builds or refreshes an
+index, and its `indexBuildCommand` is the separate explicit native-index write.
+Until a healthy, current native index exists, structural tools return the exact
+native recovery command. Reverse the install with `recall mcp uninstall --client
+claude-code --dry-run --format json`, then the printed confirmed command. It
+removes only the exact package-owned entry and preserves neighboring servers.
+`recall connect` is separate: it installs a resource
 bridge plus hooks for Codex or Claude Code, and its MCP `tools/list` is empty.
 The support matrix names the difference and reversal path.
 
@@ -147,6 +155,7 @@ billing claims.
 | Temporal current-truth fixture | 10/10 correct and clean; not a token-saving claim | `recall bench temporal --read-only --root . --format json` |
 | In-repo structured-ingest sufficiency | 12/12 checkout-derived answers present after structured ingest | Source checkout: `npm run recall -- bench realqa --read-only --root . --format json` |
 | Truth-floor regression gate | Fixture-backed merge gate, not a user-task benchmark | `recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json` |
+| Native source-index Phase 3 | Clean pinned receipt over 781 files, 6,808 nodes, and 15,115 edges; machine-specific, not a scale or parity claim | Source checkout: `node scripts/code-intelligence-phase3-index.mjs --check` |
 
 The package bundles the session, temporal, and truth-floor fixtures. The
 structured-ingest check measures this repository's own status and provider
@@ -177,19 +186,36 @@ cross-product benchmark leaderboard.
   harness; strict result import; pending-only proposals; and source-rechecked
   named approval. Optional direct API execution is experimental and explicitly
   consented.
-- Read-only `recall mcp server` exposing `memory.recall`, `context.profile`,
-  `context.pack`, `repo.map`, and `code.impact` over local stdio with active
-  facts separated from proposals.
+- Read-only `recall mcp server` exposing twelve local tools for governed memory,
+  compact context, repository maps, architecture, code search, symbol context,
+  call traces, dependencies, routes, changed-file impact, and index status.
+- Production-default packaged Rust reads and a local SQLite
+  generation store, incremental refresh, doctor/confirm-gated repair, bounded
+  queries, and read-only MCP access to a prebuilt index. Native
+  `repo.architecture` returns deterministic communities, bounded entry-to-sink
+  processes, and their source relationships. Native use requires a verified
+  matching binary from a local build, an explicit environment path, or an
+  optional platform package. Graph commands, direct MCP startup, and
+  installer-generated MCP config select native by default and have no alternate
+  intelligence engine. The current-host packed-install gate is green; other targets,
+  signing, registry publication, and full language parity remain unproven.
 - Persisted MCP cursors and `since` deltas so repeated reads send only changed
   current truth, including after restart.
 - Preview-then-confirm install paths for Claude Code, Cursor, and Codex with
   explicit project root and project SQLite memory path.
 - Local `/memory` cockpit over the loopback Control API with temporal facts,
   proposal counts, MCP delivery stats, and confirm-gated approvals.
-- Experimental Rust acceleration paths for local ingest, governed graph/search,
-  wiki, MCP, and static analysis when explicitly invoked. They require a local
-  `cargo build --release` before use; Rust source ships in the npm package, but
-  build output stays out of the tarball.
+- Rust paths for local ingest, governed graph/search, wiki, MCP, and static
+  analysis. Read commands select native by default; source checkouts
+  can use a local release build, and installed packages can use a verified
+  matching optional platform package.
+- Release-candidate native packaging now has five target-specific optional
+  package manifests and a checksum-, version-, target-, and path-verified
+  resolver. A local macOS arm64 packed-install gate passes without Cargo or
+  Rust and covers all fourteen Tier 1 parsers plus the SQLite lifecycle. These
+  platform packages are not published or signed yet, so stable publication
+  remains blocked until the five verified packages are available before the
+  root package.
 - Deterministic local benches for temporal correctness, session delta delivery,
   and checkout-derived structured-ingest sufficiency.
 
@@ -200,7 +226,9 @@ Memory Recall is built around explicit authority:
 - memory ingest creates proposals, not trusted facts;
 - active memory requires review and approval;
 - rejections and supersessions are recorded, not silently deleted;
-- MCP resources are read-only by default;
+- MCP structural reads do not write canonical memory, source indexes, config,
+  network, or external systems; `memory.recall` and `context.profile` may persist
+  local cursors and append delivery statistics;
 - setup and connect commands support dry-run previews;
 - local storage remains local unless you intentionally move it;
 - external adapters stay disabled until reviewed, pinned, licensed, and tested.
@@ -214,7 +242,9 @@ for the deeper boundary rules.
 Production PostgreSQL repositories, production authentication, hosted embeddings,
 vector databases, hosted memory sync, write-capable MCP tools, automatic harness
 history import, real social connectors, hardened sandboxes, signed Agent Pack
-distribution, and a production frontend framework are not claimed.
+distribution, fully measured Tier 1 language capability, general
+cross-repository analysis beyond the bounded exact Go two-repository path, and
+cross-platform million-node performance are not claimed.
 
 `PROJECT_STATUS.json` is the machine-readable source for current capability
 status and limitations.
@@ -234,6 +264,15 @@ recall token-saver
 recall graph stats --root . --format summary
 recall graph search --root . --query "auth workflow" --format summary
 recall graph trace --root . --symbol runAuthWorkflow --format summary
+recall graph index --status --root . --format summary
+recall graph index --write --root . --format json
+recall graph index --refresh --watch --root . --format summary
+recall graph index --write --engine native --root . --format summary
+recall graph index --query main --kind exact --engine native --root . --format json
+recall graph index --doctor --engine native --root . --format summary
+recall graph repositories register --write --root . --repository repositories/client --name Client --format json
+recall graph repositories list --read-only --root . --limit 10 --format summary
+recall mcp server --read-only --engine native --root . --stdio
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
 ```
@@ -264,12 +303,12 @@ boundaries.
 
 ## Status
 
-Release candidate: **1.1.0**. Registry version: verify with `npm view memory-recall version`.
+Source major-release candidate: **2.0.0**. Registry version: verify with `npm view memory-recall version`.
 
 | Surface | Status |
 | --- | --- |
-| Source checkout | 1.1.0 local-ready release candidate |
-| npm package | 1.1.0 publish-ready; use only after the registry reports 1.1.0 |
+| Source checkout | 2.0.0 local-ready major-release candidate |
+| npm package | Install the current registry release with `memory-recall@latest` |
 | CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |

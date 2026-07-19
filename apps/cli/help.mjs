@@ -11,7 +11,7 @@ function renderHelpText(text) {
   if (command === 'oaf') return text;
   return text
     .replace(
-      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
+      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|graph|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
       `${command} `
     );
 }
@@ -65,9 +65,17 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
   oaf graph stats --root . --format summary
+  oaf graph stats --root . --engine native --format summary
+  oaf graph search --root . --query "main" --engine native --format json
   oaf graph search --root . --query "route registration hooks" --format summary
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
+  oaf graph index --status --root . --format summary
+  oaf graph index --write --root . --format json
+  oaf graph index --refresh --watch --root . --format summary
+  oaf graph index --write --engine native --root . --format summary
+  oaf graph index --query main --engine native --root . --format json
+  oaf graph index --doctor --engine native --root . --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -118,8 +126,10 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine native --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
+  oaf mcp uninstall --client claude-code --dry-run --format json
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
@@ -162,10 +172,10 @@ Options:
   --sqlite <workspace-relative path>  Local SQLite memory store; defaults to .local/memory.sqlite.
   --changed <path>                    Add a reviewed changed workspace path; repeatable.
   --changed-from-git                  Detect changed paths with local git only.
-  --query <text>                      Search the bounded JS/TS source graph.
+  --query <text>                      Search the current bounded native source index.
   --format <json|summary|markdown>    Emit the full safe report or a compact rendering.
 
-Builds a bounded local repository map from the implemented JS/TS static graph
+Builds a bounded local repository map from the current native SQLite source index
 and the governed local SQLite memory store. It does not write files, call
 models, use network access, enable external adapters, or expose raw source
 bodies.`],
@@ -240,11 +250,28 @@ Usage:
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
   oaf graph impact --root . --changed-from-git --format json
+  oaf graph index --status --root . --format summary
+  oaf graph index --write --root . --format json
+  oaf graph index --refresh --root . --format json
+  oaf graph index --refresh --watch --root . --format summary
+  oaf graph index --write --engine native --root . --format summary
+  oaf graph index --refresh --engine native --root . --format summary
+  oaf graph index --query main --kind exact --engine native --root . --format json
+  oaf graph index --doctor --engine native --root . --format summary
+  oaf graph index --repair --confirm <repairPlanFingerprint> --engine native --root . --format summary
 
-Graph commands build a bounded local JS/TS source graph and return locator-only
-stats, search, trace, or changed-file impact reports. They are read-only by default:
-no files are written, no model calls are made, no network calls are made, and
-raw source bodies are not included.`],
+Options for read commands:
+  --engine <native|native-preview|auto>  Use the packaged native engine. The other spellings are strict native aliases.
+
+Graph read commands return bounded locator-only stats, search, trace, or
+changed-file impact reports. Native is the default and requires the verified
+platform package plus a current local SQLite index. Missing or stale native
+state returns the exact build, refresh, repair, or package action. The former
+auto and native-preview spellings remain strict native aliases. Index writes
+are explicit. Native stores its versioned SQLite index under .local/source-index.
+It stores metadata only; raw source bodies are not included.
+MCP reads the index but never builds or refreshes it.
+No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
 
 Usage:
@@ -369,15 +396,24 @@ Usage:
   oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine native --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp install --client claude-code --dry-run --format json
+  oaf mcp uninstall --client claude-code --dry-run --format json
 
 MCP commands inspect or expose local read-only resources, run the stdio bridge,
 preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
---read-only; install remains dry-run unless explicitly confirmed by the install
-flow.`],
+--read-only; install and uninstall remain dry-run unless explicitly confirmed.
+Uninstall removes only an exact Memory Recall-owned entry and preserves .local.
+Direct MCP server commands and mcp install default to native mode and print
+indexBuildCommand; install never builds or
+refreshes an index. Run the explicit writer when wanted:
+  oaf graph index --write --engine native --root . --format summary
+Native mode reads only a current, healthy prebuilt .local/source-index database
+and returns an actionable error otherwise. It never builds, refreshes, or falls
+back to a source scan.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

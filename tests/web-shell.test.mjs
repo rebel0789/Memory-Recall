@@ -30,7 +30,6 @@ import {
   authFailureTransition,
   normalizeRecallMapGitChanges,
   buildMemoryCockpitModel,
-  buildMemoryGraphModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -48,13 +47,12 @@ import {
   safeEventSummary,
   selectContextPackPinPayload,
   renderMemoryCockpit,
-  renderMemoryGraph,
-  renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
   renderSetupScreen,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
   renderOverview,
+  renderSecondaryRoute,
   renderRepositorySearchState,
   renderRecallMapHome,
   shellStateMessageForOverview,
@@ -62,6 +60,20 @@ import {
   summarizeRunSteps,
   writeClipboardText
 } from '../apps/web/app.js';
+import { parseMapUrl, renderSourceMap } from '../apps/web/source-map-view.js';
+import { buildMemoryGraphViewModel, renderMemoryGraphView } from '../apps/web/memory-graph-view.js';
+
+test('web API and UI primitives are focused modules', async () => {
+  const apiSource = await readFile(new URL('../apps/web/api.js', import.meta.url), 'utf8');
+  const primitiveSource = await readFile(new URL('../apps/web/ui-primitives.js', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  assert.match(apiSource, /export async function requestJson/);
+  assert.match(apiSource, /export class ApiRequestError/);
+  assert.match(primitiveSource, /export function escapeHtml/);
+  assert.match(primitiveSource, /export function statePanel/);
+  assert.doesNotMatch(appSource, /async function api\(/);
+  assert.doesNotMatch(appSource, /function statePanel\(/);
+});
 
 test('setup is a focused workspace-security screen', () => {
   const html = renderSetupScreen('bootstrap', 'Create the first local owner.');
@@ -141,11 +153,21 @@ test('repository search distinguishes a bounded failure from valid zero results'
 });
 
 test('workbench navigation has five desktop and four mobile destinations', () => {
-  assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']);
+  assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Start', 'Explore code', 'Review memory', 'Prepare handoff', 'Settings']);
   assert.deepEqual(PRIMARY_NAV.map((item) => item.path), ['/', '/map', '/memory', '/handoffs', '/settings']);
-  assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs']);
+  assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Start', 'Explore code', 'Review memory', 'Prepare handoff']);
   assert.equal(navigationItemsFor('rail'), PRIMARY_NAV);
   assert.equal(navigationItemsFor('bottom'), MOBILE_NAV);
+});
+
+test('advanced routes keep a clear page title without entering the primary navigation', () => {
+  const route = ROUTES.find((item) => item.id === 'runs');
+  const html = renderSecondaryRoute(route, '<section>Run content</section>');
+  assert.match(html, /<h1>Runs<\/h1>/);
+  assert.match(html, /Run history, status, current step/);
+  assert.match(html, /Advanced view/);
+  assert.match(html, /<section>Run content<\/section>/);
+  assert.equal(PRIMARY_NAV.some((item) => item.routeId === 'runs'), false);
 });
 
 test('web tokens use the approved restrained workbench system', async () => {
@@ -160,7 +182,8 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(css, /--space-md:24px/);
   assert.doesNotMatch(css, /#56e0c4|gradient|glow/i);
   assert.equal(shared.color.canvas, 'oklch(97.8% 0.006 80)');
-  assert.equal(shared.color.accent, 'oklch(52% 0.19 258)');
+  assert.equal(shared.color.accent, 'oklch(50% 0.12 258)');
+  assert.equal(shared.color.dark.accent, 'oklch(70% 0.1 258)');
   assert.equal(shared.color.dark.canvas, 'oklch(17% 0.008 255)');
   assert.match(shared.font.sans, /^ui-sans-serif/);
   assert.match(shared.font.mono, /^ui-monospace/);
@@ -179,6 +202,8 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(shellCss, /\.button:hover:not\(:disabled\)/);
   assert.match(shellCss, /\.button:active:not\(:disabled\)/);
   assert.match(shellCss, /\.field input,.field select,.field textarea\{[^}]*outline:2px solid transparent[^}]*outline-offset:1px/);
+  assert.match(shellCss, /\.field span\{[^}]*font-weight:650[^}]*color:var\(--slate\)\}/);
+  assert.doesNotMatch(shellCss, /\.field span\{[^}]*text-transform:uppercase/);
   assert.match(shellCss, /\.field input:disabled,.field select:disabled,.field textarea:disabled\{[^}]*opacity:\.55[^}]*cursor:not-allowed/);
   assert.match(shellCss, /h1\{[^}]*overflow-wrap:anywhere[^}]*min-width:0/);
   assert.match(shellCss, /code,pre\{font-family:var\(--font-mono\)\}/);
@@ -202,6 +227,9 @@ test('mobile shell exposes four fixed destinations without horizontal scrolling'
   assert.match(css, /\.bottom-nav\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/s);
   assert.doesNotMatch(css, /\.bottom-nav\{[^}]*overflow-x:auto/s);
   assert.match(css, /@media\(max-width:700px\)\{\s*\.app-shell\{[^}]*min-height:100dvh[^}]*\}/s);
+  assert.match(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search\{[^}]*grid-template-columns:112px minmax\(80px,1fr\) auto[^}]*\}/s);
+  assert.match(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search button\{[^}]*min-width:44px[^}]*\}/s);
+  assert.doesNotMatch(css, /@media\(max-width:700px\)\{[\s\S]*\.global-search button\{[^}]*clip:rect/s);
 });
 
 test('secondary routes select the destination that owns them', () => {
@@ -270,6 +298,20 @@ test('product shell omits prohibited marketing and removed dashboard patterns', 
   }
 });
 
+test('visible web copy is factual and contains no intelligence theater', async () => {
+  const files = [
+    'apps/web/index.html', 'apps/web/app.js', 'apps/web/orientation-view.js',
+    'apps/web/source-map-view.js', 'apps/web/memory-graph-view.js'
+  ];
+  const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n');
+  for (const phrase of [
+    'AI-powered', 'intelligent workspace', 'smart insights', 'magical', 'seamless',
+    'unlock', 'supercharge', 'revolutionary', 'next-generation', 'nervous system',
+    'mission control', 'command center', 'content intelligence'
+  ]) assert.doesNotMatch(source, new RegExp(phrase, 'iu'));
+  assert.doesNotMatch(source, /[✨🤖🪄]/u);
+});
+
 test('Recall Map home presents a repository-first daily Overview',()=>{
   const report={
     schemaVersion:'1.0.0',
@@ -310,14 +352,12 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(model.memory.pendingCount,1);
   assert.equal(model.handoff.state,'ready');
   const html=renderOverview(model);
-  assert.match(html,/Bounded coverage/);
-  assert.match(html,/1 coverage note/);
-  for (const label of ['Changes','Needs attention','Impact','Current handoff','Recent activity']) assert.match(html,new RegExp(label));
-  assert.match(html,/Review 1 proposal/);
+  assert.match(html,/data-status="partial">Partial/);
+  for (const label of ['Architecture','Start here','Current impact','Trusted context']) assert.match(html,new RegExp(label));
+  assert.match(html,/No supported groups/);
   assert.match(html,/memory-recall-map-home/);
   assert.match(html,/workspace:\/\/apps\/web\/app\.js/);
   assert.match(html,/data-route="source-graph"/);
-  assert.match(html,/data-route="memory"/);
   assert.doesNotMatch(html,/Developer-first/i);
   assert.doesNotMatch(html,/Read the local picture/i);
   assert.doesNotMatch(html,/recall-map-signals/);
@@ -329,10 +369,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(staleMemoryOnlyModel.state,'success');
   assert.equal(selectOverviewPrimaryAction(staleMemoryOnlyModel),null);
-  assert.match(renderOverview(staleMemoryOnlyModel),/<strong>1 stale<\/strong>/);
-  assert.match(renderOverview(staleMemoryOnlyModel),/No action queued/);
-  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/No review required/);
-  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/Source changes need review/);
+  assert.match(renderOverview(staleMemoryOnlyModel),/<dt>Memory<\/dt><dd>stale<\/dd>/);
 
   const staleHandoffModel=buildRecallMapHomeModel({
     report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
@@ -340,7 +377,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(staleHandoffModel.state,'stale');
   assert.deepEqual(selectOverviewPrimaryAction(staleHandoffModel),{label:'Update handoff',route:'/handoffs',routeId:'context-pack'});
-  assert.match(renderOverview(staleHandoffModel),/Source changes need review/);
+  assert.match(renderOverview(staleHandoffModel),/<dt>Handoff<\/dt><dd>stale<\/dd>/);
 
   const blockedHandoffModel=buildRecallMapHomeModel({
     report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
@@ -352,9 +389,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(blockedHandoffModel.handoff.state,'blocked');
   assert.deepEqual(selectOverviewPrimaryAction(blockedHandoffModel),{label:'Repair handoff',route:'/handoffs',routeId:'context-pack'});
-  assert.match(renderOverview(blockedHandoffModel),/Handoff blocked/);
-  assert.doesNotMatch(renderOverview(blockedHandoffModel),/Nothing needs review/);
-  assert.match(renderOverview(blockedHandoffModel),/2 hours old/);
+  assert.match(renderOverview(blockedHandoffModel),/<dt>Handoff<\/dt><dd>tampered<\/dd>/);
+  assert.equal(blockedHandoffModel.handoff.ageLabel,'2 hours old');
 
   const detectedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:6}},
@@ -363,7 +399,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(detectedModel.impact.totalChangedCount,6);
   assert.equal(detectedModel.impact.omittedChangedCount,4);
-  assert.match(renderOverview(detectedModel),/1 shown · 4 omitted/);
+  assert.match(renderOverview(detectedModel),/5 changed files outside the represented graph/);
 
   const allOmittedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:2},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
@@ -374,9 +410,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(allOmittedModel.impact.omittedChangedCount,2);
   assert.deepEqual(allOmittedModel.impact.changedLocators,[]);
   const allOmittedHtml=renderOverview(allOmittedModel);
-  assert.match(allOmittedHtml,/0 shown · 2 omitted by safety or scan bounds/);
-  assert.match(allOmittedHtml,/2 changes omitted/);
-  assert.doesNotMatch(allOmittedHtml,/No changed files detected/);
+  assert.match(allOmittedHtml,/2 local changes/);
+  assert.match(allOmittedHtml,/2 changed files outside the represented graph/);
 
   const degradedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:3},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
@@ -386,11 +421,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(degradedModel.impact.detectionStatus,'unavailable');
   assert.equal(degradedModel.impact.repositoryDirtyCount,3);
   const degradedHtml=renderOverview(degradedModel);
-  assert.match(degradedHtml,/3 changed entries; file detection unavailable/);
-  assert.match(degradedHtml,/Git change detection is unavailable/);
-  assert.match(degradedHtml,/Retry scan/);
-  assert.match(degradedHtml,/Change detection unavailable/);
-  assert.doesNotMatch(degradedHtml,/No changed files are selected|Nothing needs review/);
+  assert.match(degradedHtml,/Local change detection unavailable/);
 
   assert.equal(shellStateMessageForOverview('stale'),'Pinned handoff source evidence changed and needs review.');
 
@@ -399,7 +430,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
   const unavailableSourceModel=buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}});
   assert.equal(unavailableSourceModel.state,'partial');
-  assert.match(renderOverview(unavailableSourceModel),/Bounded coverage/);
+  assert.match(renderOverview(unavailableSourceModel),/data-status="failed">Unavailable/);
 });
 
 test('shell defers protected workspace loads until local session evidence exists',()=>{
@@ -408,7 +439,7 @@ test('shell defers protected workspace loads until local session evidence exists
   assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'csrf_1' }),true);
 });
 
-test('source graph preview renders repo map start points',()=>{
+test('source graph preview renders bounded focus with scan truth',()=>{
   const report={
     graph:{
       graphFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -431,6 +462,13 @@ test('source graph preview renders repo map start points',()=>{
         {kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}
       ]
     },
+    orientation:{groups:[{id:'group_src',prefix:'src',fileCount:2,symbolCount:2,changedFileCount:1}],relations:[]},
+    focus:{nodes:[
+      {id:'sgnode_workflow',kind:'symbol',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7'},
+      {id:'sgnode_auth',kind:'symbol',label:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5'}
+    ],edges:[{id:'edge_1',kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}],omittedNodes:0,omittedEdges:0},
+    snapshot:{status:'fresh',reuse:'cache',builtAt:'2026-07-15T10:00:00.000Z'},
+    coverage:{status:'complete',representedFileCount:2,omittedFileCount:0,omittedEdgeCount:0,reasonCodes:[]},
     search:{total:1,results:[]},
     trace:{paths:[]},
     impact:{
@@ -440,21 +478,18 @@ test('source graph preview renders repo map start points',()=>{
     },
     safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
   };
-  const html=renderSourceGraphResult(report);
-  assert.match(html,/class="tool-workspace map-workspace"/);
-  assert.match(html,/Map results/);
-  assert.match(html,/Repo Map/);
-  assert.match(html,/Start here/);
+  const html=renderSourceMap({state:parseMapUrl('/map?query=runAuthWorkflow'),report});
+  assert.match(html,/class="tool-workspace source-map-workspace"/);
+  assert.match(html,/Focused map/);
   assert.match(html,/runAuthWorkflow/);
-  assert.match(html,/Changed impact/);
-  assert.match(html,/Read first/);
   assert.match(html,/workspace:\/\/src\/workflow\.ts#L3-L7/);
-  assert.match(html,/Files/);
   assert.match(html,/workspace:\/\/src\/auth\.ts/);
-  assert.match(html,/Key symbols/);
   assert.match(html,/TokenResetService/);
-  assert.match(html,/Import neighbors/);
-  assert.match(html,/src\/workflow\.ts -&gt; src\/auth\.ts/);
+  assert.match(html,/Source map outline/);
+  assert.match(html,/Scan truth/);
+  assert.match(html,/2 represented files/);
+  assert.match(html,/External writes/);
+  assert.match(html,/off/);
   assert.doesNotMatch(html,/class="metric-strip"/);
 });
 
@@ -462,6 +497,7 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.equal(deliveryChangeLabel(42),'42% reduction');
   assert.equal(deliveryChangeLabel(0),'No reduction');
   assert.equal(deliveryChangeLabel(-363),'363% overhead');
+  assert.equal(deliveryChangeLabel(100,0),'Not measured');
   const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => '2026-06-26T10:00:00.000Z' });
   t.after(() => provider.close());
   await provider.put({
@@ -603,6 +639,28 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(html, new RegExp(`<dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
 });
 
+test('memory route never reports savings when the baseline is absent', () => {
+  const html = renderMemoryCockpit({
+    workspaceId:'ws_local',
+    summary:{activeFactCount:0,pendingProposalCount:0},
+    facts:[], proposalQueue:[],
+    savings:{beforeDeliveryTokens:0,afterDeliveryTokens:0,tokensSaved:0,percent:100},
+    mcpStats:{available:true,callCount:0,deliveredTokens:0,baselineTokens:0,tokensSaved:0,byTool:[]}
+  });
+  assert.match(html,/Not measured/);
+  assert.doesNotMatch(html,/100% reduction/);
+});
+
+test('Settings presents real local controls and boundaries instead of design swatches', async () => {
+  const app = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  const settings = app.match(/function renderSettings\(\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.match(settings, /<h1>Settings<\/h1>/);
+  assert.match(settings, /Local storage/);
+  assert.match(settings, /Scan limits/);
+  assert.match(settings, /Privacy/);
+  assert.doesNotMatch(settings, /token-grid|class="swatch"|--signal/);
+});
+
 test('memory graph route renders governed graph canvas controls', async () => {
   const report = {
     schemaVersion: '1.0.0',
@@ -627,18 +685,18 @@ test('memory graph route renders governed graph canvas controls', async () => {
     safeguards: { readOnly: true, networkCalls: 0, modelCalls: 0, externalWritesEnabled: false },
     reportFingerprint: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   };
-  const model = buildMemoryGraphModel(report);
-  const html = renderMemoryGraph(report, { history: true, query: 'provider', communities: true });
+  const model = buildMemoryGraphViewModel(report, { history: true, query: '', communities: true });
+  const html = renderMemoryGraphView(model);
   const source = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
   assert.equal(model.summary.edgeCount, 2);
   assert.equal(model.nodes.some((node) => node.governedDecision), true);
   assert.match(html, /id="memory-graph-canvas"/);
   assert.match(html, /id="memory-graph-history"/);
   assert.match(html, /id="memory-graph-communities"/);
+  assert.match(html, /Group related facts/);
   assert.match(html, /provider:native:memory:sqlite/);
   assert.match(html, /legacy-view/);
-  assert.match(html, /Current facts/);
-  assert.match(html, /History facts/);
+  assert.match(html, /Fact history/);
   assert.match(html, /Superseded/);
   assert.match(html, /Provenance/);
   assert.match(html, /Valid from/);
@@ -681,6 +739,7 @@ test('context pack pin uses the reviewed build payload instead of a stale form p
 test('context pack user flow exposes artifact actions and safe harness commands',async()=>{
   assert.deepEqual(parseSelectedFiles('docs/handoff.md\n docs/handoff.md,notes/context.md '),['docs/handoff.md','notes/context.md']);
   const app=await readFile('apps/web/app.js','utf8');
+  const sourceMap=await readFile('apps/web/source-map-view.js','utf8');
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="copy-launch-prompt"/);
@@ -751,10 +810,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
-  assert.match(app,/value="\$\{esc\(query\|\|'where should I start'\)\}"/);
-  assert.match(app,/name="startName" value="" placeholder="optional function or class name"/);
-  assert.match(app,/name="changedLocator" value="" placeholder="src\/index\.js"/);
-  assert.doesNotMatch(app,/name="changedLocator" value="apps\/web\/app\.js"/);
+  assert.match(sourceMap,/value="\$\{escapeHtml\(state\.query\)\}"/);
+  assert.match(sourceMap,/name="startName" value="\$\{escapeHtml\(state\.startName\)\}"/);
+  assert.match(sourceMap,/name="changedLocator" value="\$\{escapeHtml\(state\.changedLocator\)\}"/);
+  assert.doesNotMatch(sourceMap,/where should I start/iu);
+  assert.doesNotMatch(sourceMap,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Pinned handoff status/);
@@ -888,7 +948,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     selectedFiles:['workspace://AGENTS.md'],
     requiredReadFiles:['workspace://AGENTS.md','workspace://apps/web/app.js'],
     excludedFiles:['workspace://.cursor/rules/fabric.mdc'],
-    command:"npm --silent run oaf -- measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
+    command:"recall measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
   });
   const tokenSaverHtml=renderContextPackTokenSaverSummary(model);
   assert.match(tokenSaverHtml,/Token Saver/);
@@ -1026,29 +1086,29 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(summaryIndex,receiveIndex+1);
   assert.match(model.commands[verifyIndex].command,/context registry status --read-only --format json/);
   const receiveCommand=model.commands[receiveIndex].command;
-  assert.equal(receiveCommand,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.equal(receiveCommand,'recall context receive --read-only --root . --target codex --format json');
   assert.doesNotMatch(receiveCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
   const summaryCommand=model.commands[summaryIndex].command;
-  assert.equal(summaryCommand,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
+  assert.equal(summaryCommand,'recall context receive --read-only --root . --target codex --format summary');
   assert.doesNotMatch(summaryCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
-  assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
-  assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(preflightCommand,/^recall context handoff --read-only /);
   assert.match(preflightCommand,/--from 'codex,cursor'/);
   assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
   const preflightSummaryCommand=model.commands.find((item)=>item.label==='Test handoff summary')?.command ?? '';
-  assert.match(preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(preflightSummaryCommand,/^recall context handoff --read-only /);
   assert.match(preflightSummaryCommand,/--from 'codex,cursor'/);
   assert.match(preflightSummaryCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format summary/);
   assert.doesNotMatch(preflightSummaryCommand,/--write|--pin|--out|install/);
   const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
-  assert.match(impactCommand,/^npm --silent run oaf -- measure context-pack --read-only /);
+  assert.match(impactCommand,/^recall measure context-pack --read-only /);
   assert.match(impactCommand,/--from 'codex,cursor'/);
   assert.match(impactCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
   assert.doesNotMatch(impactCommand,/--write|--pin|--out|install/);
-  assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
-  assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
   assert.equal(model.commands.some((item)=>/harness setup plan --client codex --server oaf --dry-run --format json/.test(item.command)),true);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
   assert.equal(model.commands.some((item)=>item.command.includes('context-pack/registry/current')),true);
@@ -1173,10 +1233,10 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(ready.statusLabel,'verified');
   assert.equal(ready.targetLabel,'Codex');
   assert.equal(ready.primaryCommand.label,'Receive pinned pack');
-  assert.equal(ready.primaryCommand.command,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.equal(ready.primaryCommand.command,'recall context receive --read-only --root . --target codex --format json');
   assert.equal(canReceivePinnedHandoff(ready.state),true);
   assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
-  assert.equal(ready.commands.find((item)=>item.label==='Receive summary')?.command,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
+  assert.equal(ready.commands.find((item)=>item.label==='Receive summary')?.command,'recall context receive --read-only --root . --target codex --format summary');
   assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
   assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
 
@@ -1279,10 +1339,10 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(handoffStatus.safeguards.configWrites,false);
   assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
   assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
-  assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(handoffStatus.preflightCommand,/^recall context handoff --read-only /);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
-  assert.match(handoffStatus.preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(handoffStatus.preflightSummaryCommand,/^recall context handoff --read-only /);
   assert.match(handoffStatus.preflightSummaryCommand,/--format summary/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--write|--pin|--out|install/);
@@ -1429,8 +1489,8 @@ test('agents tools exposes dry-run harness setup planning without install afford
   assert.equal(model.client,'Cursor');
   assert.equal(model.configRef,'home://.cursor/mcp.json');
   assert.equal(model.operation,'add oaf with read-only OAF MCP stdio resource bridge');
-  assert.equal(model.command,'npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json');
-  assert.equal(model.bridgeCommand,'npm --silent run oaf -- mcp resources --read-only --stdio');
+  assert.equal(model.command,'recall harness setup plan --client cursor --server oaf --dry-run --format json');
+  assert.equal(model.bridgeCommand,'recall mcp resources --read-only --stdio');
   assert.equal(model.manualConfigSnippet.configRef,'home://.cursor/mcp.json');
   assert.match(model.manualConfigSnippet.content,/mcpServers/);
   assert.deepEqual(model.safeguards.find(([label])=>label==='External writes'),['External writes','disabled']);

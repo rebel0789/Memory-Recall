@@ -1,8 +1,8 @@
 export const PRIMARY_NAV = Object.freeze([
-  { id: 'overview', routeId: 'home', path: '/', label: 'Overview' },
-  { id: 'map', routeId: 'source-graph', path: '/map', label: 'Map' },
-  { id: 'memory', routeId: 'memory', path: '/memory', label: 'Memory' },
-  { id: 'handoffs', routeId: 'context-pack', path: '/handoffs', label: 'Handoffs' },
+  { id: 'overview', routeId: 'home', path: '/', label: 'Start' },
+  { id: 'map', routeId: 'source-graph', path: '/map', label: 'Explore code' },
+  { id: 'memory', routeId: 'memory', path: '/memory', label: 'Review memory' },
+  { id: 'handoffs', routeId: 'context-pack', path: '/handoffs', label: 'Prepare handoff' },
   { id: 'settings', routeId: 'settings', path: '/settings', label: 'Settings' }
 ]);
 
@@ -35,12 +35,13 @@ export function navigationItemsFor(mode) {
 }
 
 export function selectOverviewPrimaryAction(model = {}) {
-  if (model.state === 'loading' || model.state === 'error') return null;
+  if (model.state === 'loading' || model.state === 'error' || model.state === 'failure') return null;
   if (model.state === 'empty') return { label: 'Scan repository', route: '/', action: 'refresh-recall-map' };
-  const pendingCount = Number(model.memory?.pendingCount ?? 0);
+  const pendingCount = Number(model.trust?.memory?.pendingCount ?? model.memory?.pendingCount ?? 0);
   if (pendingCount > 0) return { label: `Review ${pendingCount} proposal${pendingCount === 1 ? '' : 's'}`, route: '/memory', routeId: 'memory' };
-  if (model.handoff?.state === 'blocked') return { label: 'Repair handoff', route: '/handoffs', routeId: 'context-pack' };
-  if (model.state === 'stale' || model.handoff?.state === 'review') return { label: 'Update handoff', route: '/handoffs', routeId: 'context-pack' };
-  if (model.handoff?.state === 'ready') return { label: 'View current handoff', route: '/handoffs', routeId: 'context-pack' };
+  const handoffState = model.trust?.handoff?.state ?? model.handoff?.state;
+  if (handoffState === 'blocked') return { label: 'Repair handoff', route: '/handoffs', routeId: 'context-pack' };
+  if (model.state === 'stale' || handoffState === 'review') return { label: 'Update handoff', route: '/handoffs', routeId: 'context-pack' };
+  if (handoffState === 'ready') return { label: 'View current handoff', route: '/handoffs', routeId: 'context-pack' };
   return null;
 }

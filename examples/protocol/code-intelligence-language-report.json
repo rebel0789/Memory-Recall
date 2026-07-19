@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-language-report-1",
+  "truthId": "citruth_typescript_protocol_fixture",
+  "language": "typescript",
+  "sourceRef": "fixture://sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "graphFingerprints": [
+    "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+  ],
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "not-applicable"
+  },
+  "metrics": {
+    "declarationRecall": { "numerator": 1, "denominator": 1, "value": 1 },
+    "relationshipRecall": { "numerator": 1, "denominator": 1, "value": 1 },
+    "reviewedCallPrecision": { "numerator": 0, "denominator": 0, "value": null },
+    "duplicateCanonicalSymbolCount": 0,
+    "parseFailureCount": 0,
+    "deterministicGraphFingerprint": true,
+    "truthItemCount": 2,
+    "matchedTruthItemCount": 2
+  },
+  "capabilities": [
+    { "id": "parse", "claim": "partial", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "structure", "claim": "partial", "benchmarkStatus": "unmeasured", "itemCount": 2, "matchedItemCount": 2 },
+    { "id": "imports", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "exports", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "heritage", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "types", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "calls", "claim": "unmeasured", "benchmarkStatus": "not-applicable", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "config", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "frameworks", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "impact", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 },
+    { "id": "processes", "claim": "unmeasured", "benchmarkStatus": "unmeasured", "itemCount": 0, "matchedItemCount": 0 }
+  ],
+  "failures": [],
+  "gateDecision": "pass",
+  "claims": { "accuracyFloorMet": false, "parity": false, "leadership": false },
+  "safeguards": {
+    "rawSourceStored": false,
+    "absolutePathsStored": false,
+    "environmentVariablesStored": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "workspaceWrites": 0
+  },
+  "reportFingerprint": "sha256:a3549e0472f11b1afba67b04eb9f295904441f3f55b3a428248a74023505a63c"
+}

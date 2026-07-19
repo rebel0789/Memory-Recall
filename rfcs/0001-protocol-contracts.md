@@ -55,6 +55,40 @@ schema-valid complete envelope and otherwise returns its unavailable report.
 Colon-bearing source-graph labels are limited to safe `node:` built-in module
 names and the fixed `local:absolute-import` placeholder.
 
+Additive v1 coverage can also identify the active ignore policy and report
+candidate, represented, and omitted graph counts by node or edge kind. Node and
+edge budgets are enforced while the graph is built, with structural and call
+edges retained before reference edges. A partial result remains read-only: the
+omission fields describe missing representation and never grant access to
+ignored files, absolute paths, source bodies, or additional operations.
+
+The code-intelligence graph adds a provider-neutral, bounded contract for the
+production native engine. It fixes canonical structural IDs and stable node,
+edge, language, resolution, evidence, generation, and freshness vocabularies.
+Closed records reject raw source bodies, absolute paths, provider identities,
+parser-native IDs, and arbitrary metadata. The graph is derived local state and
+does not become canonical memory or approval authority. This schema is additive
+within v1; `source-graph.schema.json` remains the JavaScript and TypeScript
+compatibility surface until the native migration passes its release gates.
+
+The native engine request and response schemas add the versioned JSON Lines
+process contract. Node supplies one bounded `graph.build` request rooted at the
+child process working directory, enforces the deadline and optional
+cancellation token, and validates both the response envelope and nested graph.
+The engine emits protocol frames only on stdout. Failures use stable error
+codes with sanitized details; raw errors, source text, absolute paths, provider
+objects, filesystem authority, and network authority are not protocol fields.
+
+The code-intelligence capability matrix can record an additive per-capability
+applicability value and rationale. Tier 1 semantic auditing requires both
+fields. A `not-applicable` row must also use the `not-applicable` benchmark
+state and the `unsupported` product state. Applicable rows cannot use that
+benchmark state. This keeps language semantics separate from missing fixture or
+repository evidence and prevents an unsupported applicable behavior from
+becoming green through an empty sample. Older v1 matrix rows without these
+optional schema fields remain structurally valid, but they cannot pass the
+current Tier 1 semantic audit.
+
 ## Requirements
 
 - canonical IDs are independent of providers;

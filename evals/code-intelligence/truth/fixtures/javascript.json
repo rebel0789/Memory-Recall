@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_javascript_import_call_fixture",
+  "language": "javascript",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:1b50b0e6528f5495afff53ce1dd819b6201f81d7d0558f8dce6baa8f9c928e02"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "exhaustive"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_javascript_helper",
+      "semanticKey": "node:function:helper.js:helper",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "helper",
+      "qualifiedName": "helper.js::helper",
+      "locator": "workspace://helper.js#L1-L1"
+    },
+    {
+      "id": "cititem_javascript_health",
+      "semanticKey": "node:function:routes/health.js:health",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "health",
+      "qualifiedName": "routes/health.js::health",
+      "locator": "workspace://routes/health.js#L2-L2"
+    },
+    {
+      "id": "cititem_javascript_import_helper",
+      "semanticKey": "edge:imports:routes/health.js:helper.js",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "routes_health",
+        "qualifiedName": "routes/health.js::routes_health",
+        "locator": "workspace://routes/health.js#L1-L3"
+      },
+      "to": {
+        "kind": "module",
+        "name": "helper",
+        "qualifiedName": "helper.js::helper",
+        "locator": "workspace://helper.js#L1-L2"
+      },
+      "locator": "workspace://routes/health.js#L1-L1",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_javascript_export_health",
+      "semanticKey": "edge:exports:routes/health.js:health",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "routes_health",
+        "qualifiedName": "routes/health.js::routes_health",
+        "locator": "workspace://routes/health.js#L1-L3"
+      },
+      "to": {
+        "kind": "function",
+        "name": "health",
+        "qualifiedName": "routes/health.js::health",
+        "locator": "workspace://routes/health.js#L2-L2"
+      },
+      "locator": "workspace://routes/health.js#L2-L2",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_javascript_call_helper",
+      "semanticKey": "edge:calls:routes/health.js:health:helper",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "health",
+        "qualifiedName": "routes/health.js::health",
+        "locator": "workspace://routes/health.js#L2-L2"
+      },
+      "to": {
+        "kind": "function",
+        "name": "helper",
+        "qualifiedName": "helper.js::helper",
+        "locator": "workspace://helper.js#L1-L1"
+      },
+      "locator": "workspace://routes/health.js#L2-L2",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_javascript_call_module_absent",
+      "semanticKey": "edge:calls:routes/health.js:health:module:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "health",
+        "qualifiedName": "routes/health.js::health",
+        "locator": "workspace://routes/health.js#L2-L2"
+      },
+      "to": {
+        "kind": "module",
+        "name": "helper",
+        "qualifiedName": "helper.js::helper",
+        "locator": "workspace://helper.js#L1-L1"
+      },
+      "locator": "workspace://routes/health.js#L2-L2"
+    }
+  ],
+  "truthFingerprint": "sha256:2eabc4fc261ed2d4c886ec5dd24c8cbd5722c179d5af913d1cb5c00ca845ce55"
+}

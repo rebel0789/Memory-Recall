@@ -1,6 +1,6 @@
 # Assignment Brief for the Development Agent
 
-You are working on **Memory Recall 1.1.0**, currently an unreleased release candidate. Evolve it through small verified changes. Do not rebuild the architecture from scratch and never claim that specified capabilities already exist.
+You are working on **Memory Recall 2.0.0**, currently a major-release candidate. Evolve it through small verified changes. Do not rebuild the architecture from scratch and never claim that specified capabilities already exist.
 
 ## Mission
 

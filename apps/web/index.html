@@ -36,14 +36,22 @@
         <div class="repository-identity">
           <span id="repository-branch">Branch unavailable</span>
           <span id="repository-scan">Not scanned</span>
+          <span id="repository-boundary">Local only / External writes off</span>
         </div>
         <form id="global-search-form" class="global-search" role="search" action="/map">
+          <label class="sr-only" for="global-search-intent">Command intent</label>
+          <select id="global-search-intent" name="intent" aria-label="Command intent">
+            <option value="explain">Explain module</option>
+            <option value="trace">Trace symbol</option>
+            <option value="impact">Inspect changed-file impact</option>
+            <option value="handoff">Prepare handoff</option>
+          </select>
           <label class="sr-only" for="global-search-input">Search files, symbols, concepts, or paths</label>
-          <input id="global-search-input" name="query" type="search" maxlength="256" placeholder="Search repository" autocomplete="off">
-          <button type="submit">Search</button>
+          <input id="global-search-input" name="query" type="search" maxlength="256" placeholder="File, symbol, concept, or path" autocomplete="off">
+          <button type="submit">Run</button>
         </form>
         <div class="repository-actions">
-          <span id="repository-condition" class="condition" role="status">Loading</span>
+          <span id="repository-condition" class="condition sr-only" role="status">Loading</span>
           <a class="icon-link" href="/settings" data-route="settings">Settings</a>
         </div>
       </header>

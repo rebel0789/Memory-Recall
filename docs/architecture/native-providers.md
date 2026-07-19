@@ -15,8 +15,7 @@ Native providers make the local product useful without optional integrations. Th
 | `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
 | `native.context-candidate.exact` | on | Workspace-scoped exact candidate lookup by canonical record ID |
 | `native.context-candidate.lexical` | on | Deterministic lexical candidate lookup over safe record fields |
-| `native.context-candidate.ast-code` | on | Dependency-free JS/TS chunk and symbol candidate source |
-| `native.context-candidate.graph` | on | Locator-only candidate source over the derived JS/TS source graph |
+| `native.code-intelligence.rust` | on | Verified packaged Rust code intelligence over the explicit local SQLite index |
 | `native.context-manifest.local` | on | Workspace-scoped immutable local context manifest persistence |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
 | `native.tool.brokered-local` | on | Reviewed checksum-pinned local tool execution behind brokers |
@@ -130,7 +129,7 @@ external writes disabled.
 
 ## Context candidate-source providers
 
-The native exact, lexical, and AST-code providers implement
+The native exact and lexical providers implement
 `CandidateSourcePort` version `1.0.0`. Exact and lexical remain the
 conformance baselines for OAF-010 candidate generation. None of these sources
 is a storage engine or final selector.
@@ -153,24 +152,17 @@ Both sources require contextual policy allow decisions before invocation and
 candidate-level policy allow decisions before output. Secret data is denied for
 model-context candidate generation by default.
 
-The AST-code source is a dependency-free static JS/TS chunker and symbol index
-for workspace files. It records parser version, workspace locator, byte and
-line ranges, scope chain, symbol/import/export metadata, sibling locators,
-signature hashes, exact reconstruction hashes, parse-error state, file
-outlines, repository outlines, and content-hash journals without returning raw
-source bodies or absolute local paths. It supports read-only definition,
-reference, import, export, caller, callee, file-outline, and repository-outline
-queries over the derived index. It is not a full semantic parser, language
-server, graph index, executor, or Tree-sitter runtime.
-
 OAF-011 preserves exact and lexical providers as conformance baselines. Hybrid
 fusion, global reranking, diversity, category caps, and token budgeting live in
 `packages/context-compiler/src/index.mjs`, not in candidate-source providers.
 Vector, temporal, preference, and episode source kinds remain declared but
-unavailable until later tasks add explicit providers. The native graph source
-is available now as a locator-only wrapper over the derived JS/TS source graph;
-it is still not a graph database, semantic retrieval provider, or authority
-surface.
+unavailable until later tasks add explicit providers.
+
+The packaged Rust code-intelligence provider owns source structure, search,
+trace, impact, and graph projections. It reads only a healthy, current local
+SQLite index, returns locator-only bounded metadata, and requires an explicit
+native build, refresh, or repair action when the index is unavailable. It is
+not a graph database, semantic retrieval provider, or authority surface.
 
 ## Context manifest provider
 

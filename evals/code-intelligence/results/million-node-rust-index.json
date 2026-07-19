@@ -1,0 +1,264 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-million-node-rust-index-2",
+  "generatedAt": "2026-07-18T19:49:05.904Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3",
+    "nativeVersion": "1.1.1",
+    "nativeTarget": "darwin-arm64",
+    "nativeSource": "checkout",
+    "rssMeasurement": "direct-child-ps-sampled"
+  },
+  "execution": {
+    "binarySha256": "sha256:887377a8529ad51fc616f87228819b7222723c75485331d157eef2cf8d869d9d",
+    "checkoutCommit": "bec0d4dfcb97e819e36c2b9142fd108ddc60f835",
+    "checkoutDirtyBeforeRun": false,
+    "argvTemplate": [
+      "<checkout-rust-binary>",
+      "code-intelligence",
+      "index",
+      "--stdio"
+    ],
+    "rssSampling": {
+      "method": "direct-child-ps-sampled",
+      "cadenceMs": 250
+    }
+  },
+  "fixture": {
+    "ref": "fixture://sha256:2f30b0575852d4d724184eb74580a8148f187cd11fec632779b0d46012634b43",
+    "language": "javascript",
+    "shape": "base36-empty-classes-v2",
+    "fileCount": 1000,
+    "classesPerFile": 998,
+    "expectedNodeCount": 1000000,
+    "expectedEdgeCount": 999000,
+    "totalSourceBytes": 10943008,
+    "maxSourceFileBytes": 10951
+  },
+  "bounds": {
+    "maxFiles": 1000,
+    "maxFileBytes": 524288,
+    "maxNodes": 1000000,
+    "maxEdges": 1000000,
+    "buildDeadlineMs": 300000,
+    "queryDeadlineMs": 2000,
+    "queryRepetitions": 20
+  },
+  "index": {
+    "fileCount": 1000,
+    "nodeCount": 1000000,
+    "edgeCount": 999000,
+    "unresolvedCount": 0,
+    "omittedCount": 0,
+    "databaseBytes": 1588875264
+  },
+  "proof": {
+    "measuredBoundary": "exactly-1000000-committed-nodes",
+    "generatedFixtureNodeCount": 1000000,
+    "buildCommittedNodeCount": 1000000,
+    "warmStatusCommittedNodeCount": 1000000,
+    "querySamplesAllReadCommittedMillion": true,
+    "finalStatusCommittedNodeCount": 1000000
+  },
+  "measurements": {
+    "indexAndPersist": {
+      "status": "complete",
+      "wallMs": 80392.764,
+      "engineDurationMs": 80075,
+      "peakNativeRssMb": 11309.1,
+      "rssMeasurement": "direct-child-ps-sampled",
+      "rssSampleIntervalMs": 250,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 1079,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:610e58a2475afdcc9b17d89ca9538307a9efaf5896efeb58164a558518f496e6",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parsedFileCount": 1000,
+      "reusedFileCount": 0,
+      "changedFileCount": 1000,
+      "deletedFileCount": 0,
+      "localFilesWritten": 1,
+      "state": "ready",
+      "freshness": "current",
+      "activeGeneration": 1
+    },
+    "warmOpen": {
+      "status": "complete",
+      "wallMs": 1356.773,
+      "engineDurationMs": 1349,
+      "peakNativeRssMb": 14.1,
+      "rssMeasurement": "direct-child-ps-sampled",
+      "rssSampleIntervalMs": 250,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 1132,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:e7f1a90fe27ba99aa13af6af391363290873c27942ef259886269f3a344734ce",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parsedFileCount": 0,
+      "reusedFileCount": 1000,
+      "changedFileCount": 0,
+      "deletedFileCount": 0,
+      "localFilesWritten": 0,
+      "state": "ready",
+      "freshness": "current",
+      "activeGeneration": 1
+    },
+    "noChangeRefresh": {
+      "status": "complete",
+      "wallMs": 3851.331,
+      "engineDurationMs": 3682,
+      "peakNativeRssMb": 839.9,
+      "rssMeasurement": "direct-child-ps-sampled",
+      "rssSampleIntervalMs": 250,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 1077,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:941058704a1b3b885e4dea985b55b69e3bfa69e1a8cde7dd124801d8a3cea1d6",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parsedFileCount": 0,
+      "reusedFileCount": 1000,
+      "changedFileCount": 0,
+      "deletedFileCount": 0,
+      "localFilesWritten": 0,
+      "state": "ready",
+      "freshness": "current",
+      "activeGeneration": 1
+    },
+    "oneFileRefresh": {
+      "status": "complete",
+      "wallMs": 51107.015,
+      "engineDurationMs": 50890,
+      "peakNativeRssMb": 7708.3,
+      "rssMeasurement": "direct-child-ps-sampled",
+      "rssSampleIntervalMs": 250,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 1078,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:c408caeb195ffbc3752a25d83e596340f2771591aaa9af40a60cfb8eefd706db",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parsedFileCount": 1,
+      "reusedFileCount": 999,
+      "changedFileCount": 1,
+      "deletedFileCount": 0,
+      "localFilesWritten": 1,
+      "state": "ready",
+      "freshness": "current",
+      "activeGeneration": 2
+    },
+    "exactQuery": {
+      "status": "complete",
+      "repetitions": 20,
+      "resultCount": 1,
+      "expectedSeedLocators": [
+        "workspace://src/dense-0000.js#L1-L1"
+      ],
+      "seedLocators": [
+        "workspace://src/dense-0000.js#L1-L1"
+      ],
+      "expectedSeedPresent": true,
+      "stableResultFingerprint": "sha256:0ca0d39c0a16ec9fa6b9010307be2bfabc72e0591a8bd92abe953994fa6bf101",
+      "committedNodeCount": 1000000,
+      "omittedCount": 0,
+      "readOnly": true,
+      "wallMs": {
+        "p50": 1512.861,
+        "p95": 1547.219,
+        "p99": 1552.586
+      },
+      "engineDurationMs": {
+        "p50": 1506,
+        "p95": 1540,
+        "p99": 1545
+      },
+      "peakNativeRssMb": 15.1,
+      "stdoutBytes": {
+        "p50": 1314,
+        "p95": 1314,
+        "p99": 1314
+      },
+      "stderrBytes": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "stdoutSha256": [
+        "sha256:1472e6e773926d8a07335c985df769a557d272fe60982e4dcff82bf8ac8601b0",
+        "sha256:1708b043dbd29189a01007127ea2e3793836cc0a14ea85db95b8bf9278712cb8",
+        "sha256:25eff1bc120493147c71f1e912f60db26576acdec3e5f7bb6dc3a0429faaec80",
+        "sha256:281832e2bc95c5de8c11bde845871c6f0f6c22186c456d5cbedd0f1d2eb7afad",
+        "sha256:2cfa5774c533ae0498d54b06c4c4615d1382348e5e4d98432becd30e6cba0778",
+        "sha256:3add152bf1a929b9bb12fed8f38757193305dccd171a5e9784d30da659473a85",
+        "sha256:49091c4db97f38228c4a4d22f2c3996fac1bc54f3376c3bc7f21683edba2d68b",
+        "sha256:64705774088dce57f090ce4c0ed018ec46ab38caf71e6385c49e5a44a8c07063",
+        "sha256:66983624cc0f5fc4281e1dc95538af000dd9a281caa6b0d7ec772f3ab505c5ed",
+        "sha256:72c377b38842db23b5b0ba77ed3b607802b773524f9025a0e3d5d647ad7fe115",
+        "sha256:7698ec0303a36a3b03073fd23f2ec841e58300fe19d24a3cfd88dde244f4c003",
+        "sha256:80d43ad6689a8ddb0bdfaceba10b907d740bfd5ce710caa8382cb9e612c3d306",
+        "sha256:93e03653a3b0861a20ef0a66fec4bf322f7a95b16db64fbe5f89d8f3835f4c4a",
+        "sha256:ab39c89d1f50b5ba4945de8f09a4a95eab3e69cab43ccf959b82575a3a33a668",
+        "sha256:af8aa7e27945738ff9a719711cd892ec9b22046dd5d87f66fb7924911e7382a8",
+        "sha256:c66f01a3f53758d17e607a4dbee3e2e540597049a0d93c93c98cd9732bef0d02",
+        "sha256:d43e157500c34a2d45300460a9fb1058cea1c3a3c781065b0c25877259759627",
+        "sha256:d55271af0bc86802b35659800abf1a759188a4e33639c166c5435538b91fb66e",
+        "sha256:dc51d5b42034a6f06493de35125003c46fd26f6a064a11b2f7ed67a5fbd4e9e3",
+        "sha256:dd54254f16df76b1565d1b4cdb23ebc31e8b992f59f223f9e373f37741be0048"
+      ],
+      "stderrSha256": [
+        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ],
+      "exitCodes": [
+        0
+      ],
+      "signals": [
+        null
+      ],
+      "timedOut": false,
+      "localFilesWritten": 0,
+      "sqliteBefore": {
+        "bytes": 795504640,
+        "mtimeNs": "1784404055164683274",
+        "sha256": "sha256:64ce59ab24dbc5d320e8f98234c42fbed6ff9a879ae277de24dac7394019f09d"
+      },
+      "sqliteAfter": {
+        "bytes": 795504640,
+        "mtimeNs": "1784404055164683274",
+        "sha256": "sha256:64ce59ab24dbc5d320e8f98234c42fbed6ff9a879ae277de24dac7394019f09d"
+      }
+    }
+  },
+  "failures": [],
+  "gateDecision": "pass",
+  "claims": {
+    "millionNodeScaleProven": true,
+    "competitorParity": false,
+    "leadership": false,
+    "reason": "This local benchmark proves one million persisted Rust index nodes with bounded SQLite refresh and exact-query measurements on the recorded platform."
+  },
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "rawSourceStoredInReport": false,
+    "absolutePathsStoredInReport": false,
+    "fixtureDeletedAfterRun": true
+  },
+  "reportFingerprint": "sha256:9c4fac2ada19acff0df4f13ba3519a92f2ddc59f64e0da1aec52312f0795707a"
+}

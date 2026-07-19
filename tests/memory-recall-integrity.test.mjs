@@ -10,6 +10,7 @@ import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/inde
 
 const cliPath = path.resolve('apps/cli/oaf.mjs');
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+const rustBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 
 function mcpResult(lines, id) {
   const response = lines.map((line) => JSON.parse(line)).find((entry) => entry.id === id);
@@ -199,7 +200,16 @@ test('MCP repo.map separates active facts from proposals and never returns sourc
     provider.close();
   }
   const sqliteBefore = await readFile(path.join(root, '.local', 'memory.sqlite'));
-  const env = { ...process.env, OAF_FIXED_NOW: '2026-07-11T12:00:00.000Z' };
+  const env = {
+    ...process.env,
+    MEMORY_RECALL_NATIVE_BINARY: rustBinary,
+    OAF_FIXED_NOW: '2026-07-11T12:00:00.000Z'
+  };
+  const indexed = spawnSync(process.execPath, [
+    cliPath, 'graph', 'index', '--write', '--engine', 'native', '--languages', 'typescript',
+    '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(indexed.status, 0, indexed.stderr);
   const input = [
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),

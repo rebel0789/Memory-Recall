@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/code-intelligence-engine-request.schema.json",
+  "title": "Code Intelligence Engine Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "requestId",
+    "workspaceId",
+    "operation",
+    "root",
+    "deadlineMs",
+    "responseSchemaVersion",
+    "arguments"
+  ],
+  "properties": {
+    "protocolVersion": { "const": "1.0.0" },
+    "requestId": { "$ref": "#/$defs/requestId" },
+    "workspaceId": { "$ref": "#/$defs/workspaceId" },
+    "operation": { "const": "graph.build" },
+    "root": { "const": "." },
+    "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+    "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+    "responseSchemaVersion": { "const": "1.0.0" },
+    "arguments": { "$ref": "#/$defs/arguments" }
+  },
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "pattern": "^cireq_[a-f0-9]{32}$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "cancellationToken": {
+      "type": "string",
+      "pattern": "^cancel_[a-f0-9]{32}$"
+    },
+    "language": {
+      "enum": [
+        "typescript",
+        "javascript",
+        "python",
+        "java",
+        "kotlin",
+        "csharp",
+        "go",
+        "rust",
+        "php",
+        "ruby",
+        "swift",
+        "c",
+        "cpp",
+        "dart",
+        "lua",
+        "bash",
+        "sql",
+        "objective-c",
+        "scala",
+        "r",
+        "julia",
+        "zig"
+      ]
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxFiles", "maxFileBytes", "maxNodes", "maxEdges"],
+      "properties": {
+        "maxFiles": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxFileBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "maxNodes": { "type": "integer", "minimum": 1, "maximum": 5000 },
+        "maxEdges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "languages": {
+          "type": "array",
+          "maxItems": 22,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/language" }
+        }
+      }
+    }
+  }
+}

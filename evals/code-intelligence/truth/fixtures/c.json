@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_c_batch_d_fixture",
+  "language": "c",
+  "source": { "class": "fixture", "ref": "fixture://sha256:de5378c339ebaf83d8a1967b20b16b0edbf9152c3309235a78b3bb5cf4a629f5" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "unmeasured", "types": "unmeasured", "calls": "partial", "config": "partial", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_c_target_items", "semanticKey": "node:build-target:items", "capability": "config", "expectation": "present", "recordKind": "node", "kind": "build_target", "name": "items", "qualifiedName": "CMakeLists.txt::items", "locator": "workspace://CMakeLists.txt#L3-L3" },
+    { "id": "cititem_c_struct_item", "semanticKey": "node:struct:Item", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "struct", "name": "Item", "qualifiedName": "include/item.h::Item", "locator": "workspace://include/item.h#L4-L6" },
+    { "id": "cititem_c_function_find", "semanticKey": "node:function:item-find", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "item_find", "qualifiedName": "src/item.c::item_find", "locator": "workspace://src/item.c#L3-L6" },
+    { "id": "cititem_c_function_main", "semanticKey": "node:function:main", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "main", "qualifiedName": "src/main.c::main", "locator": "workspace://src/main.c#L3-L6" },
+    { "id": "cititem_c_import_header", "semanticKey": "edge:imports:item-source:item-header", "capability": "imports", "expectation": "present", "recordKind": "edge", "kind": "imports", "from": { "kind": "module", "name": "src_item", "locator": "workspace://src/item.c#L1-L7" }, "to": { "kind": "module", "name": "include_item", "locator": "workspace://include/item.h#L1-L11" }, "locator": "workspace://src/item.c#L1-L2", "resolution": "exact" },
+    { "id": "cititem_c_import_header_not_self", "semanticKey": "edge:imports:item-source:item-header-line:not-self", "capability": "imports", "expectation": "absent", "recordKind": "edge", "kind": "imports", "from": { "kind": "module", "name": "src_item", "locator": "workspace://src/item.c#L1-L7" }, "to": { "kind": "module", "name": "src_item", "locator": "workspace://src/item.c#L1-L7" }, "locator": "workspace://src/item.c#L1-L2", "resolution": "exact" },
+    { "id": "cititem_c_call_find", "semanticKey": "edge:calls:main:item-find", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "main", "locator": "workspace://src/main.c#L3-L6" }, "to": { "kind": "function", "name": "item_find", "locator": "workspace://src/item.c#L3-L6" }, "locator": "workspace://src/main.c#L4-L4", "resolution": "inferred" },
+    { "id": "cititem_c_target_depends_item", "semanticKey": "edge:depends-on:items:item-module", "capability": "config", "expectation": "present", "recordKind": "edge", "kind": "depends_on", "from": { "kind": "build_target", "name": "items", "locator": "workspace://CMakeLists.txt#L3-L3" }, "to": { "kind": "module", "name": "src_item", "locator": "workspace://src/item.c#L1-L7" }, "locator": "workspace://CMakeLists.txt#L3-L3", "resolution": "exact" },
+    { "id": "cititem_c_entry_main", "semanticKey": "edge:entry-point:main:items", "capability": "config", "expectation": "present", "recordKind": "edge", "kind": "entry_point", "from": { "kind": "function", "name": "main", "locator": "workspace://src/main.c#L3-L6" }, "to": { "kind": "build_target", "name": "items", "locator": "workspace://CMakeLists.txt#L3-L3" }, "locator": "workspace://CMakeLists.txt#L3-L3", "resolution": "exact" }
+  ],
+  "truthFingerprint": "sha256:de371ecfd9cad7bdd9b37df9e35ea376be31d5d9220a2854802aac122e45ec49"
+}
