@@ -11,11 +11,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: cargo build --locked --release --manifest-path rust/Cargo.toml --package oaf
       - run: npm run bootstrap
       - run: npm run doctor
       - run: npm run ci
